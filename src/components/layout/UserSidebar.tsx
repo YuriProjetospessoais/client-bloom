@@ -25,48 +25,12 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useAuth } from '@/lib/auth/AuthContext';
 
 const menuItems = [
-  { 
-    key: 'dashboard',
-    url: '/dashboard', 
-    icon: LayoutDashboard,
-    label: 'dashboard',
-  },
-  { 
-    key: 'crm',
-    url: '/crm', 
-    icon: Target,
-    label: 'crm',
-  },
-  { 
-    key: 'leads',
-    url: '/leads', 
-    icon: UserPlus,
-    label: 'leads',
-  },
-  { 
-    key: 'schedule',
-    url: '/schedule', 
-    icon: Calendar,
-    label: 'schedule',
-  },
-  { 
-    key: 'alerts',
-    url: '/alerts', 
-    icon: Bell,
-    label: 'alerts',
-  },
-  { 
-    key: 'attendance',
-    url: '/attendance', 
-    icon: ClipboardCheck,
-    label: 'profile',
-  },
-  { 
-    key: 'profile',
-    url: '/profile', 
-    icon: User,
-    label: 'profile',
-  },
+  { key: 'dashboard', url: '/user/dashboard', icon: LayoutDashboard, label: 'dashboard' },
+  { key: 'crm', url: '/user/crm', icon: Target, label: 'crm' },
+  { key: 'leads', url: '/user/leads', icon: UserPlus, label: 'leads' },
+  { key: 'schedule', url: '/user/schedule', icon: Calendar, label: 'schedule' },
+  { key: 'alerts', url: '/user/alerts', icon: Bell, label: 'alerts' },
+  { key: 'profile', url: '/user/profile', icon: User, label: 'profile' },
 ];
 
 export function UserSidebar() {

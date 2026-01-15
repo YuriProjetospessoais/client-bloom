@@ -22,30 +22,10 @@ import {
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 const menuItems = [
-  { 
-    key: 'dashboard',
-    url: '/super-admin/dashboard', 
-    icon: LayoutDashboard,
-    translationKey: 'dashboard' as const,
-  },
-  { 
-    key: 'companies',
-    url: '/super-admin/companies', 
-    icon: Building2,
-    translationKey: 'companies' as const,
-  },
-  { 
-    key: 'users',
-    url: '/super-admin/users', 
-    icon: Users,
-    translationKey: 'users' as const,
-  },
-  { 
-    key: 'plans',
-    url: '/super-admin/plans', 
-    icon: CreditCard,
-    translationKey: 'plans' as const,
-  },
+  { key: 'dashboard', url: '/global/dashboard', icon: LayoutDashboard, translationKey: 'dashboard' as const },
+  { key: 'companies', url: '/global/companies', icon: Building2, translationKey: 'companies' as const },
+  { key: 'users', url: '/global/users', icon: Users, translationKey: 'users' as const },
+  { key: 'plans', url: '/global/plans', icon: CreditCard, translationKey: 'plans' as const },
 ];
 
 export function SuperAdminSidebar() {
