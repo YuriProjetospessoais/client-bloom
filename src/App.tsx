@@ -25,11 +25,11 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <LanguageProvider>
-        <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
+        <BrowserRouter>
+          <AuthProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
               <Routes>
                 {/* Public routes */}
                 <Route path="/" element={<Index />} />
@@ -63,26 +63,26 @@ const App = () => (
                 </Route>
 
                 {/* User routes */}
-                <Route path="/" element={
+                <Route element={
                   <ProtectedRoute allowedRoles={['user']}>
                     <UserLayout />
                   </ProtectedRoute>
                 }>
-                  <Route path="dashboard" element={<DashboardPage />} />
-                  <Route path="crm" element={<DashboardPage />} />
-                  <Route path="leads" element={<DashboardPage />} />
-                  <Route path="schedule" element={<DashboardPage />} />
-                  <Route path="alerts" element={<DashboardPage />} />
-                  <Route path="attendance" element={<DashboardPage />} />
-                  <Route path="profile" element={<DashboardPage />} />
+                  <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/crm" element={<DashboardPage />} />
+                  <Route path="/leads" element={<DashboardPage />} />
+                  <Route path="/schedule" element={<DashboardPage />} />
+                  <Route path="/alerts" element={<DashboardPage />} />
+                  <Route path="/attendance" element={<DashboardPage />} />
+                  <Route path="/profile" element={<DashboardPage />} />
                 </Route>
 
                 {/* Catch-all */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
-        </AuthProvider>
+            </TooltipProvider>
+          </AuthProvider>
+        </BrowserRouter>
       </LanguageProvider>
     </ThemeProvider>
   </QueryClientProvider>
