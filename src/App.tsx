@@ -2,22 +2,44 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/lib/theme/ThemeContext";
 import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import { AuthProvider } from "@/lib/auth/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
-// Pages
+// Public Pages
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import LoginPage from "./pages/auth/LoginPage";
-import DashboardPage from "./pages/dashboard/DashboardPage";
 
 // Layouts
 import SuperAdminLayout from "./pages/layouts/SuperAdminLayout";
 import CompanyAdminLayout from "./pages/layouts/CompanyAdminLayout";
 import UserLayout from "./pages/layouts/UserLayout";
+
+// Global Admin Pages
+import GlobalDashboardPage from "./pages/global/GlobalDashboardPage";
+import CompaniesPage from "./pages/global/CompaniesPage";
+import GlobalUsersPage from "./pages/global/GlobalUsersPage";
+import PlansPage from "./pages/global/PlansPage";
+
+// Company Admin Pages
+import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
+import CRMPage from "./pages/admin/CRMPage";
+import LeadsPage from "./pages/admin/LeadsPage";
+import ClientsPage from "./pages/admin/ClientsPage";
+import SchedulePage from "./pages/admin/SchedulePage";
+import AlertsPage from "./pages/admin/AlertsPage";
+import SettingsPage from "./pages/admin/SettingsPage";
+
+// User Pages
+import UserDashboardPage from "./pages/user/UserDashboardPage";
+import UserCRMPage from "./pages/user/UserCRMPage";
+import UserLeadsPage from "./pages/user/UserLeadsPage";
+import UserSchedulePage from "./pages/user/UserSchedulePage";
+import UserAlertsPage from "./pages/user/UserAlertsPage";
+import UserProfilePage from "./pages/user/UserProfilePage";
 
 const queryClient = new QueryClient();
 
@@ -35,46 +57,48 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<LoginPage />} />
 
-                {/* Super Admin routes */}
-                <Route path="/super-admin" element={
+                {/* Super Admin routes - /global */}
+                <Route path="/global" element={
                   <ProtectedRoute allowedRoles={['super_admin']}>
                     <SuperAdminLayout />
                   </ProtectedRoute>
                 }>
-                  <Route path="dashboard" element={<DashboardPage />} />
-                  <Route path="companies" element={<DashboardPage />} />
-                  <Route path="users" element={<DashboardPage />} />
-                  <Route path="plans" element={<DashboardPage />} />
+                  <Route index element={<Navigate to="/global/dashboard" replace />} />
+                  <Route path="dashboard" element={<GlobalDashboardPage />} />
+                  <Route path="companies" element={<CompaniesPage />} />
+                  <Route path="users" element={<GlobalUsersPage />} />
+                  <Route path="plans" element={<PlansPage />} />
                 </Route>
 
-                {/* Company Admin routes */}
+                {/* Company Admin routes - /admin */}
                 <Route path="/admin" element={
                   <ProtectedRoute allowedRoles={['company_admin']}>
                     <CompanyAdminLayout />
                   </ProtectedRoute>
                 }>
-                  <Route path="dashboard" element={<DashboardPage />} />
-                  <Route path="crm" element={<DashboardPage />} />
-                  <Route path="leads" element={<DashboardPage />} />
-                  <Route path="clients" element={<DashboardPage />} />
-                  <Route path="schedule" element={<DashboardPage />} />
-                  <Route path="alerts" element={<DashboardPage />} />
-                  <Route path="settings" element={<DashboardPage />} />
+                  <Route index element={<Navigate to="/admin/dashboard" replace />} />
+                  <Route path="dashboard" element={<AdminDashboardPage />} />
+                  <Route path="crm" element={<CRMPage />} />
+                  <Route path="leads" element={<LeadsPage />} />
+                  <Route path="clients" element={<ClientsPage />} />
+                  <Route path="schedule" element={<SchedulePage />} />
+                  <Route path="alerts" element={<AlertsPage />} />
+                  <Route path="settings" element={<SettingsPage />} />
                 </Route>
 
-                {/* User routes */}
-                <Route element={
+                {/* User routes - /user */}
+                <Route path="/user" element={
                   <ProtectedRoute allowedRoles={['user']}>
                     <UserLayout />
                   </ProtectedRoute>
                 }>
-                  <Route path="/dashboard" element={<DashboardPage />} />
-                  <Route path="/crm" element={<DashboardPage />} />
-                  <Route path="/leads" element={<DashboardPage />} />
-                  <Route path="/schedule" element={<DashboardPage />} />
-                  <Route path="/alerts" element={<DashboardPage />} />
-                  <Route path="/attendance" element={<DashboardPage />} />
-                  <Route path="/profile" element={<DashboardPage />} />
+                  <Route index element={<Navigate to="/user/dashboard" replace />} />
+                  <Route path="dashboard" element={<UserDashboardPage />} />
+                  <Route path="crm" element={<UserCRMPage />} />
+                  <Route path="leads" element={<UserLeadsPage />} />
+                  <Route path="schedule" element={<UserSchedulePage />} />
+                  <Route path="alerts" element={<UserAlertsPage />} />
+                  <Route path="profile" element={<UserProfilePage />} />
                 </Route>
 
                 {/* Catch-all */}
