@@ -11,10 +11,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { AppointmentModal, Appointment } from '@/components/modals/AppointmentModal';
 
 const timeSlots = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
 
-const mockAppointments = [
+const initialAppointments: Appointment[] = [
   { id: 1, time: '09:00', client: 'Maria Silva', procedure: 'Limpeza de pele', professional: 'Dr. João', duration: 60, status: 'confirmed' },
   { id: 2, time: '10:00', client: 'Carlos Santos', procedure: 'Botox', professional: 'Dra. Ana', duration: 45, status: 'confirmed' },
   { id: 3, time: '11:00', client: 'Patricia Lima', procedure: 'Peeling', professional: 'Dr. João', duration: 90, status: 'pending' },
@@ -26,8 +27,11 @@ const professionals = ['Todos', 'Dr. João', 'Dra. Ana', 'Maria'];
 
 export default function SchedulePage() {
   const { t } = useLanguage();
-  const [currentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedProfessional, setSelectedProfessional] = useState('Todos');
+  const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
+  const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
+  const [selectedTime, setSelectedTime] = useState<string | undefined>();
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('pt-BR', { 
@@ -38,7 +42,7 @@ export default function SchedulePage() {
     });
   };
 
-  const filteredAppointments = mockAppointments.filter(apt => 
+  const filteredAppointments = appointments.filter(apt => 
     selectedProfessional === 'Todos' || apt.professional === selectedProfessional
   );
 
@@ -50,6 +54,36 @@ export default function SchedulePage() {
     return status === 'confirmed' ? 'bg-green-500' : 'bg-yellow-500';
   };
 
+  const handlePreviousDay = () => {
+    const newDate = new Date(currentDate);
+    newDate.setDate(newDate.getDate() - 1);
+    setCurrentDate(newDate);
+  };
+
+  const handleNextDay = () => {
+    const newDate = new Date(currentDate);
+    newDate.setDate(newDate.getDate() + 1);
+    setCurrentDate(newDate);
+  };
+
+  const handleNewAppointment = (time?: string) => {
+    setSelectedTime(time);
+    setAppointmentModalOpen(true);
+  };
+
+  const handleSaveAppointment = (appointmentData: Partial<Appointment>) => {
+    if (appointmentData.id) {
+      setAppointments(appointments.map(a => a.id === appointmentData.id ? { ...a, ...appointmentData } : a));
+    } else {
+      const newAppointment: Appointment = {
+        ...appointmentData as Appointment,
+        id: Date.now(),
+        status: 'pending',
+      };
+      setAppointments([...appointments, newAppointment]);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -57,7 +91,7 @@ export default function SchedulePage() {
           <h1 className="text-3xl font-bold text-foreground">{t.nav.schedule}</h1>
           <p className="text-muted-foreground mt-1">Gerencie os agendamentos</p>
         </div>
-        <Button className="gradient-primary text-white gap-2">
+        <Button className="gradient-primary text-white gap-2" onClick={() => handleNewAppointment()}>
           <Plus className="w-4 h-4" />
           Novo Agendamento
         </Button>
@@ -67,13 +101,13 @@ export default function SchedulePage() {
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" onClick={handlePreviousDay}>
                 <ChevronLeft className="w-4 h-4" />
               </Button>
               <CardTitle className="text-lg capitalize">
                 {formatDate(currentDate)}
               </CardTitle>
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" onClick={handleNextDay}>
                 <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
@@ -131,7 +165,12 @@ export default function SchedulePage() {
                     </div>
                   ) : (
                     <div className="flex-1 flex items-center justify-center">
-                      <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={() => handleNewAppointment(time)}
+                      >
                         <Plus className="w-4 h-4 mr-1" />
                         Adicionar
                       </Button>
@@ -143,6 +182,14 @@ export default function SchedulePage() {
           </div>
         </CardContent>
       </Card>
+
+      <AppointmentModal
+        open={appointmentModalOpen}
+        onOpenChange={setAppointmentModalOpen}
+        defaultTime={selectedTime}
+        defaultDate={currentDate.toISOString().split('T')[0]}
+        onSave={handleSaveAppointment}
+      />
     </div>
   );
 }

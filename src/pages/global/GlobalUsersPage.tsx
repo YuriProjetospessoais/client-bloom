@@ -20,6 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { handleEmail } from '@/lib/actions';
 
 const mockUsers = [
   { id: 1, name: 'Dr. João Silva', email: 'joao@clinicasaude.com', company: 'Clínica Saúde Total', role: 'company_admin', status: 'active' },
@@ -119,7 +120,10 @@ export default function GlobalUsersPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem className="gap-2">
+                          <DropdownMenuItem 
+                            className="gap-2"
+                            onClick={() => handleEmail(user.email, `Contato - ${user.name}`, user.name)}
+                          >
                             <Mail className="w-4 h-4" /> Enviar email
                           </DropdownMenuItem>
                         </DropdownMenuContent>
