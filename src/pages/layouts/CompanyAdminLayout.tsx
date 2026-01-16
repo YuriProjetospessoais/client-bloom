@@ -12,12 +12,12 @@ export default function CompanyAdminLayout() {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+      <div className="min-h-screen flex w-full overflow-x-hidden">
         <CompanyAdminSidebar />
         
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 min-w-0 flex flex-col">
           {/* Top header */}
-          <header className="h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40 flex items-center justify-between px-4 lg:px-6">
+          <header className="h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-30 flex items-center justify-between px-4 lg:px-6">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="lg:hidden" />
               <div className="hidden lg:block">
@@ -35,7 +35,7 @@ export default function CompanyAdminLayout() {
           </header>
 
           {/* Main content */}
-          <main className="flex-1 p-4 lg:p-6 overflow-auto">
+          <main className="flex-1 min-w-0 p-4 lg:p-6 overflow-auto">
             <Outlet />
           </main>
         </div>
