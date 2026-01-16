@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -12,27 +12,40 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { Building2, Search, Plus, MoreHorizontal, Users, Eye } from 'lucide-react';
+import { Building2, Search, Plus, MoreHorizontal, Users, Eye, Edit } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { CompanyModal, Company } from '@/components/modals/CompanyModal';
 
-const mockCompanies = [
-  { id: 1, name: 'Clínica Saúde Total', plan: 'Professional', users: 8, maxUsers: 10, status: 'active', createdAt: '2025-10-15' },
+const initialCompanies: Company[] = [
+  { id: 1, name: 'Clínica Saúde Total', plan: 'Professional', users: 8, maxUsers: 15, status: 'active', createdAt: '2025-10-15' },
   { id: 2, name: 'Barbearia Vintage', plan: 'Starter', users: 3, maxUsers: 5, status: 'active', createdAt: '2025-11-20' },
   { id: 3, name: 'Studio Beauty', plan: 'Enterprise', users: 25, maxUsers: 50, status: 'active', createdAt: '2025-08-05' },
-  { id: 4, name: 'Clínica Bem Estar', plan: 'Professional', users: 10, maxUsers: 10, status: 'suspended', createdAt: '2025-06-12' },
+  { id: 4, name: 'Clínica Bem Estar', plan: 'Professional', users: 10, maxUsers: 15, status: 'suspended', createdAt: '2025-06-12' },
   { id: 5, name: 'Salão Glamour', plan: 'Starter', users: 2, maxUsers: 5, status: 'active', createdAt: '2026-01-02' },
+];
+
+const mockUsers = [
+  { id: 1, name: 'Dr. João Silva', email: 'joao@empresa.com', role: 'Admin' },
+  { id: 2, name: 'Maria Santos', email: 'maria@empresa.com', role: 'Usuário' },
+  { id: 3, name: 'Ana Costa', email: 'ana@empresa.com', role: 'Usuário' },
 ];
 
 export default function CompaniesPage() {
   const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
+  const [companies, setCompanies] = useState<Company[]>(initialCompanies);
+  const [companyModalOpen, setCompanyModalOpen] = useState(false);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [usersModalOpen, setUsersModalOpen] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
 
-  const filteredCompanies = mockCompanies.filter(company =>
+  const filteredCompanies = companies.filter(company =>
     company.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -52,6 +65,41 @@ export default function CompaniesPage() {
     return <Badge className={`${colors[plan]} hover:opacity-80`}>{plan}</Badge>;
   };
 
+  const handleNewCompany = () => {
+    setSelectedCompany(null);
+    setCompanyModalOpen(true);
+  };
+
+  const handleEditCompany = (company: Company) => {
+    setSelectedCompany(company);
+    setCompanyModalOpen(true);
+  };
+
+  const handleViewDetails = (company: Company) => {
+    setSelectedCompany(company);
+    setDetailsModalOpen(true);
+  };
+
+  const handleViewUsers = (company: Company) => {
+    setSelectedCompany(company);
+    setUsersModalOpen(true);
+  };
+
+  const handleSaveCompany = (companyData: Partial<Company>) => {
+    if (companyData.id) {
+      setCompanies(companies.map(c => c.id === companyData.id ? { ...c, ...companyData } : c));
+    } else {
+      const newCompany: Company = {
+        ...companyData as Company,
+        id: Date.now(),
+        users: 1,
+        status: 'active',
+        createdAt: new Date().toISOString().split('T')[0],
+      };
+      setCompanies([newCompany, ...companies]);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -59,7 +107,7 @@ export default function CompaniesPage() {
           <h1 className="text-3xl font-bold text-foreground">{t.nav.companies}</h1>
           <p className="text-muted-foreground mt-1">Gerencie todas as empresas do sistema</p>
         </div>
-        <Button className="gradient-primary text-white gap-2">
+        <Button className="gradient-primary text-white gap-2" onClick={handleNewCompany}>
           <Plus className="w-4 h-4" />
           Nova Empresa
         </Button>
@@ -120,10 +168,13 @@ export default function CompaniesPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem className="gap-2">
+                          <DropdownMenuItem className="gap-2" onClick={() => handleEditCompany(company)}>
+                            <Edit className="w-4 h-4" /> Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2" onClick={() => handleViewDetails(company)}>
                             <Eye className="w-4 h-4" /> Ver detalhes
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2">
+                          <DropdownMenuItem className="gap-2" onClick={() => handleViewUsers(company)}>
                             <Users className="w-4 h-4" /> Ver usuários
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -136,6 +187,72 @@ export default function CompaniesPage() {
           </div>
         </CardContent>
       </Card>
+
+      <CompanyModal
+        open={companyModalOpen}
+        onOpenChange={setCompanyModalOpen}
+        company={selectedCompany}
+        onSave={handleSaveCompany}
+      />
+
+      {/* Details Modal */}
+      <Dialog open={detailsModalOpen} onOpenChange={setDetailsModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Detalhes da Empresa</DialogTitle>
+            <DialogDescription>Informações completas sobre {selectedCompany?.name}</DialogDescription>
+          </DialogHeader>
+          {selectedCompany && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Nome</p>
+                  <p className="font-medium">{selectedCompany.name}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Plano</p>
+                  <p className="font-medium">{selectedCompany.plan}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Usuários</p>
+                  <p className="font-medium">{selectedCompany.users} / {selectedCompany.maxUsers}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Status</p>
+                  {getStatusBadge(selectedCompany.status)}
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Criado em</p>
+                  <p className="font-medium">{selectedCompany.createdAt}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Users Modal */}
+      <Dialog open={usersModalOpen} onOpenChange={setUsersModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Usuários de {selectedCompany?.name}</DialogTitle>
+            <DialogDescription>Lista de usuários cadastrados nesta empresa</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {mockUsers.map((user) => (
+              <div key={user.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                <div>
+                  <p className="font-medium">{user.name}</p>
+                  <p className="text-sm text-muted-foreground">{user.email}</p>
+                </div>
+                <Badge className={user.role === 'Admin' ? 'bg-purple-500/20 text-purple-500' : 'bg-blue-500/20 text-blue-500'}>
+                  {user.role}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

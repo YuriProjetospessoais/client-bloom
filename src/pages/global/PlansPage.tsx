@@ -1,10 +1,12 @@
+import { useState } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Check, Users, Edit, Plus } from 'lucide-react';
+import { PlanModal, Plan } from '@/components/modals/PlanModal';
 
-const plans = [
+const initialPlans: Plan[] = [
   {
     id: 1,
     name: 'Starter',
@@ -64,6 +66,33 @@ const plans = [
 
 export default function PlansPage() {
   const { t } = useLanguage();
+  const [plans, setPlans] = useState<Plan[]>(initialPlans);
+  const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+
+  const handleNewPlan = () => {
+    setSelectedPlan(null);
+    setPlanModalOpen(true);
+  };
+
+  const handleEditPlan = (plan: Plan) => {
+    setSelectedPlan(plan);
+    setPlanModalOpen(true);
+  };
+
+  const handleSavePlan = (planData: Partial<Plan>) => {
+    if (planData.id) {
+      setPlans(plans.map(p => p.id === planData.id ? { ...p, ...planData } : p));
+    } else {
+      const newPlan: Plan = {
+        ...planData as Plan,
+        id: Date.now(),
+        companies: 0,
+        color: 'from-blue-500 to-blue-600',
+      };
+      setPlans([...plans, newPlan]);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -72,7 +101,7 @@ export default function PlansPage() {
           <h1 className="text-3xl font-bold text-foreground">{t.nav.plans}</h1>
           <p className="text-muted-foreground mt-1">Gerencie os planos de assinatura</p>
         </div>
-        <Button className="gradient-primary text-white gap-2">
+        <Button className="gradient-primary text-white gap-2" onClick={handleNewPlan}>
           <Plus className="w-4 h-4" />
           Novo Plano
         </Button>
@@ -117,7 +146,11 @@ export default function PlansPage() {
                 ))}
               </ul>
 
-              <Button variant="outline" className="w-full gap-2 mt-4">
+              <Button 
+                variant="outline" 
+                className="w-full gap-2 mt-4"
+                onClick={() => handleEditPlan(plan)}
+              >
                 <Edit className="w-4 h-4" />
                 Editar Plano
               </Button>
@@ -125,6 +158,13 @@ export default function PlansPage() {
           </Card>
         ))}
       </div>
+
+      <PlanModal
+        open={planModalOpen}
+        onOpenChange={setPlanModalOpen}
+        plan={selectedPlan}
+        onSave={handleSavePlan}
+      />
     </div>
   );
 }

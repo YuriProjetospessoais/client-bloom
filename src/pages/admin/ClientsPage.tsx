@@ -13,15 +13,19 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { Search, Plus, MoreHorizontal, Phone, Calendar, Eye } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Phone, Calendar, Eye, Edit } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { ClientModal, Client } from '@/components/modals/ClientModal';
+import { AppointmentModal } from '@/components/modals/AppointmentModal';
+import { ClientHistoryModal } from '@/components/modals/ClientHistoryModal';
+import { handleCall } from '@/lib/actions';
 
-const mockClients = [
+const initialClients: Client[] = [
   { id: 1, name: 'Maria Silva', email: 'maria@email.com', phone: '(11) 99999-1111', totalVisits: 12, lastVisit: '2026-01-10', totalSpent: 'R$ 3.600', status: 'active' },
   { id: 2, name: 'Carlos Santos', email: 'carlos@email.com', phone: '(11) 99999-2222', totalVisits: 8, lastVisit: '2025-12-20', totalSpent: 'R$ 2.400', status: 'inactive' },
   { id: 3, name: 'Ana Costa', email: 'ana@email.com', phone: '(11) 99999-3333', totalVisits: 24, lastVisit: '2026-01-14', totalSpent: 'R$ 7.200', status: 'active' },
@@ -32,8 +36,13 @@ const mockClients = [
 export default function ClientsPage() {
   const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
+  const [clients, setClients] = useState<Client[]>(initialClients);
+  const [clientModalOpen, setClientModalOpen] = useState(false);
+  const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
-  const filteredClients = mockClients.filter(client =>
+  const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -49,6 +58,42 @@ export default function ClientsPage() {
     return <Badge className="bg-gray-500/20 text-gray-500">Inativo</Badge>;
   };
 
+  const handleNewClient = () => {
+    setSelectedClient(null);
+    setClientModalOpen(true);
+  };
+
+  const handleEditClient = (client: Client) => {
+    setSelectedClient(client);
+    setClientModalOpen(true);
+  };
+
+  const handleSaveClient = (clientData: Partial<Client>) => {
+    if (clientData.id) {
+      setClients(clients.map(c => c.id === clientData.id ? { ...c, ...clientData } : c));
+    } else {
+      const newClient: Client = {
+        ...clientData as Client,
+        id: Date.now(),
+        totalVisits: 0,
+        totalSpent: 'R$ 0',
+        lastVisit: new Date().toISOString().split('T')[0],
+        status: 'active',
+      };
+      setClients([newClient, ...clients]);
+    }
+  };
+
+  const handleSchedule = (client: Client) => {
+    setSelectedClient(client);
+    setAppointmentModalOpen(true);
+  };
+
+  const handleViewHistory = (client: Client) => {
+    setSelectedClient(client);
+    setHistoryModalOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -56,7 +101,7 @@ export default function ClientsPage() {
           <h1 className="text-3xl font-bold text-foreground">{t.nav.clients}</h1>
           <p className="text-muted-foreground mt-1">Histórico e gestão de clientes</p>
         </div>
-        <Button className="gradient-primary text-white gap-2">
+        <Button className="gradient-primary text-white gap-2" onClick={handleNewClient}>
           <Plus className="w-4 h-4" />
           Novo Cliente
         </Button>
@@ -115,13 +160,16 @@ export default function ClientsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem className="gap-2">
+                          <DropdownMenuItem className="gap-2" onClick={() => handleEditClient(client)}>
+                            <Edit className="w-4 h-4" /> Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2" onClick={() => handleViewHistory(client)}>
                             <Eye className="w-4 h-4" /> Ver histórico
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2">
+                          <DropdownMenuItem className="gap-2" onClick={() => handleCall(client.phone, client.name)}>
                             <Phone className="w-4 h-4" /> Ligar
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2">
+                          <DropdownMenuItem className="gap-2" onClick={() => handleSchedule(client)}>
                             <Calendar className="w-4 h-4" /> Agendar
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -134,6 +182,26 @@ export default function ClientsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <ClientModal
+        open={clientModalOpen}
+        onOpenChange={setClientModalOpen}
+        client={selectedClient}
+        onSave={handleSaveClient}
+      />
+
+      <AppointmentModal
+        open={appointmentModalOpen}
+        onOpenChange={setAppointmentModalOpen}
+        onSave={() => setAppointmentModalOpen(false)}
+      />
+
+      <ClientHistoryModal
+        open={historyModalOpen}
+        onOpenChange={setHistoryModalOpen}
+        clientName={selectedClient?.name || ''}
+        history={[]}
+      />
     </div>
   );
 }

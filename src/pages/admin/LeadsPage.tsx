@@ -12,7 +12,7 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { Search, Plus, MoreHorizontal, Phone, Mail, UserPlus } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Phone, Mail, UserPlus, Calendar, Edit } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,21 +26,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { LeadModal, Lead } from '@/components/modals/LeadModal';
+import { AppointmentModal } from '@/components/modals/AppointmentModal';
+import { handleCall, handleEmail } from '@/lib/actions';
+import { createId } from '@/lib/mock/utils';
 
-const mockLeads = [
-  { id: 1, name: 'Maria Silva', email: 'maria@email.com', phone: '(11) 99999-1111', source: 'Instagram', stage: 'new', assignedTo: 'João', createdAt: '2026-01-15' },
-  { id: 2, name: 'Carlos Santos', email: 'carlos@email.com', phone: '(11) 99999-2222', source: 'Indicação', stage: 'contact', assignedTo: 'Ana', createdAt: '2026-01-14' },
-  { id: 3, name: 'Ana Costa', email: 'ana@email.com', phone: '(11) 99999-3333', source: 'Google', stage: 'proposal', assignedTo: 'João', createdAt: '2026-01-13' },
-  { id: 4, name: 'Roberto Alves', email: 'roberto@email.com', phone: '(11) 99999-4444', source: 'Facebook', stage: 'negotiation', assignedTo: 'Maria', createdAt: '2026-01-12' },
-  { id: 5, name: 'Patricia Lima', email: 'patricia@email.com', phone: '(11) 99999-5555', source: 'Site', stage: 'closed', assignedTo: 'Ana', createdAt: '2026-01-10' },
+const initialLeads = [
+  { id: '1', name: 'Maria Silva', email: 'maria@email.com', phone: '(11) 99999-1111', source: 'Instagram', stage: 'new', assignedTo: 'João', createdAt: '2026-01-15', value: 'R$ 500', lastContact: 'Hoje' },
+  { id: '2', name: 'Carlos Santos', email: 'carlos@email.com', phone: '(11) 99999-2222', source: 'Indicação', stage: 'contact', assignedTo: 'Ana', createdAt: '2026-01-14', value: 'R$ 800', lastContact: 'Ontem' },
+  { id: '3', name: 'Ana Costa', email: 'ana@email.com', phone: '(11) 99999-3333', source: 'Google', stage: 'proposal', assignedTo: 'João', createdAt: '2026-01-13', value: 'R$ 1200', lastContact: '2 dias' },
+  { id: '4', name: 'Roberto Alves', email: 'roberto@email.com', phone: '(11) 99999-4444', source: 'Facebook', stage: 'negotiation', assignedTo: 'Maria', createdAt: '2026-01-12', value: 'R$ 2000', lastContact: '3 dias' },
+  { id: '5', name: 'Patricia Lima', email: 'patricia@email.com', phone: '(11) 99999-5555', source: 'Site', stage: 'closed', assignedTo: 'Ana', createdAt: '2026-01-10', value: 'R$ 1500', lastContact: '5 dias' },
 ];
 
 export default function LeadsPage() {
   const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [stageFilter, setStageFilter] = useState('all');
+  const [leads, setLeads] = useState<Lead[]>(initialLeads);
+  const [leadModalOpen, setLeadModalOpen] = useState(false);
+  const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
-  const filteredLeads = mockLeads.filter(lead => {
+  const filteredLeads = leads.filter(lead => {
     const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lead.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStage = stageFilter === 'all' || lead.stage === stageFilter;
@@ -59,6 +67,35 @@ export default function LeadsPage() {
     return <Badge className={s.class}>{s.label}</Badge>;
   };
 
+  const handleNewLead = () => {
+    setSelectedLead(null);
+    setLeadModalOpen(true);
+  };
+
+  const handleEditLead = (lead: Lead) => {
+    setSelectedLead(lead);
+    setLeadModalOpen(true);
+  };
+
+  const handleSaveLead = (leadData: Omit<Lead, 'id' | 'createdAt' | 'lastContact'> & { id?: string }) => {
+    if (leadData.id) {
+      setLeads(leads.map(l => l.id === leadData.id ? { ...l, ...leadData } : l));
+    } else {
+      const newLead: Lead = {
+        ...leadData,
+        id: createId('lead'),
+        createdAt: new Date().toISOString().split('T')[0],
+        lastContact: 'Agora',
+      };
+      setLeads([newLead, ...leads]);
+    }
+  };
+
+  const handleSchedule = (lead: Lead) => {
+    setSelectedLead(lead);
+    setAppointmentModalOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -66,7 +103,7 @@ export default function LeadsPage() {
           <h1 className="text-3xl font-bold text-foreground">{t.nav.leads}</h1>
           <p className="text-muted-foreground mt-1">Gerencie todos os leads da sua empresa</p>
         </div>
-        <Button className="gradient-primary text-white gap-2">
+        <Button className="gradient-primary text-white gap-2" onClick={handleNewLead}>
           <Plus className="w-4 h-4" />
           Novo Lead
         </Button>
@@ -138,11 +175,17 @@ export default function LeadsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem className="gap-2">
+                          <DropdownMenuItem className="gap-2" onClick={() => handleEditLead(lead)}>
+                            <Edit className="w-4 h-4" /> Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2" onClick={() => handleCall(lead.phone, lead.name)}>
                             <Phone className="w-4 h-4" /> Ligar
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2">
+                          <DropdownMenuItem className="gap-2" onClick={() => handleEmail(lead.email, `Contato - ${lead.name}`, lead.name)}>
                             <Mail className="w-4 h-4" /> Email
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2" onClick={() => handleSchedule(lead)}>
+                            <Calendar className="w-4 h-4" /> Agendar
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -154,6 +197,19 @@ export default function LeadsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <LeadModal
+        open={leadModalOpen}
+        onOpenChange={setLeadModalOpen}
+        lead={selectedLead}
+        onSave={handleSaveLead}
+      />
+
+      <AppointmentModal
+        open={appointmentModalOpen}
+        onOpenChange={setAppointmentModalOpen}
+        onSave={() => setAppointmentModalOpen(false)}
+      />
     </div>
   );
 }
