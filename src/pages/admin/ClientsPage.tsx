@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,49 +13,61 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { Search, Plus, MoreHorizontal, Phone, Calendar, Eye, Edit } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Phone, Calendar, Eye, Edit, Mail, Trash2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ClientModal, Client } from '@/components/modals/ClientModal';
+import { ClientModal } from '@/components/modals/ClientModal';
 import { AppointmentModal } from '@/components/modals/AppointmentModal';
 import { ClientHistoryModal } from '@/components/modals/ClientHistoryModal';
-import { handleCall } from '@/lib/actions';
-
-const initialClients: Client[] = [
-  { id: 1, name: 'Maria Silva', email: 'maria@email.com', phone: '(11) 99999-1111', totalVisits: 12, lastVisit: '2026-01-10', totalSpent: 'R$ 3.600', status: 'active' },
-  { id: 2, name: 'Carlos Santos', email: 'carlos@email.com', phone: '(11) 99999-2222', totalVisits: 8, lastVisit: '2025-12-20', totalSpent: 'R$ 2.400', status: 'inactive' },
-  { id: 3, name: 'Ana Costa', email: 'ana@email.com', phone: '(11) 99999-3333', totalVisits: 24, lastVisit: '2026-01-14', totalSpent: 'R$ 7.200', status: 'active' },
-  { id: 4, name: 'Roberto Alves', email: 'roberto@email.com', phone: '(11) 99999-4444', totalVisits: 5, lastVisit: '2025-11-15', totalSpent: 'R$ 1.500', status: 'inactive' },
-  { id: 5, name: 'Patricia Lima', email: 'patricia@email.com', phone: '(11) 99999-5555', totalVisits: 18, lastVisit: '2026-01-12', totalSpent: 'R$ 5.400', status: 'active' },
-];
+import { ConfirmDialog } from '@/components/modals/ConfirmDialog';
+import { handleCall, handleEmail } from '@/lib/actions';
+import { clientsStore, Client } from '@/lib/store';
+import { toast } from 'sonner';
 
 export default function ClientsPage() {
   const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
-  const [clients, setClients] = useState<Client[]>(initialClients);
+  const [clients, setClients] = useState<Client[]>([]);
   const [clientModalOpen, setClientModalOpen] = useState(false);
   const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+
+  useEffect(() => {
+    setClients(clientsStore.getAll());
+  }, []);
 
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.email.toLowerCase().includes(searchTerm.toLowerCase())
+    client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    client.phone.includes(searchTerm)
   );
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   };
 
-  const getStatusBadge = (status: string) => {
-    if (status === 'active') {
+  const getStatusBadge = (lastVisit?: string) => {
+    if (!lastVisit) return <Badge variant="outline">Novo</Badge>;
+    
+    const daysSinceVisit = Math.floor(
+      (new Date().getTime() - new Date(lastVisit).getTime()) / (1000 * 60 * 60 * 24)
+    );
+    
+    if (daysSinceVisit <= 30) {
       return <Badge className="bg-green-500/20 text-green-500">Ativo</Badge>;
+    } else if (daysSinceVisit <= 90) {
+      return <Badge className="bg-yellow-500/20 text-yellow-600">Em risco</Badge>;
+    } else {
+      return <Badge className="bg-gray-500/20 text-gray-500">Inativo</Badge>;
     }
-    return <Badge className="bg-gray-500/20 text-gray-500">Inativo</Badge>;
   };
 
   const handleNewClient = () => {
@@ -68,20 +80,15 @@ export default function ClientsPage() {
     setClientModalOpen(true);
   };
 
-  const handleSaveClient = (clientData: Partial<Client>) => {
+  const handleSaveClient = (clientData: any) => {
     if (clientData.id) {
-      setClients(clients.map(c => c.id === clientData.id ? { ...c, ...clientData } : c));
+      clientsStore.update(clientData.id, clientData);
+      toast.success('Cliente atualizado com sucesso!');
     } else {
-      const newClient: Client = {
-        ...clientData as Client,
-        id: Date.now(),
-        totalVisits: 0,
-        totalSpent: 'R$ 0',
-        lastVisit: new Date().toISOString().split('T')[0],
-        status: 'active',
-      };
-      setClients([newClient, ...clients]);
+      clientsStore.create(clientData);
+      toast.success('Cliente criado com sucesso!');
     }
+    setClients(clientsStore.getAll());
   };
 
   const handleSchedule = (client: Client) => {
@@ -92,6 +99,21 @@ export default function ClientsPage() {
   const handleViewHistory = (client: Client) => {
     setSelectedClient(client);
     setHistoryModalOpen(true);
+  };
+
+  const handleDeleteClick = (client: Client) => {
+    setClientToDelete(client);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (clientToDelete) {
+      clientsStore.delete(clientToDelete.id);
+      setClients(clientsStore.getAll());
+      toast.success('Cliente excluído com sucesso!');
+    }
+    setDeleteDialogOpen(false);
+    setClientToDelete(null);
   };
 
   return (
@@ -148,10 +170,12 @@ export default function ClientsPage() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-foreground">{client.totalVisits}</TableCell>
-                    <TableCell className="text-muted-foreground">{client.lastVisit}</TableCell>
-                    <TableCell className="font-medium text-foreground">{client.totalSpent}</TableCell>
-                    <TableCell>{getStatusBadge(client.status)}</TableCell>
+                    <TableCell className="text-foreground">{client.visitCount}</TableCell>
+                    <TableCell className="text-muted-foreground">{client.lastVisit || 'Nunca'}</TableCell>
+                    <TableCell className="font-medium text-foreground">
+                      R$ {client.totalSpent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell>{getStatusBadge(client.lastVisit)}</TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -169,14 +193,28 @@ export default function ClientsPage() {
                           <DropdownMenuItem className="gap-2" onClick={() => handleCall(client.phone, client.name)}>
                             <Phone className="w-4 h-4" /> Ligar
                           </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2" onClick={() => handleEmail(client.email, `Olá ${client.name}`, client.name)}>
+                            <Mail className="w-4 h-4" /> Email
+                          </DropdownMenuItem>
                           <DropdownMenuItem className="gap-2" onClick={() => handleSchedule(client)}>
                             <Calendar className="w-4 h-4" /> Agendar
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDeleteClick(client)}>
+                            <Trash2 className="w-4 h-4" /> Excluir
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}
+                {filteredClients.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      {searchTerm ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado'}
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
@@ -193,14 +231,24 @@ export default function ClientsPage() {
       <AppointmentModal
         open={appointmentModalOpen}
         onOpenChange={setAppointmentModalOpen}
-        onSave={() => setAppointmentModalOpen(false)}
+        onSave={() => {
+          setAppointmentModalOpen(false);
+          toast.success('Agendamento criado!');
+        }}
       />
 
       <ClientHistoryModal
         open={historyModalOpen}
         onOpenChange={setHistoryModalOpen}
-        clientName={selectedClient?.name || ''}
-        history={[]}
+        client={selectedClient}
+      />
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Excluir Cliente"
+        description={`Tem certeza que deseja excluir o cliente "${clientToDelete?.name}"? Esta ação não pode ser desfeita.`}
+        onConfirm={handleConfirmDelete}
       />
     </div>
   );
