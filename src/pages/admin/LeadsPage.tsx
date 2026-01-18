@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,11 +12,12 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { Search, Plus, MoreHorizontal, Phone, Mail, UserPlus, Calendar, Edit } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Phone, Mail, UserPlus, Calendar, Edit, Trash2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -26,31 +27,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { LeadModal, Lead } from '@/components/modals/LeadModal';
+import { LeadModal } from '@/components/modals/LeadModal';
 import { AppointmentModal } from '@/components/modals/AppointmentModal';
+import { ConfirmDialog } from '@/components/modals/ConfirmDialog';
 import { handleCall, handleEmail } from '@/lib/actions';
-import { createId } from '@/lib/mock/utils';
-
-const initialLeads = [
-  { id: '1', name: 'Maria Silva', email: 'maria@email.com', phone: '(11) 99999-1111', source: 'Instagram', stage: 'new', assignedTo: 'João', createdAt: '2026-01-15', value: 'R$ 500', lastContact: 'Hoje' },
-  { id: '2', name: 'Carlos Santos', email: 'carlos@email.com', phone: '(11) 99999-2222', source: 'Indicação', stage: 'contact', assignedTo: 'Ana', createdAt: '2026-01-14', value: 'R$ 800', lastContact: 'Ontem' },
-  { id: '3', name: 'Ana Costa', email: 'ana@email.com', phone: '(11) 99999-3333', source: 'Google', stage: 'proposal', assignedTo: 'João', createdAt: '2026-01-13', value: 'R$ 1200', lastContact: '2 dias' },
-  { id: '4', name: 'Roberto Alves', email: 'roberto@email.com', phone: '(11) 99999-4444', source: 'Facebook', stage: 'negotiation', assignedTo: 'Maria', createdAt: '2026-01-12', value: 'R$ 2000', lastContact: '3 dias' },
-  { id: '5', name: 'Patricia Lima', email: 'patricia@email.com', phone: '(11) 99999-5555', source: 'Site', stage: 'closed', assignedTo: 'Ana', createdAt: '2026-01-10', value: 'R$ 1500', lastContact: '5 dias' },
-];
+import { leadsStore, Lead } from '@/lib/store';
+import { toast } from 'sonner';
 
 export default function LeadsPage() {
   const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [stageFilter, setStageFilter] = useState('all');
-  const [leads, setLeads] = useState<Lead[]>(initialLeads);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [leadModalOpen, setLeadModalOpen] = useState(false);
   const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
+
+  useEffect(() => {
+    setLeads(leadsStore.getAll());
+  }, []);
 
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lead.email.toLowerCase().includes(searchTerm.toLowerCase());
+      lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lead.phone.includes(searchTerm);
     const matchesStage = stageFilter === 'all' || lead.stage === stageFilter;
     return matchesSearch && matchesStage;
   });
@@ -58,10 +60,11 @@ export default function LeadsPage() {
   const getStageBadge = (stage: string) => {
     const stages: Record<string, { label: string; class: string }> = {
       new: { label: 'Novo', class: 'bg-blue-500/20 text-blue-500' },
-      contact: { label: 'Contato', class: 'bg-yellow-500/20 text-yellow-500' },
+      contact: { label: 'Contato', class: 'bg-yellow-500/20 text-yellow-600' },
       proposal: { label: 'Proposta', class: 'bg-purple-500/20 text-purple-500' },
       negotiation: { label: 'Negociação', class: 'bg-orange-500/20 text-orange-500' },
       closed: { label: 'Fechado', class: 'bg-green-500/20 text-green-500' },
+      lost: { label: 'Perdido', class: 'bg-gray-500/20 text-gray-500' },
     };
     const s = stages[stage] || stages.new;
     return <Badge className={s.class}>{s.label}</Badge>;
@@ -77,23 +80,35 @@ export default function LeadsPage() {
     setLeadModalOpen(true);
   };
 
-  const handleSaveLead = (leadData: Omit<Lead, 'id' | 'createdAt' | 'lastContact'> & { id?: string }) => {
+  const handleSaveLead = (leadData: any) => {
     if (leadData.id) {
-      setLeads(leads.map(l => l.id === leadData.id ? { ...l, ...leadData } : l));
+      leadsStore.update(leadData.id, leadData);
+      toast.success('Lead atualizado com sucesso!');
     } else {
-      const newLead: Lead = {
-        ...leadData,
-        id: createId('lead'),
-        createdAt: new Date().toISOString().split('T')[0],
-        lastContact: 'Agora',
-      };
-      setLeads([newLead, ...leads]);
+      leadsStore.create(leadData);
+      toast.success('Lead criado com sucesso!');
     }
+    setLeads(leadsStore.getAll());
   };
 
   const handleSchedule = (lead: Lead) => {
     setSelectedLead(lead);
     setAppointmentModalOpen(true);
+  };
+
+  const handleDeleteClick = (lead: Lead) => {
+    setLeadToDelete(lead);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (leadToDelete) {
+      leadsStore.delete(leadToDelete.id);
+      setLeads(leadsStore.getAll());
+      toast.success('Lead excluído com sucesso!');
+    }
+    setDeleteDialogOpen(false);
+    setLeadToDelete(null);
   };
 
   return (
@@ -132,6 +147,7 @@ export default function LeadsPage() {
                 <SelectItem value="proposal">Proposta</SelectItem>
                 <SelectItem value="negotiation">Negociação</SelectItem>
                 <SelectItem value="closed">Fechado</SelectItem>
+                <SelectItem value="lost">Perdido</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -143,9 +159,9 @@ export default function LeadsPage() {
                 <TableRow className="bg-muted/50">
                   <TableHead>Lead</TableHead>
                   <TableHead>Origem</TableHead>
+                  <TableHead>Valor</TableHead>
                   <TableHead>Estágio</TableHead>
-                  <TableHead>Responsável</TableHead>
-                  <TableHead>Data</TableHead>
+                  <TableHead>Último Contato</TableHead>
                   <TableHead className="w-[60px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -164,9 +180,9 @@ export default function LeadsPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-foreground">{lead.source}</TableCell>
+                    <TableCell className="font-medium text-primary">{lead.value}</TableCell>
                     <TableCell>{getStageBadge(lead.stage)}</TableCell>
-                    <TableCell className="text-foreground">{lead.assignedTo}</TableCell>
-                    <TableCell className="text-muted-foreground">{lead.createdAt}</TableCell>
+                    <TableCell className="text-muted-foreground">{lead.lastContact}</TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -187,11 +203,22 @@ export default function LeadsPage() {
                           <DropdownMenuItem className="gap-2" onClick={() => handleSchedule(lead)}>
                             <Calendar className="w-4 h-4" /> Agendar
                           </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDeleteClick(lead)}>
+                            <Trash2 className="w-4 h-4" /> Excluir
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}
+                {filteredLeads.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      {searchTerm || stageFilter !== 'all' ? 'Nenhum lead encontrado' : 'Nenhum lead cadastrado'}
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
@@ -208,7 +235,18 @@ export default function LeadsPage() {
       <AppointmentModal
         open={appointmentModalOpen}
         onOpenChange={setAppointmentModalOpen}
-        onSave={() => setAppointmentModalOpen(false)}
+        onSave={() => {
+          setAppointmentModalOpen(false);
+          toast.success('Agendamento criado!');
+        }}
+      />
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Excluir Lead"
+        description={`Tem certeza que deseja excluir o lead "${leadToDelete?.name}"? Esta ação não pode ser desfeita.`}
+        onConfirm={handleConfirmDelete}
       />
     </div>
   );

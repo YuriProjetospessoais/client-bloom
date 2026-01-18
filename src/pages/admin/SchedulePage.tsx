@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Plus, Clock, User } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Clock, User, Calendar as CalendarIcon } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -11,27 +11,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { AppointmentModal, Appointment } from '@/components/modals/AppointmentModal';
+import { AppointmentModal } from '@/components/modals/AppointmentModal';
+import { appointmentsStore, Appointment, usersStore, User as UserType } from '@/lib/store';
+import { toast } from 'sonner';
 
 const timeSlots = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
-
-const initialAppointments: Appointment[] = [
-  { id: 1, time: '09:00', client: 'Maria Silva', procedure: 'Limpeza de pele', professional: 'Dr. João', duration: 60, status: 'confirmed' },
-  { id: 2, time: '10:00', client: 'Carlos Santos', procedure: 'Botox', professional: 'Dra. Ana', duration: 45, status: 'confirmed' },
-  { id: 3, time: '11:00', client: 'Patricia Lima', procedure: 'Peeling', professional: 'Dr. João', duration: 90, status: 'pending' },
-  { id: 4, time: '14:00', client: 'Roberto Alves', procedure: 'Consulta', professional: 'Dra. Ana', duration: 30, status: 'confirmed' },
-  { id: 5, time: '16:00', client: 'Fernanda Reis', procedure: 'Tratamento Facial', professional: 'Dr. João', duration: 60, status: 'confirmed' },
-];
-
-const professionals = ['Todos', 'Dr. João', 'Dra. Ana', 'Maria'];
 
 export default function SchedulePage() {
   const { t } = useLanguage();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedProfessional, setSelectedProfessional] = useState('Todos');
-  const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [professionals, setProfessionals] = useState<string[]>(['Todos']);
   const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
   const [selectedTime, setSelectedTime] = useState<string | undefined>();
+
+  useEffect(() => {
+    // Load appointments for current date
+    const dateStr = currentDate.toISOString().split('T')[0];
+    setAppointments(appointmentsStore.getByDate(dateStr));
+    
+    // Load professionals
+    const users = usersStore.getAll();
+    const profs = ['Todos', ...users.map(u => u.name)];
+    setProfessionals(profs);
+  }, [currentDate]);
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('pt-BR', { 
@@ -43,7 +47,7 @@ export default function SchedulePage() {
   };
 
   const filteredAppointments = appointments.filter(apt => 
-    selectedProfessional === 'Todos' || apt.professional === selectedProfessional
+    selectedProfessional === 'Todos' || apt.professionalName === selectedProfessional
   );
 
   const getAppointmentForTime = (time: string) => {
@@ -51,7 +55,21 @@ export default function SchedulePage() {
   };
 
   const getStatusColor = (status: string) => {
-    return status === 'confirmed' ? 'bg-green-500' : 'bg-yellow-500';
+    switch (status) {
+      case 'confirmed': return 'bg-green-500';
+      case 'completed': return 'bg-blue-500';
+      case 'cancelled': return 'bg-red-500';
+      default: return 'bg-yellow-500';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'confirmed': return 'Confirmado';
+      case 'completed': return 'Realizado';
+      case 'cancelled': return 'Cancelado';
+      default: return 'Pendente';
+    }
   };
 
   const handlePreviousDay = () => {
@@ -66,23 +84,31 @@ export default function SchedulePage() {
     setCurrentDate(newDate);
   };
 
+  const handleToday = () => {
+    setCurrentDate(new Date());
+  };
+
   const handleNewAppointment = (time?: string) => {
     setSelectedTime(time);
     setAppointmentModalOpen(true);
   };
 
-  const handleSaveAppointment = (appointmentData: Partial<Appointment>) => {
-    if (appointmentData.id) {
-      setAppointments(appointments.map(a => a.id === appointmentData.id ? { ...a, ...appointmentData } : a));
-    } else {
-      const newAppointment: Appointment = {
-        ...appointmentData as Appointment,
-        id: Date.now(),
-        status: 'pending',
-      };
-      setAppointments([...appointments, newAppointment]);
-    }
+  const handleSaveAppointment = (appointmentData: any) => {
+    appointmentsStore.create({
+      ...appointmentData,
+      date: currentDate.toISOString().split('T')[0],
+      status: 'pending',
+    });
+    
+    // Reload appointments
+    const dateStr = currentDate.toISOString().split('T')[0];
+    setAppointments(appointmentsStore.getByDate(dateStr));
+    
+    toast.success('Agendamento criado com sucesso!');
+    setAppointmentModalOpen(false);
   };
+
+  const isToday = currentDate.toDateString() === new Date().toDateString();
 
   return (
     <div className="space-y-6">
@@ -104,9 +130,17 @@ export default function SchedulePage() {
               <Button variant="outline" size="icon" onClick={handlePreviousDay}>
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              <CardTitle className="text-lg capitalize">
-                {formatDate(currentDate)}
-              </CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-lg capitalize">
+                  {formatDate(currentDate)}
+                </CardTitle>
+                {!isToday && (
+                  <Button variant="ghost" size="sm" onClick={handleToday} className="text-primary">
+                    <CalendarIcon className="w-4 h-4 mr-1" />
+                    Hoje
+                  </Button>
+                )}
+              </div>
               <Button variant="outline" size="icon" onClick={handleNextDay}>
                 <ChevronRight className="w-4 h-4" />
               </Button>
@@ -145,21 +179,25 @@ export default function SchedulePage() {
                       <div className={`w-1 self-stretch rounded-full ${getStatusColor(appointment.status)}`} />
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-foreground">{appointment.client}</span>
+                          <span className="font-medium text-foreground">{appointment.clientName}</span>
                           <Badge variant="secondary" className="text-xs">
                             {appointment.duration}min
                           </Badge>
                         </div>
-                        <p className="text-sm text-muted-foreground">{appointment.procedure}</p>
+                        <p className="text-sm text-muted-foreground">{appointment.procedureName}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-medium text-foreground">{appointment.professional}</p>
+                        <p className="text-sm font-medium text-foreground">{appointment.professionalName}</p>
                         <Badge className={`text-xs ${
                           appointment.status === 'confirmed' 
                             ? 'bg-green-500/20 text-green-500' 
-                            : 'bg-yellow-500/20 text-yellow-500'
+                            : appointment.status === 'completed'
+                            ? 'bg-blue-500/20 text-blue-500'
+                            : appointment.status === 'cancelled'
+                            ? 'bg-red-500/20 text-red-500'
+                            : 'bg-yellow-500/20 text-yellow-600'
                         }`}>
-                          {appointment.status === 'confirmed' ? 'Confirmado' : 'Pendente'}
+                          {getStatusLabel(appointment.status)}
                         </Badge>
                       </div>
                     </div>
@@ -172,7 +210,7 @@ export default function SchedulePage() {
                         onClick={() => handleNewAppointment(time)}
                       >
                         <Plus className="w-4 h-4 mr-1" />
-                        Adicionar
+                        Horário livre - Clique para agendar
                       </Button>
                     </div>
                   )}
