@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, DollarSign } from 'lucide-react';
+import { Client } from '@/lib/store';
 
 interface HistoryItem {
   id: number;
@@ -14,8 +15,7 @@ interface HistoryItem {
 interface ClientHistoryModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  clientName: string;
-  history: HistoryItem[];
+  client: Client | null;
 }
 
 // Mock history data
@@ -27,7 +27,7 @@ const mockHistory: HistoryItem[] = [
   { id: 5, date: '2025-09-10', procedure: 'Tratamento Facial', professional: 'Dra. Ana', value: 'R$ 500', status: 'completed' },
 ];
 
-export function ClientHistoryModal({ open, onOpenChange, clientName }: ClientHistoryModalProps) {
+export function ClientHistoryModal({ open, onOpenChange, client }: ClientHistoryModalProps) {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'completed':
@@ -45,7 +45,7 @@ export function ClientHistoryModal({ open, onOpenChange, clientName }: ClientHis
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>Histórico de {clientName}</DialogTitle>
+          <DialogTitle>Histórico de {client?.name || 'Cliente'}</DialogTitle>
           <DialogDescription>
             Visualize todos os atendimentos realizados
           </DialogDescription>
