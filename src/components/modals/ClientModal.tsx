@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { Client } from '@/lib/store';
 
 const clientSchema = z.object({
   name: z.string().trim().min(2, 'Nome deve ter pelo menos 2 caracteres').max(100),
@@ -12,24 +13,11 @@ const clientSchema = z.object({
   phone: z.string().trim().min(10, 'Telefone inválido').max(20),
   notes: z.string().max(500).optional(),
 });
-
-export interface Client {
-  id: number;
-  name: string;
-  email: string;
-  phone: string;
-  totalVisits: number;
-  lastVisit: string;
-  totalSpent: string;
-  status: string;
-  notes?: string;
-}
-
 interface ClientModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   client?: Client | null;
-  onSave: (client: Partial<Client>) => void;
+  onSave: (client: Partial<Client> & { name: string; email: string; phone: string }) => void;
 }
 
 export function ClientModal({ open, onOpenChange, client, onSave }: ClientModalProps) {
@@ -76,10 +64,9 @@ export function ClientModal({ open, onOpenChange, client, onSave }: ClientModalP
     onSave({
       ...formData,
       id: client?.id,
-      status: client?.status || 'active',
-      totalVisits: client?.totalVisits || 0,
-      lastVisit: client?.lastVisit || new Date().toISOString().split('T')[0],
-      totalSpent: client?.totalSpent || 'R$ 0',
+      lastVisit: client?.lastVisit,
+      totalSpent: client?.totalSpent ?? 0,
+      visitCount: client?.visitCount ?? 0,
     });
 
     setIsLoading(false);
