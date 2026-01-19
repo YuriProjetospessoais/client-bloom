@@ -99,6 +99,19 @@ export interface CompanySettings {
   userLimit: number;
 }
 
+// Analytics interfaces
+export interface Analytics {
+  totalLeads: number;
+  totalClients: number;
+  totalAppointments: number;
+  appointmentsByDay: Record<string, number>;
+  appointmentsByWeek: number;
+  appointmentsByMonth: number;
+  leadsByStage: Record<string, number>;
+  conversionRate: number;
+  revenue: number;
+}
+
 // ============= STORAGE KEYS =============
 
 const STORAGE_KEYS = {
@@ -144,11 +157,38 @@ const defaultLeads: Lead[] = [
   { id: 'lead_7', name: 'Fernanda Reis', email: 'fernanda@email.com', phone: '(11) 99999-7777', value: 'R$ 1.800', stage: 'closed', lastContact: 'Ontem', source: 'Indicação', createdAt: '2026-01-09' },
 ];
 
+// Generate appointments for multiple dates
+const today = new Date();
+const formatDateStr = (date: Date) => date.toISOString().split('T')[0];
+
+const getDateOffset = (days: number) => {
+  const date = new Date(today);
+  date.setDate(date.getDate() + days);
+  return formatDateStr(date);
+};
+
 const defaultAppointments: Appointment[] = [
-  { id: 'apt_1', clientName: 'Fernanda Oliveira', procedureName: 'Limpeza de pele', professionalName: 'Dra. Maria Santos', date: '2026-01-18', time: '09:00', duration: 60, status: 'confirmed' },
-  { id: 'apt_2', clientName: 'Carlos Mendes', procedureName: 'Botox', professionalName: 'Dr. João Silva', date: '2026-01-18', time: '10:00', duration: 45, status: 'confirmed' },
-  { id: 'apt_3', clientName: 'Juliana Costa', procedureName: 'Peeling', professionalName: 'Dra. Ana Costa', date: '2026-01-18', time: '11:00', duration: 90, status: 'pending' },
-  { id: 'apt_4', clientName: 'Roberto Santos', procedureName: 'Tratamento Capilar', professionalName: 'Dr. João Silva', date: '2026-01-18', time: '14:00', duration: 120, status: 'confirmed' },
+  // Today's appointments
+  { id: 'apt_1', clientName: 'Fernanda Oliveira', procedureName: 'Limpeza de pele', professionalName: 'Dra. Maria Santos', date: formatDateStr(today), time: '09:00', duration: 60, status: 'confirmed' },
+  { id: 'apt_2', clientName: 'Carlos Mendes', procedureName: 'Botox', professionalName: 'Dr. João Silva', date: formatDateStr(today), time: '10:00', duration: 45, status: 'confirmed' },
+  { id: 'apt_3', clientName: 'Juliana Costa', procedureName: 'Peeling', professionalName: 'Dra. Ana Costa', date: formatDateStr(today), time: '11:00', duration: 90, status: 'pending' },
+  { id: 'apt_4', clientName: 'Roberto Santos', procedureName: 'Tratamento Capilar', professionalName: 'Dr. João Silva', date: formatDateStr(today), time: '14:00', duration: 120, status: 'confirmed' },
+  
+  // Tomorrow's appointments
+  { id: 'apt_5', clientName: 'Ana Paula', procedureName: 'Limpeza de pele', professionalName: 'Dr. João Silva', date: getDateOffset(1), time: '09:00', duration: 60, status: 'confirmed' },
+  { id: 'apt_6', clientName: 'Ricardo Lima', procedureName: 'Botox', professionalName: 'Dra. Maria Santos', date: getDateOffset(1), time: '11:00', duration: 45, status: 'pending' },
+  { id: 'apt_7', clientName: 'Mariana Costa', procedureName: 'Peeling', professionalName: 'Dra. Ana Costa', date: getDateOffset(1), time: '15:00', duration: 90, status: 'confirmed' },
+  
+  // Day after tomorrow
+  { id: 'apt_8', clientName: 'Paulo Ferreira', procedureName: 'Tratamento Capilar', professionalName: 'Dr. João Silva', date: getDateOffset(2), time: '10:00', duration: 120, status: 'pending' },
+  { id: 'apt_9', clientName: 'Camila Santos', procedureName: 'Limpeza de pele', professionalName: 'Dra. Ana Costa', date: getDateOffset(2), time: '14:00', duration: 60, status: 'confirmed' },
+  
+  // Yesterday
+  { id: 'apt_10', clientName: 'Bruno Almeida', procedureName: 'Botox', professionalName: 'Dr. João Silva', date: getDateOffset(-1), time: '09:00', duration: 45, status: 'completed' },
+  { id: 'apt_11', clientName: 'Laura Oliveira', procedureName: 'Peeling', professionalName: 'Dra. Maria Santos', date: getDateOffset(-1), time: '11:00', duration: 90, status: 'completed' },
+  
+  // 2 days ago
+  { id: 'apt_12', clientName: 'Gabriel Souza', procedureName: 'Tratamento Capilar', professionalName: 'Dra. Ana Costa', date: getDateOffset(-2), time: '10:00', duration: 120, status: 'completed' },
 ];
 
 const defaultCompanies: Company[] = [
@@ -399,7 +439,18 @@ export const appointmentsStore = {
     return appointments.find(a => a.id === id);
   },
   
-  create: (appointment: Omit<Appointment, 'id'>): Appointment => {
+  // Check for time conflict on a specific date
+  hasTimeConflict: (date: string, time: string, excludeId?: string): boolean => {
+    const appointments = appointmentsStore.getByDate(date);
+    return appointments.some(a => a.time === time && a.id !== excludeId);
+  },
+  
+  create: (appointment: Omit<Appointment, 'id'>): Appointment | null => {
+    // Check for time conflict
+    if (appointmentsStore.hasTimeConflict(appointment.date, appointment.time)) {
+      return null;
+    }
+    
     const appointments = appointmentsStore.getAll();
     const newAppointment: Appointment = {
       ...appointment,
@@ -414,6 +465,15 @@ export const appointmentsStore = {
     const index = appointments.findIndex(a => a.id === id);
     if (index === -1) return undefined;
     
+    // Check for time conflict if time or date is being updated
+    if (data.time || data.date) {
+      const newDate = data.date || appointments[index].date;
+      const newTime = data.time || appointments[index].time;
+      if (appointmentsStore.hasTimeConflict(newDate, newTime, id)) {
+        return undefined;
+      }
+    }
+    
     appointments[index] = { ...appointments[index], ...data };
     setToStorage(STORAGE_KEYS.APPOINTMENTS, appointments);
     return appointments[index];
@@ -426,6 +486,27 @@ export const appointmentsStore = {
     
     setToStorage(STORAGE_KEYS.APPOINTMENTS, filtered);
     return true;
+  },
+  
+  // Get appointments count by date range
+  getCountByDateRange: (startDate: string, endDate: string): number => {
+    const appointments = appointmentsStore.getAll();
+    return appointments.filter(a => a.date >= startDate && a.date <= endDate).length;
+  },
+  
+  // Get appointments grouped by date
+  getGroupedByDate: (): Record<string, Appointment[]> => {
+    const appointments = appointmentsStore.getAll();
+    const grouped: Record<string, Appointment[]> = {};
+    
+    appointments.forEach(apt => {
+      if (!grouped[apt.date]) {
+        grouped[apt.date] = [];
+      }
+      grouped[apt.date].push(apt);
+    });
+    
+    return grouped;
   },
 };
 
@@ -517,9 +598,158 @@ export const companySettingsStore = {
   get: (): CompanySettings => getFromStorage(STORAGE_KEYS.COMPANY_SETTINGS, defaultCompanySettings),
   
   update: (data: Partial<CompanySettings>): CompanySettings => {
-    const current = companySettingsStore.get();
-    const updated = { ...current, ...data };
-    setToStorage(STORAGE_KEYS.COMPANY_SETTINGS, updated);
-    return updated;
+    const settings = companySettingsStore.get();
+    const updatedSettings = { ...settings, ...data };
+    setToStorage(STORAGE_KEYS.COMPANY_SETTINGS, updatedSettings);
+    return updatedSettings;
+  },
+};
+
+// ============= ANALYTICS STORE =============
+
+export const analyticsStore = {
+  getAnalytics: (): Analytics => {
+    const leads = leadsStore.getAll();
+    const clients = clientsStore.getAll();
+    const appointments = appointmentsStore.getAll();
+    const procedures = proceduresStore.getAll();
+    
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    
+    // Calculate week range
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay());
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    
+    // Calculate month range
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    // Appointments by day (last 7 days)
+    const appointmentsByDay: Record<string, number> = {};
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      appointmentsByDay[dateStr] = appointments.filter(a => a.date === dateStr).length;
+    }
+    
+    // Appointments by week
+    const appointmentsByWeek = appointments.filter(a => {
+      const aptDate = new Date(a.date);
+      return aptDate >= weekStart && aptDate <= weekEnd;
+    }).length;
+    
+    // Appointments by month
+    const appointmentsByMonth = appointments.filter(a => {
+      const aptDate = new Date(a.date);
+      return aptDate >= monthStart && aptDate <= monthEnd;
+    }).length;
+    
+    // Leads by stage
+    const leadsByStage: Record<string, number> = {};
+    const stages = ['new', 'contact', 'proposal', 'negotiation', 'closed', 'lost'];
+    stages.forEach(stage => {
+      leadsByStage[stage] = leads.filter(l => l.stage === stage).length;
+    });
+    
+    // Conversion rate (closed / total excluding lost)
+    const totalLeadsExcludingLost = leads.filter(l => l.stage !== 'lost').length;
+    const closedLeads = leads.filter(l => l.stage === 'closed').length;
+    const conversionRate = totalLeadsExcludingLost > 0 ? (closedLeads / totalLeadsExcludingLost) * 100 : 0;
+    
+    // Estimate revenue from completed appointments
+    const completedAppointments = appointments.filter(a => a.status === 'completed');
+    let revenue = 0;
+    completedAppointments.forEach(apt => {
+      const procedure = procedures.find(p => p.name === apt.procedureName);
+      if (procedure) {
+        revenue += procedure.price;
+      }
+    });
+    
+    // Add client total spent
+    revenue += clients.reduce((sum, c) => sum + c.totalSpent, 0);
+    
+    return {
+      totalLeads: leads.length,
+      totalClients: clients.length,
+      totalAppointments: appointments.length,
+      appointmentsByDay,
+      appointmentsByWeek,
+      appointmentsByMonth,
+      leadsByStage,
+      conversionRate,
+      revenue,
+    };
+  },
+  
+  getAppointmentsChartData: (): { day: string; count: number }[] => {
+    const appointments = appointmentsStore.getAll();
+    const today = new Date();
+    const data: { day: string; count: number }[] = [];
+    
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      const dayName = date.toLocaleDateString('pt-BR', { weekday: 'short' });
+      data.push({
+        day: dayName.charAt(0).toUpperCase() + dayName.slice(1, 3),
+        count: appointments.filter(a => a.date === dateStr).length,
+      });
+    }
+    
+    return data;
+  },
+  
+  getLeadsChartData: (): { name: string; value: number; color: string }[] => {
+    const leads = leadsStore.getAll();
+    return [
+      { name: 'Novos', value: leads.filter(l => l.stage === 'new').length, color: 'hsl(243, 75%, 59%)' },
+      { name: 'Contato', value: leads.filter(l => l.stage === 'contact').length, color: 'hsl(258, 90%, 66%)' },
+      { name: 'Proposta', value: leads.filter(l => l.stage === 'proposal').length, color: 'hsl(199, 89%, 48%)' },
+      { name: 'Negociação', value: leads.filter(l => l.stage === 'negotiation').length, color: 'hsl(142, 76%, 36%)' },
+      { name: 'Fechados', value: leads.filter(l => l.stage === 'closed').length, color: 'hsl(38, 92%, 50%)' },
+    ];
+  },
+  
+  getRevenueChartData: (): { month: string; value: number }[] => {
+    const appointments = appointmentsStore.getAll();
+    const procedures = proceduresStore.getAll();
+    const clients = clientsStore.getAll();
+    
+    const today = new Date();
+    const data: { month: string; value: number }[] = [];
+    
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const monthStart = date.toISOString().split('T')[0];
+      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0];
+      const monthName = date.toLocaleDateString('pt-BR', { month: 'short' });
+      
+      // Calculate revenue from completed appointments in this month
+      let monthRevenue = 0;
+      appointments
+        .filter(a => a.date >= monthStart && a.date <= monthEnd && a.status === 'completed')
+        .forEach(apt => {
+          const procedure = procedures.find(p => p.name === apt.procedureName);
+          if (procedure) {
+            monthRevenue += procedure.price;
+          }
+        });
+      
+      // Add some mock revenue for demonstration
+      monthRevenue += (6 - i) * 8000 + Math.random() * 5000;
+      
+      data.push({
+        month: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+        value: Math.round(monthRevenue),
+      });
+    }
+    
+    return data;
   },
 };

@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Plus, Clock, User, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Clock, User, Calendar as CalendarIcon, Trash2 } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -12,7 +12,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { AppointmentModal } from '@/components/modals/AppointmentModal';
-import { appointmentsStore, Appointment, usersStore, User as UserType } from '@/lib/store';
+import { ConfirmDialog } from '@/components/modals/ConfirmDialog';
+import { appointmentsStore, Appointment, usersStore } from '@/lib/store';
 import { toast } from 'sonner';
 
 const timeSlots = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
@@ -25,17 +26,25 @@ export default function SchedulePage() {
   const [professionals, setProfessionals] = useState<string[]>(['Todos']);
   const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
   const [selectedTime, setSelectedTime] = useState<string | undefined>();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
 
-  useEffect(() => {
-    // Load appointments for current date
+  // Load appointments for the current date - isolated per day
+  const loadAppointments = useCallback(() => {
     const dateStr = currentDate.toISOString().split('T')[0];
-    setAppointments(appointmentsStore.getByDate(dateStr));
+    const dayAppointments = appointmentsStore.getByDate(dateStr);
+    setAppointments(dayAppointments);
+  }, [currentDate]);
+
+  // Load appointments whenever date changes
+  useEffect(() => {
+    loadAppointments();
     
     // Load professionals
     const users = usersStore.getAll();
     const profs = ['Todos', ...users.map(u => u.name)];
     setProfessionals(profs);
-  }, [currentDate]);
+  }, [loadAppointments]);
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('pt-BR', { 
@@ -94,28 +103,60 @@ export default function SchedulePage() {
   };
 
   const handleSaveAppointment = (appointmentData: any) => {
-    appointmentsStore.create({
-      ...appointmentData,
-      date: currentDate.toISOString().split('T')[0],
+    const dateStr = currentDate.toISOString().split('T')[0];
+    
+    // Check for time conflict
+    if (appointmentsStore.hasTimeConflict(dateStr, appointmentData.time)) {
+      toast.error('Já existe um agendamento neste horário!');
+      return;
+    }
+    
+    const result = appointmentsStore.create({
+      clientName: appointmentData.client,
+      procedureName: appointmentData.procedure,
+      professionalName: appointmentData.professional,
+      date: dateStr,
+      time: appointmentData.time,
+      duration: appointmentData.duration || 60,
       status: 'pending',
     });
     
-    // Reload appointments
-    const dateStr = currentDate.toISOString().split('T')[0];
-    setAppointments(appointmentsStore.getByDate(dateStr));
-    
-    toast.success('Agendamento criado com sucesso!');
-    setAppointmentModalOpen(false);
+    if (result) {
+      // Reload appointments for this specific date
+      loadAppointments();
+      toast.success('Agendamento criado com sucesso!');
+      setAppointmentModalOpen(false);
+    } else {
+      toast.error('Erro ao criar agendamento. Verifique se o horário está disponível.');
+    }
+  };
+
+  const handleDeleteAppointment = (appointment: Appointment) => {
+    setAppointmentToDelete(appointment);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (appointmentToDelete) {
+      appointmentsStore.delete(appointmentToDelete.id);
+      loadAppointments();
+      toast.success('Agendamento excluído!');
+      setDeleteDialogOpen(false);
+      setAppointmentToDelete(null);
+    }
   };
 
   const isToday = currentDate.toDateString() === new Date().toDateString();
+  const appointmentCount = appointments.length;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">{t.nav.schedule}</h1>
-          <p className="text-muted-foreground mt-1">Gerencie os agendamentos</p>
+          <p className="text-muted-foreground mt-1">
+            Gerencie os agendamentos • {appointmentCount} agendamento{appointmentCount !== 1 ? 's' : ''} para este dia
+          </p>
         </div>
         <Button className="gradient-primary text-white gap-2" onClick={() => handleNewAppointment()}>
           <Plus className="w-4 h-4" />
@@ -186,19 +227,29 @@ export default function SchedulePage() {
                         </div>
                         <p className="text-sm text-muted-foreground">{appointment.procedureName}</p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium text-foreground">{appointment.professionalName}</p>
-                        <Badge className={`text-xs ${
-                          appointment.status === 'confirmed' 
-                            ? 'bg-green-500/20 text-green-500' 
-                            : appointment.status === 'completed'
-                            ? 'bg-blue-500/20 text-blue-500'
-                            : appointment.status === 'cancelled'
-                            ? 'bg-red-500/20 text-red-500'
-                            : 'bg-yellow-500/20 text-yellow-600'
-                        }`}>
-                          {getStatusLabel(appointment.status)}
-                        </Badge>
+                      <div className="text-right flex items-center gap-2">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{appointment.professionalName}</p>
+                          <Badge className={`text-xs ${
+                            appointment.status === 'confirmed' 
+                              ? 'bg-green-500/20 text-green-500' 
+                              : appointment.status === 'completed'
+                              ? 'bg-blue-500/20 text-blue-500'
+                              : appointment.status === 'cancelled'
+                              ? 'bg-red-500/20 text-red-500'
+                              : 'bg-yellow-500/20 text-yellow-600'
+                          }`}>
+                            {getStatusLabel(appointment.status)}
+                          </Badge>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => handleDeleteAppointment(appointment)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   ) : (
@@ -227,6 +278,16 @@ export default function SchedulePage() {
         defaultTime={selectedTime}
         defaultDate={currentDate.toISOString().split('T')[0]}
         onSave={handleSaveAppointment}
+      />
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Excluir Agendamento"
+        description={`Deseja excluir o agendamento de ${appointmentToDelete?.clientName} às ${appointmentToDelete?.time}?`}
+        onConfirm={confirmDelete}
+        confirmLabel="Excluir"
+        variant="destructive"
       />
     </div>
   );

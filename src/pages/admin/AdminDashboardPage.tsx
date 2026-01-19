@@ -37,36 +37,11 @@ import {
   Pie,
   Cell
 } from 'recharts';
-import { leadsStore, clientsStore, appointmentsStore } from '@/lib/store';
+import { leadsStore, clientsStore, appointmentsStore, analyticsStore } from '@/lib/store';
 import { LeadModal } from '@/components/modals/LeadModal';
 import { ClientModal } from '@/components/modals/ClientModal';
 import { AppointmentModal } from '@/components/modals/AppointmentModal';
 import { handleCall } from '@/lib/actions';
-
-// Chart data
-const revenueData = [
-  { month: 'Set', value: 28000 },
-  { month: 'Out', value: 35000 },
-  { month: 'Nov', value: 32000 },
-  { month: 'Dez', value: 45000 },
-  { month: 'Jan', value: 52000 },
-  { month: 'Fev', value: 48000 },
-];
-
-const leadsChartData = [
-  { name: 'Novos', value: 35, color: 'hsl(243, 75%, 59%)' },
-  { name: 'Contato', value: 28, color: 'hsl(258, 90%, 66%)' },
-  { name: 'Proposta', value: 18, color: 'hsl(199, 89%, 48%)' },
-  { name: 'Negociação', value: 12, color: 'hsl(142, 76%, 36%)' },
-  { name: 'Fechados', value: 8, color: 'hsl(38, 92%, 50%)' },
-];
-
-const conversionData = [
-  { stage: 'Leads', value: 100, fill: 'hsl(243, 75%, 59%)' },
-  { stage: 'Contato', value: 75, fill: 'hsl(258, 90%, 66%)' },
-  { stage: 'Proposta', value: 45, fill: 'hsl(199, 89%, 48%)' },
-  { stage: 'Fechamento', value: 28, fill: 'hsl(142, 76%, 36%)' },
-];
 
 export default function AdminDashboardPage() {
   const { t } = useLanguage();
@@ -77,16 +52,28 @@ export default function AdminDashboardPage() {
   const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
 
   // Get real data from stores
+  const [analytics, setAnalytics] = useState(() => analyticsStore.getAnalytics());
+  const [revenueData, setRevenueData] = useState(() => analyticsStore.getRevenueChartData());
+  const [leadsChartData, setLeadsChartData] = useState(() => analyticsStore.getLeadsChartData());
+  const [appointmentsChartData, setAppointmentsChartData] = useState(() => analyticsStore.getAppointmentsChartData());
+
   const leads = leadsStore.getAll();
   const clients = clientsStore.getAll();
-  const appointments = appointmentsStore.getAll();
   const todayAppointments = appointmentsStore.getByDate(new Date().toISOString().split('T')[0]);
+
+  // Refresh analytics when data changes
+  useEffect(() => {
+    setAnalytics(analyticsStore.getAnalytics());
+    setRevenueData(analyticsStore.getRevenueChartData());
+    setLeadsChartData(analyticsStore.getLeadsChartData());
+    setAppointmentsChartData(analyticsStore.getAppointmentsChartData());
+  }, [leads.length, clients.length, todayAppointments.length]);
 
   const stats = [
     { 
-      title: 'Leads Ativos', 
-      value: leads.filter(l => l.stage !== 'closed' && l.stage !== 'lost').length.toString(), 
-      change: '+12%', 
+      title: 'Total de Leads', 
+      value: analytics.totalLeads.toString(), 
+      change: `${analytics.leadsByStage.new || 0} novos`, 
       up: true,
       icon: UserPlus, 
       color: 'text-primary', 
@@ -94,31 +81,31 @@ export default function AdminDashboardPage() {
       gradient: 'from-primary/20 to-accent/10'
     },
     { 
-      title: 'Oportunidades', 
-      value: leads.filter(l => l.stage === 'proposal' || l.stage === 'negotiation').length.toString(), 
+      title: 'Total de Clientes', 
+      value: analytics.totalClients.toString(), 
       change: '+8%', 
       up: true,
-      icon: Target, 
+      icon: Users, 
       color: 'text-accent', 
       bg: 'bg-accent/10',
       gradient: 'from-accent/20 to-primary/10'
     },
     { 
-      title: 'Vendas do Mês', 
-      value: 'R$ 52.480', 
-      change: '+23%', 
+      title: 'Agendamentos Mês', 
+      value: analytics.appointmentsByMonth.toString(), 
+      change: `${todayAppointments.length} hoje`, 
       up: true,
-      icon: DollarSign, 
+      icon: Calendar, 
       color: 'text-success', 
       bg: 'bg-success/10',
       gradient: 'from-success/20 to-success/5'
     },
     { 
-      title: 'Alertas de Retorno', 
-      value: '12', 
-      change: '-3', 
-      up: false,
-      icon: Bell, 
+      title: 'Taxa Conversão', 
+      value: `${analytics.conversionRate.toFixed(1)}%`, 
+      change: analytics.conversionRate > 20 ? '+5%' : '-2%', 
+      up: analytics.conversionRate > 20,
+      icon: TrendingUp, 
       color: 'text-warning', 
       bg: 'bg-warning/10',
       gradient: 'from-warning/20 to-warning/5'
@@ -129,11 +116,16 @@ export default function AdminDashboardPage() {
     .filter(l => l.stage === 'negotiation' || l.stage === 'proposal')
     .slice(0, 4);
 
-  const upcomingReturns = [
-    { name: 'Maria Silva', procedure: 'Limpeza de pele', days: 2, phone: '(11) 99999-1111' },
-    { name: 'João Santos', procedure: 'Botox', days: 5, phone: '(11) 99999-2222' },
-    { name: 'Ana Costa', procedure: 'Peeling', days: 7, phone: '(11) 99999-3333' },
-  ];
+  const upcomingReturns = clients
+    .filter(c => c.lastVisit)
+    .sort((a, b) => new Date(b.lastVisit || '').getTime() - new Date(a.lastVisit || '').getTime())
+    .slice(0, 3)
+    .map(c => ({
+      name: c.name,
+      procedure: 'Retorno',
+      days: Math.floor((new Date().getTime() - new Date(c.lastVisit || '').getTime()) / (1000 * 60 * 60 * 24)),
+      phone: c.phone,
+    }));
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -278,7 +270,7 @@ export default function AdminDashboardPage() {
               <CardDescription>Últimos 6 meses</CardDescription>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-success font-medium">+23% vs período anterior</span>
+              <span className="text-success font-medium">R$ {analytics.revenue.toLocaleString('pt-BR')}</span>
             </div>
           </CardHeader>
           <CardContent>
@@ -377,6 +369,57 @@ export default function AdminDashboardPage() {
         </Card>
       </motion.div>
 
+      {/* Appointments Chart */}
+      <motion.div variants={itemVariants}>
+        <Card className="border-0 shadow-lg bg-card/80 backdrop-blur-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div>
+              <CardTitle className="text-lg font-semibold">Agendamentos por Dia</CardTitle>
+              <CardDescription>Últimos 7 dias</CardDescription>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <BarChart3 className="w-4 h-4 text-primary" />
+              <span className="font-medium">{analytics.appointmentsByWeek} na semana</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={appointmentsChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis 
+                    dataKey="day" 
+                    stroke="hsl(var(--muted-foreground))" 
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis 
+                    stroke="hsl(var(--muted-foreground))" 
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))', 
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                    formatter={(value: number) => [value, 'Agendamentos']}
+                  />
+                  <Bar 
+                    dataKey="count" 
+                    fill="hsl(243, 75%, 59%)" 
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
       {/* Bottom Section */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Today's Appointments */}
@@ -459,124 +502,61 @@ export default function AdminDashboardPage() {
             )) : (
               <div className="text-center py-8 text-muted-foreground">
                 <Flame className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Nenhum lead quente</p>
+                <p className="text-sm">Nenhum lead em negociação</p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Return Alerts */}
+        {/* Upcoming Returns */}
         <Card className="border-0 shadow-lg bg-card/80 backdrop-blur-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-warning/10">
-                <Bell className="h-4 w-4 text-warning" />
+                <Clock className="h-4 w-4 text-warning" />
               </div>
               <div>
                 <CardTitle className="text-base font-semibold">Retornos Próximos</CardTitle>
-                <CardDescription className="text-xs">Clientes para contatar</CardDescription>
+                <CardDescription className="text-xs">Clientes para contato</CardDescription>
               </div>
             </div>
-            <Button variant="ghost" size="sm" className="text-xs">
-              Ver todos <ChevronRight className="w-3 h-3 ml-1" />
-            </Button>
           </CardHeader>
           <CardContent className="space-y-3">
-            {upcomingReturns.map((client, index) => (
+            {upcomingReturns.map((item, index) => (
               <div key={index} className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 hover:bg-muted/80 transition-colors">
                 <Avatar className="h-10 w-10">
                   <AvatarFallback className="bg-warning/10 text-warning text-sm">
-                    {getInitials(client.name)}
+                    {getInitials(item.name)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-foreground truncate">{client.name}</p>
-                  <p className="text-sm text-muted-foreground truncate">{client.procedure}</p>
+                  <p className="font-medium text-foreground truncate">{item.name}</p>
+                  <p className="text-sm text-muted-foreground truncate">Última visita: {item.days} dias atrás</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                    client.days <= 3 
-                      ? 'bg-destructive/20 text-destructive' 
-                      : 'bg-warning/20 text-warning'
-                  }`}>
-                    {client.days}d
-                  </span>
-                  <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    className="h-8 w-8 text-muted-foreground hover:text-success"
-                    onClick={() => handleCall(client.phone, client.name)}
-                  >
-                    <Phone className="w-4 h-4" />
-                  </Button>
-                </div>
+                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleCall(item.phone, item.name)}>
+                  <Phone className="w-4 h-4" />
+                </Button>
               </div>
             ))}
           </CardContent>
         </Card>
       </motion.div>
 
-      {/* Conversion Funnel */}
-      <motion.div variants={itemVariants}>
-        <Card className="border-0 shadow-lg bg-card/80 backdrop-blur-sm">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <BarChart3 className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <CardTitle className="text-lg font-semibold">Funil de Conversão</CardTitle>
-                <CardDescription>Taxa de conversão por estágio</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={conversionData} layout="vertical" margin={{ top: 0, right: 30, left: 80, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={true} vertical={false} />
-                  <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis type="category" dataKey="stage" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px'
-                    }}
-                    formatter={(value: number) => [`${value}%`, 'Taxa']}
-                  />
-                  <Bar 
-                    dataKey="value" 
-                    radius={[0, 4, 4, 0]}
-                  >
-                    {conversionData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
       {/* Modals */}
-      <LeadModal
-        open={leadModalOpen}
-        onOpenChange={setLeadModalOpen}
-        onSave={handleSaveLead}
+      <LeadModal 
+        open={leadModalOpen} 
+        onOpenChange={setLeadModalOpen} 
+        onSave={handleSaveLead} 
       />
-
-      <ClientModal
-        open={clientModalOpen}
-        onOpenChange={setClientModalOpen}
-        onSave={handleSaveClient}
+      <ClientModal 
+        open={clientModalOpen} 
+        onOpenChange={setClientModalOpen} 
+        onSave={handleSaveClient} 
       />
-
-      <AppointmentModal
-        open={appointmentModalOpen}
-        onOpenChange={setAppointmentModalOpen}
-        onSave={() => setAppointmentModalOpen(false)}
+      <AppointmentModal 
+        open={appointmentModalOpen} 
+        onOpenChange={setAppointmentModalOpen} 
+        onSave={() => setAppointmentModalOpen(false)} 
       />
     </motion.div>
   );
