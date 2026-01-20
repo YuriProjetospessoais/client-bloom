@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,32 +10,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-
-interface Lead {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  value: string;
-  stage: string;
-  lastContact: string;
-}
-
-const initialLeads: Record<string, Lead[]> = {
-  new: [
-    { id: '1', name: 'João Ferreira', email: 'joao@email.com', phone: '(11) 99999-1111', value: 'R$ 500', stage: 'new', lastContact: 'Hoje' },
-  ],
-  contact: [
-    { id: '2', name: 'Camila Souza', email: 'camila@email.com', phone: '(11) 99999-2222', value: 'R$ 1.200', stage: 'contact', lastContact: '2 dias' },
-  ],
-  proposal: [
-    { id: '3', name: 'Bruno Costa', email: 'bruno@email.com', phone: '(11) 99999-3333', value: 'R$ 800', stage: 'proposal', lastContact: 'Hoje' },
-  ],
-  negotiation: [],
-  closed: [
-    { id: '4', name: 'Julia Ferreira', email: 'julia@email.com', phone: '(11) 99999-4444', value: 'R$ 600', stage: 'closed', lastContact: 'Ontem' },
-  ],
-};
+import { leadsStore, Lead } from '@/lib/store';
+import { LeadModal } from '@/components/modals/LeadModal';
+import { useToast } from '@/hooks/use-toast';
 
 const stages = [
   { id: 'new', title: 'Novos', color: 'bg-blue-500' },
@@ -47,7 +24,43 @@ const stages = [
 
 export default function UserCRMPage() {
   const { t } = useLanguage();
-  const [leads] = useState(initialLeads);
+  const { toast } = useToast();
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [leadModalOpen, setLeadModalOpen] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+
+  useEffect(() => {
+    setLeads(leadsStore.getAll());
+  }, []);
+
+  const getLeadsByStage = (stageId: string) => {
+    return leads.filter(lead => lead.stage === stageId);
+  };
+
+  const handleNewLead = () => {
+    setSelectedLead(null);
+    setLeadModalOpen(true);
+  };
+
+  const handleSaveLead = (leadData: Omit<Lead, 'id' | 'createdAt' | 'lastContact'> & { id?: string }) => {
+    if (leadData.id) {
+      leadsStore.update(leadData.id, leadData);
+      toast({ title: 'Lead atualizado com sucesso!' });
+    } else {
+      leadsStore.create(leadData as Omit<Lead, 'id'>);
+      toast({ title: 'Lead criado com sucesso!' });
+    }
+    setLeads(leadsStore.getAll());
+    setLeadModalOpen(false);
+  };
+
+  const handleCall = (lead: Lead) => {
+    toast({ title: `Ligando para ${lead.name}...`, description: lead.phone });
+  };
+
+  const handleEmail = (lead: Lead) => {
+    toast({ title: `Abrindo email para ${lead.name}...`, description: lead.email });
+  };
 
   return (
     <div className="space-y-6">
@@ -56,7 +69,7 @@ export default function UserCRMPage() {
           <h1 className="text-3xl font-bold text-foreground">{t.nav.crm}</h1>
           <p className="text-muted-foreground mt-1">Meus leads e oportunidades</p>
         </div>
-        <Button className="gradient-primary text-white gap-2">
+        <Button className="gradient-primary text-white gap-2" onClick={handleNewLead}>
           <Plus className="w-4 h-4" />
           Novo Lead
         </Button>
@@ -73,12 +86,12 @@ export default function UserCRMPage() {
                     <CardTitle className="text-base">{stage.title}</CardTitle>
                   </div>
                   <Badge variant="secondary" className="text-xs">
-                    {leads[stage.id]?.length || 0}
+                    {getLeadsByStage(stage.id).length}
                   </Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                {leads[stage.id]?.map((lead) => (
+                {getLeadsByStage(stage.id).map((lead) => (
                   <Card key={lead.id} className="bg-background/50 border-border/50 hover:border-primary/30 transition-all cursor-pointer">
                     <CardContent className="p-3">
                       <div className="flex items-start justify-between mb-2">
@@ -90,10 +103,10 @@ export default function UserCRMPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem className="gap-2">
+                            <DropdownMenuItem className="gap-2" onClick={() => handleCall(lead)}>
                               <Phone className="w-4 h-4" /> Ligar
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2">
+                            <DropdownMenuItem className="gap-2" onClick={() => handleEmail(lead)}>
                               <Mail className="w-4 h-4" /> Email
                             </DropdownMenuItem>
                             <DropdownMenuItem className="gap-2">
@@ -103,13 +116,13 @@ export default function UserCRMPage() {
                         </DropdownMenu>
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="font-semibold text-primary">{lead.value}</span>
-                        <span className="text-muted-foreground text-xs">{lead.lastContact}</span>
+                        <span className="font-semibold text-primary">R$ {lead.value || '0'}</span>
+                        <span className="text-muted-foreground text-xs">{lead.lastContact || 'Hoje'}</span>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
-                {(!leads[stage.id] || leads[stage.id].length === 0) && (
+                {getLeadsByStage(stage.id).length === 0 && (
                   <div className="text-center py-6 text-muted-foreground text-sm">
                     Sem leads
                   </div>
@@ -119,6 +132,13 @@ export default function UserCRMPage() {
           </div>
         ))}
       </div>
+
+      <LeadModal
+        open={leadModalOpen}
+        onOpenChange={setLeadModalOpen}
+        lead={selectedLead}
+        onSave={handleSaveLead}
+      />
     </div>
   );
 }
