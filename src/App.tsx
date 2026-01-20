@@ -29,6 +29,7 @@ import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import CRMPage from "./pages/admin/CRMPage";
 import LeadsPage from "./pages/admin/LeadsPage";
 import ClientsPage from "./pages/admin/ClientsPage";
+import ProductsPage from "./pages/admin/ProductsPage";
 import SchedulePage from "./pages/admin/SchedulePage";
 import AlertsPage from "./pages/admin/AlertsPage";
 import SettingsPage from "./pages/admin/SettingsPage";
@@ -81,6 +82,7 @@ const App = () => (
                   <Route path="crm" element={<CRMPage />} />
                   <Route path="leads" element={<LeadsPage />} />
                   <Route path="clients" element={<ClientsPage />} />
+                  <Route path="products" element={<ProductsPage />} />
                   <Route path="schedule" element={<SchedulePage />} />
                   <Route path="alerts" element={<AlertsPage />} />
                   <Route path="settings" element={<SettingsPage />} />

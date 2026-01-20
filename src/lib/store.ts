@@ -25,6 +25,24 @@ export interface Procedure {
   category?: string;
 }
 
+// Extended Client interface with preferences and purchase history
+export interface ClientPreferences {
+  drink?: string; // ex: "café com açúcar"
+  cutStyle?: string; // ex: "degradê"
+  favoriteMusic?: string; // ex: "Rock"
+  freeNotes?: string;
+}
+
+export interface ClientProductPurchase {
+  id: string;
+  productId: string;
+  productName: string;
+  purchaseDate: string;
+  estimatedEndDate: string;
+  quantity: number;
+  price: number;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -37,6 +55,10 @@ export interface Client {
   totalSpent: number;
   visitCount: number;
   createdAt: string;
+  // New fields
+  address?: string;
+  preferences?: ClientPreferences;
+  productPurchases?: ClientProductPurchase[];
 }
 
 export interface Lead {
@@ -99,6 +121,63 @@ export interface CompanySettings {
   userLimit: number;
 }
 
+// ============= PRODUCT TYPES =============
+
+export interface Product {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  durationDays: number; // Estimated duration in days
+  active: boolean;
+  createdAt: string;
+}
+
+export interface ProductSale {
+  id: string;
+  productId: string;
+  productName: string;
+  clientId: string;
+  clientName: string;
+  saleDate: string;
+  estimatedEndDate: string;
+  quantity: number;
+  totalPrice: number;
+  notified: boolean;
+}
+
+// ============= BIRTHDAY COMBO TYPES =============
+
+export interface BirthdayCombo {
+  id: string;
+  clientId: string;
+  clientName: string;
+  birthDate: string;
+  comboDiscount: number;
+  comboDescription: string;
+  status: 'pending' | 'sent' | 'used' | 'expired';
+  createdAt: string;
+  validUntil: string;
+}
+
+// ============= OPPORTUNITY TYPES =============
+
+export interface Opportunity {
+  id: string;
+  type: 'birthday' | 'repurchase' | 'return';
+  title: string;
+  description: string;
+  clientId: string;
+  clientName: string;
+  clientPhone: string;
+  productId?: string;
+  productName?: string;
+  priority: 'high' | 'medium' | 'low';
+  dueDate: string;
+  status: 'pending' | 'contacted' | 'converted' | 'dismissed';
+  createdAt: string;
+}
+
 // Analytics interfaces
 export interface Analytics {
   totalLeads: number;
@@ -110,6 +189,12 @@ export interface Analytics {
   leadsByStage: Record<string, number>;
   conversionRate: number;
   revenue: number;
+  // New analytics
+  upcomingBirthdays: number;
+  activeCombos: number;
+  productsNearEnd: number;
+  topProducts: { name: string; count: number }[];
+  repurchaseOpportunities: number;
 }
 
 // ============= STORAGE KEYS =============
@@ -123,6 +208,10 @@ const STORAGE_KEYS = {
   COMPANIES: 'crm_companies',
   PLANS: 'crm_plans',
   COMPANY_SETTINGS: 'crm_company_settings',
+  PRODUCTS: 'crm_products',
+  PRODUCT_SALES: 'crm_product_sales',
+  BIRTHDAY_COMBOS: 'crm_birthday_combos',
+  OPPORTUNITIES: 'crm_opportunities',
 } as const;
 
 // ============= DEFAULT DATA =============
@@ -140,11 +229,83 @@ const defaultProcedures: Procedure[] = [
   { id: 'proc_4', name: 'Tratamento Capilar', duration: 120, returnDays: 45, price: 500, active: true, category: 'Capilar' },
 ];
 
+// Get tomorrow's date for birthday demo
+const getTomorrowDate = () => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+};
+
+const getNextWeekDate = (days: number) => {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
 const defaultClients: Client[] = [
-  { id: 'client_1', name: 'Fernanda Oliveira', email: 'fernanda@email.com', phone: '(11) 98765-4321', lastVisit: '2026-01-10', totalSpent: 2500, visitCount: 8, createdAt: '2025-03-15' },
-  { id: 'client_2', name: 'Carlos Mendes', email: 'carlos@email.com', phone: '(11) 98765-4322', lastVisit: '2026-01-08', totalSpent: 1800, visitCount: 5, createdAt: '2025-04-20' },
-  { id: 'client_3', name: 'Juliana Costa', email: 'juliana@email.com', phone: '(11) 98765-4323', lastVisit: '2025-12-15', totalSpent: 4200, visitCount: 15, createdAt: '2024-06-10' },
-  { id: 'client_4', name: 'Roberto Santos', email: 'roberto@email.com', phone: '(11) 98765-4324', lastVisit: '2026-01-12', totalSpent: 950, visitCount: 3, createdAt: '2025-09-01' },
+  { 
+    id: 'client_1', 
+    name: 'Fernanda Oliveira', 
+    email: 'fernanda@email.com', 
+    phone: '(11) 98765-4321', 
+    lastVisit: '2026-01-10', 
+    totalSpent: 2500, 
+    visitCount: 8, 
+    createdAt: '2025-03-15',
+    birthDate: getTomorrowDate(), // Tomorrow's birthday!
+    address: 'Rua das Flores, 123 - São Paulo, SP',
+    preferences: {
+      drink: 'Café com leite',
+      cutStyle: 'Corte reto nas pontas',
+      favoriteMusic: 'MPB',
+      freeNotes: 'Prefere horários pela manhã'
+    }
+  },
+  { 
+    id: 'client_2', 
+    name: 'Carlos Mendes', 
+    email: 'carlos@email.com', 
+    phone: '(11) 98765-4322', 
+    lastVisit: '2026-01-08', 
+    totalSpent: 1800, 
+    visitCount: 5, 
+    createdAt: '2025-04-20',
+    birthDate: getNextWeekDate(3),
+    address: 'Av. Paulista, 500 - São Paulo, SP',
+    preferences: {
+      drink: 'Água com gás',
+      cutStyle: 'Degradê',
+      favoriteMusic: 'Rock',
+    }
+  },
+  { 
+    id: 'client_3', 
+    name: 'Juliana Costa', 
+    email: 'juliana@email.com', 
+    phone: '(11) 98765-4323', 
+    lastVisit: '2025-12-15', 
+    totalSpent: 4200, 
+    visitCount: 15, 
+    createdAt: '2024-06-10',
+    birthDate: getNextWeekDate(7),
+    address: 'Rua Augusta, 789 - São Paulo, SP',
+    preferences: {
+      drink: 'Chá gelado',
+      favoriteMusic: 'Pop',
+    }
+  },
+  { 
+    id: 'client_4', 
+    name: 'Roberto Santos', 
+    email: 'roberto@email.com', 
+    phone: '(11) 98765-4324', 
+    lastVisit: '2026-01-12', 
+    totalSpent: 950, 
+    visitCount: 3, 
+    createdAt: '2025-09-01',
+    birthDate: '1990-05-15',
+    address: 'Rua Oscar Freire, 200 - São Paulo, SP',
+  },
 ];
 
 const defaultLeads: Lead[] = [
@@ -213,6 +374,79 @@ const defaultCompanySettings: CompanySettings = {
   plan: 'Professional',
   userLimit: 15,
 };
+
+// ============= DEFAULT PRODUCTS =============
+
+const defaultProducts: Product[] = [
+  { id: 'prod_1', name: 'Shampoo Profissional', category: 'Capilar', price: 89.90, durationDays: 30, active: true, createdAt: '2025-01-01' },
+  { id: 'prod_2', name: 'Condicionador Hidratante', category: 'Capilar', price: 79.90, durationDays: 30, active: true, createdAt: '2025-01-01' },
+  { id: 'prod_3', name: 'Sérum Facial Anti-idade', category: 'Facial', price: 189.90, durationDays: 45, active: true, createdAt: '2025-01-01' },
+  { id: 'prod_4', name: 'Protetor Solar FPS 50', category: 'Proteção', price: 69.90, durationDays: 60, active: true, createdAt: '2025-01-01' },
+  { id: 'prod_5', name: 'Creme Hidratante Corporal', category: 'Corporal', price: 59.90, durationDays: 45, active: true, createdAt: '2025-01-01' },
+  { id: 'prod_6', name: 'Óleo Capilar Nutritivo', category: 'Capilar', price: 129.90, durationDays: 60, active: true, createdAt: '2025-01-01' },
+];
+
+// Default product sales with some near end date
+const getDateDaysAgo = (days: number) => {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return formatDateStr(date);
+};
+
+const defaultProductSales: ProductSale[] = [
+  { 
+    id: 'sale_1', 
+    productId: 'prod_1', 
+    productName: 'Shampoo Profissional', 
+    clientId: 'client_1', 
+    clientName: 'Fernanda Oliveira', 
+    saleDate: getDateDaysAgo(28), 
+    estimatedEndDate: getDateOffset(2), // Ends in 2 days!
+    quantity: 1, 
+    totalPrice: 89.90,
+    notified: false
+  },
+  { 
+    id: 'sale_2', 
+    productId: 'prod_3', 
+    productName: 'Sérum Facial Anti-idade', 
+    clientId: 'client_2', 
+    clientName: 'Carlos Mendes', 
+    saleDate: getDateDaysAgo(40), 
+    estimatedEndDate: getDateOffset(5), // Ends in 5 days
+    quantity: 1, 
+    totalPrice: 189.90,
+    notified: false
+  },
+  { 
+    id: 'sale_3', 
+    productId: 'prod_4', 
+    productName: 'Protetor Solar FPS 50', 
+    clientId: 'client_3', 
+    clientName: 'Juliana Costa', 
+    saleDate: getDateDaysAgo(55), 
+    estimatedEndDate: getDateOffset(5),
+    quantity: 2, 
+    totalPrice: 139.80,
+    notified: false
+  },
+  { 
+    id: 'sale_4', 
+    productId: 'prod_2', 
+    productName: 'Condicionador Hidratante', 
+    clientId: 'client_1', 
+    clientName: 'Fernanda Oliveira', 
+    saleDate: getDateDaysAgo(25), 
+    estimatedEndDate: getDateOffset(5),
+    quantity: 1, 
+    totalPrice: 79.90,
+    notified: false
+  },
+];
+
+const defaultBirthdayCombos: BirthdayCombo[] = [];
+
+const defaultOpportunities: Opportunity[] = [];
 
 // ============= STORAGE HELPERS =============
 
@@ -359,6 +593,68 @@ export const clientsStore = {
     
     setToStorage(STORAGE_KEYS.CLIENTS, filtered);
     return true;
+  },
+
+  // Get clients with upcoming birthdays (next N days)
+  getUpcomingBirthdays: (days: number = 7): Client[] => {
+    const clients = clientsStore.getAll();
+    const today = new Date();
+    
+    return clients.filter(client => {
+      if (!client.birthDate) return false;
+      
+      const birthDate = new Date(client.birthDate);
+      const thisYearBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
+      
+      // If birthday already passed this year, check next year
+      if (thisYearBirthday < today) {
+        thisYearBirthday.setFullYear(today.getFullYear() + 1);
+      }
+      
+      const diffTime = thisYearBirthday.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      return diffDays >= 0 && diffDays <= days;
+    }).sort((a, b) => {
+      const getNextBirthday = (date: string) => {
+        const birth = new Date(date);
+        const next = new Date(today.getFullYear(), birth.getMonth(), birth.getDate());
+        if (next < today) next.setFullYear(today.getFullYear() + 1);
+        return next.getTime();
+      };
+      return getNextBirthday(a.birthDate!) - getNextBirthday(b.birthDate!);
+    });
+  },
+
+  // Get clients with birthday tomorrow
+  getTomorrowBirthdays: (): Client[] => {
+    const clients = clientsStore.getAll();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    return clients.filter(client => {
+      if (!client.birthDate) return false;
+      const birthDate = new Date(client.birthDate);
+      return birthDate.getMonth() === tomorrow.getMonth() && 
+             birthDate.getDate() === tomorrow.getDate();
+    });
+  },
+
+  // Add product purchase to client
+  addProductPurchase: (clientId: string, purchase: Omit<ClientProductPurchase, 'id'>): Client | undefined => {
+    const client = clientsStore.getById(clientId);
+    if (!client) return undefined;
+    
+    const newPurchase: ClientProductPurchase = {
+      ...purchase,
+      id: createId('purchase'),
+    };
+    
+    const purchases = client.productPurchases || [];
+    return clientsStore.update(clientId, {
+      productPurchases: [...purchases, newPurchase],
+      totalSpent: client.totalSpent + purchase.price,
+    });
   },
 };
 
@@ -605,6 +901,357 @@ export const companySettingsStore = {
   },
 };
 
+// ============= PRODUCTS STORE =============
+
+export const productsStore = {
+  getAll: (): Product[] => getFromStorage(STORAGE_KEYS.PRODUCTS, defaultProducts),
+  
+  getById: (id: string): Product | undefined => {
+    const products = productsStore.getAll();
+    return products.find(p => p.id === id);
+  },
+  
+  create: (product: Omit<Product, 'id' | 'createdAt'>): Product => {
+    const products = productsStore.getAll();
+    const newProduct: Product = {
+      ...product,
+      id: createId('prod'),
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+    setToStorage(STORAGE_KEYS.PRODUCTS, [...products, newProduct]);
+    return newProduct;
+  },
+  
+  update: (id: string, data: Partial<Product>): Product | undefined => {
+    const products = productsStore.getAll();
+    const index = products.findIndex(p => p.id === id);
+    if (index === -1) return undefined;
+    
+    products[index] = { ...products[index], ...data };
+    setToStorage(STORAGE_KEYS.PRODUCTS, products);
+    return products[index];
+  },
+  
+  delete: (id: string): boolean => {
+    const products = productsStore.getAll();
+    const filtered = products.filter(p => p.id !== id);
+    if (filtered.length === products.length) return false;
+    
+    setToStorage(STORAGE_KEYS.PRODUCTS, filtered);
+    return true;
+  },
+
+  getByCategory: (category: string): Product[] => {
+    const products = productsStore.getAll();
+    return products.filter(p => p.category === category && p.active);
+  },
+
+  getCategories: (): string[] => {
+    const products = productsStore.getAll();
+    return [...new Set(products.map(p => p.category))];
+  },
+};
+
+// ============= PRODUCT SALES STORE =============
+
+export const productSalesStore = {
+  getAll: (): ProductSale[] => getFromStorage(STORAGE_KEYS.PRODUCT_SALES, defaultProductSales),
+  
+  getById: (id: string): ProductSale | undefined => {
+    const sales = productSalesStore.getAll();
+    return sales.find(s => s.id === id);
+  },
+  
+  create: (sale: Omit<ProductSale, 'id'>): ProductSale => {
+    const sales = productSalesStore.getAll();
+    const newSale: ProductSale = {
+      ...sale,
+      id: createId('sale'),
+    };
+    setToStorage(STORAGE_KEYS.PRODUCT_SALES, [...sales, newSale]);
+    
+    // Also update client's product purchases
+    const client = clientsStore.getById(sale.clientId);
+    if (client) {
+      clientsStore.addProductPurchase(sale.clientId, {
+        productId: sale.productId,
+        productName: sale.productName,
+        purchaseDate: sale.saleDate,
+        estimatedEndDate: sale.estimatedEndDate,
+        quantity: sale.quantity,
+        price: sale.totalPrice,
+      });
+    }
+    
+    return newSale;
+  },
+  
+  update: (id: string, data: Partial<ProductSale>): ProductSale | undefined => {
+    const sales = productSalesStore.getAll();
+    const index = sales.findIndex(s => s.id === id);
+    if (index === -1) return undefined;
+    
+    sales[index] = { ...sales[index], ...data };
+    setToStorage(STORAGE_KEYS.PRODUCT_SALES, sales);
+    return sales[index];
+  },
+  
+  delete: (id: string): boolean => {
+    const sales = productSalesStore.getAll();
+    const filtered = sales.filter(s => s.id !== id);
+    if (filtered.length === sales.length) return false;
+    
+    setToStorage(STORAGE_KEYS.PRODUCT_SALES, filtered);
+    return true;
+  },
+
+  // Get sales by client
+  getByClient: (clientId: string): ProductSale[] => {
+    const sales = productSalesStore.getAll();
+    return sales.filter(s => s.clientId === clientId);
+  },
+
+  // Get products near end date (within N days)
+  getProductsNearEnd: (days: number = 7): ProductSale[] => {
+    const sales = productSalesStore.getAll();
+    const today = new Date();
+    const futureDate = new Date();
+    futureDate.setDate(today.getDate() + days);
+    
+    return sales.filter(sale => {
+      const endDate = new Date(sale.estimatedEndDate);
+      return endDate >= today && endDate <= futureDate;
+    }).sort((a, b) => new Date(a.estimatedEndDate).getTime() - new Date(b.estimatedEndDate).getTime());
+  },
+
+  // Get top selling products
+  getTopProducts: (limit: number = 5): { name: string; count: number; revenue: number }[] => {
+    const sales = productSalesStore.getAll();
+    const productCounts: Record<string, { count: number; revenue: number }> = {};
+    
+    sales.forEach(sale => {
+      if (!productCounts[sale.productName]) {
+        productCounts[sale.productName] = { count: 0, revenue: 0 };
+      }
+      productCounts[sale.productName].count += sale.quantity;
+      productCounts[sale.productName].revenue += sale.totalPrice;
+    });
+    
+    return Object.entries(productCounts)
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
+  },
+};
+
+// ============= BIRTHDAY COMBOS STORE =============
+
+export const birthdayCombosStore = {
+  getAll: (): BirthdayCombo[] => getFromStorage(STORAGE_KEYS.BIRTHDAY_COMBOS, defaultBirthdayCombos),
+  
+  getById: (id: string): BirthdayCombo | undefined => {
+    const combos = birthdayCombosStore.getAll();
+    return combos.find(c => c.id === id);
+  },
+  
+  create: (combo: Omit<BirthdayCombo, 'id' | 'createdAt'>): BirthdayCombo => {
+    const combos = birthdayCombosStore.getAll();
+    const newCombo: BirthdayCombo = {
+      ...combo,
+      id: createId('combo'),
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+    setToStorage(STORAGE_KEYS.BIRTHDAY_COMBOS, [...combos, newCombo]);
+    return newCombo;
+  },
+  
+  update: (id: string, data: Partial<BirthdayCombo>): BirthdayCombo | undefined => {
+    const combos = birthdayCombosStore.getAll();
+    const index = combos.findIndex(c => c.id === id);
+    if (index === -1) return undefined;
+    
+    combos[index] = { ...combos[index], ...data };
+    setToStorage(STORAGE_KEYS.BIRTHDAY_COMBOS, combos);
+    return combos[index];
+  },
+  
+  delete: (id: string): boolean => {
+    const combos = birthdayCombosStore.getAll();
+    const filtered = combos.filter(c => c.id !== id);
+    if (filtered.length === combos.length) return false;
+    
+    setToStorage(STORAGE_KEYS.BIRTHDAY_COMBOS, filtered);
+    return true;
+  },
+
+  getByClient: (clientId: string): BirthdayCombo[] => {
+    const combos = birthdayCombosStore.getAll();
+    return combos.filter(c => c.clientId === clientId);
+  },
+
+  getActive: (): BirthdayCombo[] => {
+    const combos = birthdayCombosStore.getAll();
+    return combos.filter(c => c.status === 'pending' || c.status === 'sent');
+  },
+
+  // Generate combo for clients with birthday tomorrow
+  generateTomorrowCombos: (discountAmount: number = 50): BirthdayCombo[] => {
+    const tomorrowBirthdays = clientsStore.getTomorrowBirthdays();
+    const existingCombos = birthdayCombosStore.getAll();
+    const newCombos: BirthdayCombo[] = [];
+    
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    
+    const validUntil = new Date();
+    validUntil.setDate(validUntil.getDate() + 7);
+    
+    tomorrowBirthdays.forEach(client => {
+      // Check if combo already exists for this client this year
+      const hasCombo = existingCombos.some(c => 
+        c.clientId === client.id && 
+        c.birthDate.slice(5) === client.birthDate!.slice(5) &&
+        new Date(c.createdAt).getFullYear() === new Date().getFullYear()
+      );
+      
+      if (!hasCombo) {
+        const combo = birthdayCombosStore.create({
+          clientId: client.id,
+          clientName: client.name,
+          birthDate: client.birthDate!,
+          comboDiscount: discountAmount,
+          comboDescription: `Feliz Aniversário! Ganhe R$ ${discountAmount} de desconto em qualquer procedimento.`,
+          status: 'pending',
+          validUntil: validUntil.toISOString().split('T')[0],
+        });
+        newCombos.push(combo);
+      }
+    });
+    
+    return newCombos;
+  },
+};
+
+// ============= OPPORTUNITIES STORE =============
+
+export const opportunitiesStore = {
+  getAll: (): Opportunity[] => getFromStorage(STORAGE_KEYS.OPPORTUNITIES, defaultOpportunities),
+  
+  getById: (id: string): Opportunity | undefined => {
+    const opportunities = opportunitiesStore.getAll();
+    return opportunities.find(o => o.id === id);
+  },
+  
+  create: (opportunity: Omit<Opportunity, 'id' | 'createdAt'>): Opportunity => {
+    const opportunities = opportunitiesStore.getAll();
+    const newOpportunity: Opportunity = {
+      ...opportunity,
+      id: createId('opp'),
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+    setToStorage(STORAGE_KEYS.OPPORTUNITIES, [...opportunities, newOpportunity]);
+    return newOpportunity;
+  },
+  
+  update: (id: string, data: Partial<Opportunity>): Opportunity | undefined => {
+    const opportunities = opportunitiesStore.getAll();
+    const index = opportunities.findIndex(o => o.id === id);
+    if (index === -1) return undefined;
+    
+    opportunities[index] = { ...opportunities[index], ...data };
+    setToStorage(STORAGE_KEYS.OPPORTUNITIES, opportunities);
+    return opportunities[index];
+  },
+  
+  delete: (id: string): boolean => {
+    const opportunities = opportunitiesStore.getAll();
+    const filtered = opportunities.filter(o => o.id !== id);
+    if (filtered.length === opportunities.length) return false;
+    
+    setToStorage(STORAGE_KEYS.OPPORTUNITIES, filtered);
+    return true;
+  },
+
+  getPending: (): Opportunity[] => {
+    const opportunities = opportunitiesStore.getAll();
+    return opportunities.filter(o => o.status === 'pending');
+  },
+
+  getByType: (type: Opportunity['type']): Opportunity[] => {
+    const opportunities = opportunitiesStore.getAll();
+    return opportunities.filter(o => o.type === type);
+  },
+
+  // Generate all opportunities based on current data
+  generateOpportunities: (): Opportunity[] => {
+    const opportunities = opportunitiesStore.getAll();
+    const newOpportunities: Opportunity[] = [];
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    
+    // 1. Birthday opportunities (clients with birthday in next 2 days)
+    const upcomingBirthdays = clientsStore.getUpcomingBirthdays(2);
+    upcomingBirthdays.forEach(client => {
+      const exists = opportunities.some(o => 
+        o.type === 'birthday' && 
+        o.clientId === client.id &&
+        new Date(o.createdAt).getFullYear() === today.getFullYear()
+      );
+      
+      if (!exists) {
+        const birthDate = new Date(client.birthDate!);
+        const thisYearBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
+        if (thisYearBirthday < today) thisYearBirthday.setFullYear(today.getFullYear() + 1);
+        
+        const opp = opportunitiesStore.create({
+          type: 'birthday',
+          title: `Aniversário de ${client.name}`,
+          description: `Cliente faz aniversário em ${thisYearBirthday.toLocaleDateString('pt-BR')}. Envie uma mensagem de parabéns e ofereça um combo promocional!`,
+          clientId: client.id,
+          clientName: client.name,
+          clientPhone: client.phone,
+          priority: 'high',
+          dueDate: thisYearBirthday.toISOString().split('T')[0],
+          status: 'pending',
+        });
+        newOpportunities.push(opp);
+      }
+    });
+    
+    // 2. Repurchase opportunities (products ending in next 7 days)
+    const productsNearEnd = productSalesStore.getProductsNearEnd(7);
+    productsNearEnd.forEach(sale => {
+      const exists = opportunities.some(o => 
+        o.type === 'repurchase' && 
+        o.productId === sale.productId &&
+        o.clientId === sale.clientId &&
+        o.status === 'pending'
+      );
+      
+      if (!exists) {
+        const daysUntilEnd = Math.ceil((new Date(sale.estimatedEndDate).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        const opp = opportunitiesStore.create({
+          type: 'repurchase',
+          title: `Recompra: ${sale.productName}`,
+          description: `O produto "${sale.productName}" de ${sale.clientName} termina em ${daysUntilEnd} dias. Sugira a recompra!`,
+          clientId: sale.clientId,
+          clientName: sale.clientName,
+          clientPhone: clientsStore.getById(sale.clientId)?.phone || '',
+          productId: sale.productId,
+          productName: sale.productName,
+          priority: daysUntilEnd <= 3 ? 'high' : 'medium',
+          dueDate: sale.estimatedEndDate,
+          status: 'pending',
+        });
+        newOpportunities.push(opp);
+      }
+    });
+    
+    return newOpportunities;
+  },
+};
+
 // ============= ANALYTICS STORE =============
 
 export const analyticsStore = {
@@ -613,6 +1260,7 @@ export const analyticsStore = {
     const clients = clientsStore.getAll();
     const appointments = appointmentsStore.getAll();
     const procedures = proceduresStore.getAll();
+    const productSales = productSalesStore.getAll();
     
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
@@ -673,6 +1321,16 @@ export const analyticsStore = {
     // Add client total spent
     revenue += clients.reduce((sum, c) => sum + c.totalSpent, 0);
     
+    // Add product sales revenue
+    revenue += productSales.reduce((sum, s) => sum + s.totalPrice, 0);
+    
+    // New analytics
+    const upcomingBirthdays = clientsStore.getUpcomingBirthdays(7).length;
+    const activeCombos = birthdayCombosStore.getActive().length;
+    const productsNearEnd = productSalesStore.getProductsNearEnd(7).length;
+    const topProducts = productSalesStore.getTopProducts(5).map(p => ({ name: p.name, count: p.count }));
+    const repurchaseOpportunities = opportunitiesStore.getByType('repurchase').filter(o => o.status === 'pending').length;
+    
     return {
       totalLeads: leads.length,
       totalClients: clients.length,
@@ -683,6 +1341,11 @@ export const analyticsStore = {
       leadsByStage,
       conversionRate,
       revenue,
+      upcomingBirthdays,
+      activeCombos,
+      productsNearEnd,
+      topProducts,
+      repurchaseOpportunities,
     };
   },
   
@@ -719,7 +1382,7 @@ export const analyticsStore = {
   getRevenueChartData: (): { month: string; value: number }[] => {
     const appointments = appointmentsStore.getAll();
     const procedures = proceduresStore.getAll();
-    const clients = clientsStore.getAll();
+    const productSales = productSalesStore.getAll();
     
     const today = new Date();
     const data: { month: string; value: number }[] = [];
@@ -741,6 +1404,13 @@ export const analyticsStore = {
           }
         });
       
+      // Add product sales revenue
+      productSales
+        .filter(s => s.saleDate >= monthStart && s.saleDate <= monthEnd)
+        .forEach(sale => {
+          monthRevenue += sale.totalPrice;
+        });
+      
       // Add some mock revenue for demonstration
       monthRevenue += (6 - i) * 8000 + Math.random() * 5000;
       
@@ -751,5 +1421,22 @@ export const analyticsStore = {
     }
     
     return data;
+  },
+
+  getProductsChartData: (): { name: string; value: number; color: string }[] => {
+    const topProducts = productSalesStore.getTopProducts(5);
+    const colors = [
+      'hsl(243, 75%, 59%)',
+      'hsl(258, 90%, 66%)',
+      'hsl(199, 89%, 48%)',
+      'hsl(142, 76%, 36%)',
+      'hsl(38, 92%, 50%)',
+    ];
+    
+    return topProducts.map((p, i) => ({
+      name: p.name.length > 15 ? p.name.slice(0, 15) + '...' : p.name,
+      value: p.count,
+      color: colors[i % colors.length],
+    }));
   },
 };
