@@ -18,7 +18,11 @@ import {
   ChevronRight,
   Flame,
   TrendingUp,
-  BarChart3
+  BarChart3,
+  Gift,
+  Cake,
+  RefreshCw,
+  Package
 } from 'lucide-react';
 import { 
   BarChart,
@@ -29,7 +33,7 @@ import {
   Tooltip,
   ResponsiveContainer
 } from 'recharts';
-import { leadsStore, clientsStore, appointmentsStore, analyticsStore } from '@/lib/store';
+import { leadsStore, clientsStore, appointmentsStore, analyticsStore, opportunitiesStore, productSalesStore } from '@/lib/store';
 import { LeadModal } from '@/components/modals/LeadModal';
 import { AppointmentModal } from '@/components/modals/AppointmentModal';
 import { handleCall } from '@/lib/actions';
@@ -49,9 +53,16 @@ export default function UserDashboardPage() {
   const clients = clientsStore.getAll();
   const todayAppointments = appointmentsStore.getByDate(new Date().toISOString().split('T')[0]);
   const myLeads = leads.filter(l => l.stage !== 'closed' && l.stage !== 'lost');
+  
+  // Get opportunities data
+  const upcomingBirthdays = clientsStore.getUpcomingBirthdays(7);
+  const productsNearEnd = productSalesStore.getProductsNearEnd(7);
 
   // Refresh analytics
   useEffect(() => {
+    // Generate opportunities automatically
+    opportunitiesStore.generateOpportunities();
+    
     setAnalytics(analyticsStore.getAnalytics());
     setAppointmentsChartData(analyticsStore.getAppointmentsChartData());
   }, [leads.length, clients.length, todayAppointments.length]);
@@ -231,6 +242,124 @@ export default function UserDashboardPage() {
               <div className="text-center py-8 text-muted-foreground">
                 <Target className="w-8 h-8 mx-auto mb-2 opacity-50" />
                 <p className="text-sm">Nenhum lead ativo</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Opportunity Cards Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Birthday Opportunities */}
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-accent/10 to-primary/10 backdrop-blur-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-accent/20">
+                <Cake className="h-4 w-4 text-accent" />
+              </div>
+              <div>
+                <CardTitle className="text-base font-semibold">Aniversariantes</CardTitle>
+                <CardDescription className="text-xs">{upcomingBirthdays.length} próximos 7 dias</CardDescription>
+              </div>
+            </div>
+            <Badge className="bg-accent/20 text-accent hover:bg-accent/30">
+              {upcomingBirthdays.length}
+            </Badge>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {upcomingBirthdays.length > 0 ? upcomingBirthdays.slice(0, 3).map((client, index) => {
+              const birthDate = new Date(client.birthDate!);
+              const today = new Date();
+              const thisYearBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
+              if (thisYearBirthday < today) thisYearBirthday.setFullYear(today.getFullYear() + 1);
+              const daysUntil = Math.ceil((thisYearBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+              
+              return (
+                <div key={index} className="flex items-center gap-3 p-2 rounded-lg bg-background/50 hover:bg-background/80 transition-colors">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className="bg-accent/20 text-accent text-xs">
+                      {getInitials(client.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{client.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {daysUntil === 0 ? '🎂 Hoje!' : daysUntil === 1 ? '🎁 Amanhã!' : `Em ${daysUntil} dias`}
+                    </p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="h-7 px-2"
+                    onClick={() => {
+                      handleCall(client.phone, client.name);
+                      toast.success(`Ligando para ${client.name}...`);
+                    }}
+                  >
+                    <Phone className="w-3 h-3" />
+                  </Button>
+                </div>
+              );
+            }) : (
+              <div className="text-center py-4 text-muted-foreground">
+                <Cake className="w-6 h-6 mx-auto mb-1 opacity-50" />
+                <p className="text-xs">Nenhum aniversário próximo</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Repurchase Opportunities */}
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-primary/10 to-accent/10 backdrop-blur-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-primary/20">
+                <RefreshCw className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-base font-semibold">Recompras</CardTitle>
+                <CardDescription className="text-xs">{productsNearEnd.length} produtos acabando</CardDescription>
+              </div>
+            </div>
+            <Badge className="bg-primary/20 text-primary hover:bg-primary/30">
+              {productsNearEnd.length}
+            </Badge>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {productsNearEnd.length > 0 ? productsNearEnd.slice(0, 3).map((sale, index) => {
+              const daysUntilEnd = Math.ceil((new Date(sale.estimatedEndDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+              const client = clientsStore.getById(sale.clientId);
+              
+              return (
+                <div key={index} className="flex items-center gap-3 p-2 rounded-lg bg-background/50 hover:bg-background/80 transition-colors">
+                  <div className="p-1.5 rounded-lg bg-primary/20">
+                    <Package className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{sale.productName}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {sale.clientName} • {daysUntilEnd <= 0 ? '⚠️ Acabou!' : daysUntilEnd <= 3 ? `⏰ ${daysUntilEnd}d` : `${daysUntilEnd}d`}
+                    </p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="h-7 px-2"
+                    onClick={() => {
+                      if (client) {
+                        handleCall(client.phone, client.name);
+                        toast.success(`Ligando para ${sale.clientName}...`);
+                      }
+                    }}
+                  >
+                    <Phone className="w-3 h-3" />
+                  </Button>
+                </div>
+              );
+            }) : (
+              <div className="text-center py-4 text-muted-foreground">
+                <Package className="w-6 h-6 mx-auto mb-1 opacity-50" />
+                <p className="text-xs">Nenhum produto acabando</p>
               </div>
             )}
           </CardContent>

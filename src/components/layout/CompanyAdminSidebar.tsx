@@ -7,7 +7,8 @@ import {
   Bell,
   Settings,
   Target,
-  ClipboardList
+  ClipboardList,
+  Package
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
@@ -55,6 +56,12 @@ const menuItems = [
     url: '/admin/schedule', 
     icon: Calendar,
     label: 'schedule',
+  },
+  { 
+    key: 'products',
+    url: '/admin/products', 
+    icon: Package,
+    label: 'products',
   },
   { 
     key: 'alerts',

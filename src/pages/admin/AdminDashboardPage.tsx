@@ -21,7 +21,12 @@ import {
   Flame,
   DollarSign,
   ChevronRight,
-  BarChart3
+  BarChart3,
+  Gift,
+  Package,
+  RefreshCw,
+  Cake,
+  ShoppingBag
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -37,11 +42,12 @@ import {
   Pie,
   Cell
 } from 'recharts';
-import { leadsStore, clientsStore, appointmentsStore, analyticsStore } from '@/lib/store';
+import { leadsStore, clientsStore, appointmentsStore, analyticsStore, opportunitiesStore, productSalesStore } from '@/lib/store';
 import { LeadModal } from '@/components/modals/LeadModal';
 import { ClientModal } from '@/components/modals/ClientModal';
 import { AppointmentModal } from '@/components/modals/AppointmentModal';
 import { handleCall } from '@/lib/actions';
+import { toast } from 'sonner';
 
 export default function AdminDashboardPage() {
   const { t } = useLanguage();
@@ -60,9 +66,18 @@ export default function AdminDashboardPage() {
   const leads = leadsStore.getAll();
   const clients = clientsStore.getAll();
   const todayAppointments = appointmentsStore.getByDate(new Date().toISOString().split('T')[0]);
+  
+  // Get opportunities data
+  const birthdayOpportunities = opportunitiesStore.getByType('birthday').filter(o => o.status === 'pending');
+  const repurchaseOpportunities = opportunitiesStore.getByType('repurchase').filter(o => o.status === 'pending');
+  const productsNearEnd = productSalesStore.getProductsNearEnd(7);
+  const upcomingBirthdays = clientsStore.getUpcomingBirthdays(7);
 
   // Refresh analytics when data changes
   useEffect(() => {
+    // Generate opportunities automatically
+    opportunitiesStore.generateOpportunities();
+    
     setAnalytics(analyticsStore.getAnalytics());
     setRevenueData(analyticsStore.getRevenueChartData());
     setLeadsChartData(analyticsStore.getLeadsChartData());
@@ -540,6 +555,165 @@ export default function AdminDashboardPage() {
             ))}
           </CardContent>
         </Card>
+      </motion.div>
+
+      {/* Opportunity Cards Section */}
+      <motion.div variants={itemVariants}>
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Gift className="w-5 h-5 text-primary" />
+          Oportunidades de Venda
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Birthday Opportunities */}
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-pink-500/10 to-purple-500/10 backdrop-blur-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-pink-500/20">
+                  <Cake className="h-4 w-4 text-pink-500" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-semibold">Aniversariantes</CardTitle>
+                  <CardDescription className="text-xs">{upcomingBirthdays.length} próximos 7 dias</CardDescription>
+                </div>
+              </div>
+              <Badge className="bg-pink-500/20 text-pink-600 hover:bg-pink-500/30">
+                {upcomingBirthdays.length}
+              </Badge>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {upcomingBirthdays.length > 0 ? upcomingBirthdays.slice(0, 3).map((client, index) => {
+                const birthDate = new Date(client.birthDate!);
+                const today = new Date();
+                const thisYearBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
+                if (thisYearBirthday < today) thisYearBirthday.setFullYear(today.getFullYear() + 1);
+                const daysUntil = Math.ceil((thisYearBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                
+                return (
+                  <div key={index} className="flex items-center gap-3 p-2 rounded-lg bg-background/50 hover:bg-background/80 transition-colors">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-pink-500/20 text-pink-600 text-xs">
+                        {getInitials(client.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{client.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {daysUntil === 0 ? '🎂 Hoje!' : daysUntil === 1 ? '🎁 Amanhã!' : `Em ${daysUntil} dias`}
+                      </p>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="h-7 px-2"
+                      onClick={() => {
+                        handleCall(client.phone, client.name);
+                        toast.success(`Ligando para ${client.name}...`);
+                      }}
+                    >
+                      <Phone className="w-3 h-3" />
+                    </Button>
+                  </div>
+                );
+              }) : (
+                <div className="text-center py-4 text-muted-foreground">
+                  <Cake className="w-6 h-6 mx-auto mb-1 opacity-50" />
+                  <p className="text-xs">Nenhum aniversário próximo</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Repurchase Opportunities */}
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-500/10 to-cyan-500/10 backdrop-blur-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-blue-500/20">
+                  <RefreshCw className="h-4 w-4 text-blue-500" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-semibold">Recompras</CardTitle>
+                  <CardDescription className="text-xs">{productsNearEnd.length} produtos acabando</CardDescription>
+                </div>
+              </div>
+              <Badge className="bg-blue-500/20 text-blue-600 hover:bg-blue-500/30">
+                {productsNearEnd.length}
+              </Badge>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {productsNearEnd.length > 0 ? productsNearEnd.slice(0, 3).map((sale, index) => {
+                const daysUntilEnd = Math.ceil((new Date(sale.estimatedEndDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                const client = clientsStore.getById(sale.clientId);
+                
+                return (
+                  <div key={index} className="flex items-center gap-3 p-2 rounded-lg bg-background/50 hover:bg-background/80 transition-colors">
+                    <div className="p-1.5 rounded-lg bg-blue-500/20">
+                      <Package className="h-4 w-4 text-blue-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{sale.productName}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {sale.clientName} • {daysUntilEnd <= 0 ? '⚠️ Acabou!' : daysUntilEnd <= 3 ? `⏰ ${daysUntilEnd}d` : `${daysUntilEnd}d`}
+                      </p>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="h-7 px-2"
+                      onClick={() => {
+                        if (client) {
+                          handleCall(client.phone, client.name);
+                          toast.success(`Ligando para ${sale.clientName}...`);
+                        }
+                      }}
+                    >
+                      <Phone className="w-3 h-3" />
+                    </Button>
+                  </div>
+                );
+              }) : (
+                <div className="text-center py-4 text-muted-foreground">
+                  <Package className="w-6 h-6 mx-auto mb-1 opacity-50" />
+                  <p className="text-xs">Nenhum produto acabando</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Top Products */}
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-green-500/10 to-emerald-500/10 backdrop-blur-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-green-500/20">
+                  <ShoppingBag className="h-4 w-4 text-green-500" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-semibold">Mais Vendidos</CardTitle>
+                  <CardDescription className="text-xs">Top produtos do mês</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {analytics.topProducts.length > 0 ? analytics.topProducts.slice(0, 3).map((product, index) => (
+                <div key={index} className="flex items-center gap-3 p-2 rounded-lg bg-background/50">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-green-500/20 text-green-600 text-xs font-bold">
+                    {index + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{product.name}</p>
+                  </div>
+                  <Badge variant="outline" className="text-xs">
+                    {product.count}x
+                  </Badge>
+                </div>
+              )) : (
+                <div className="text-center py-4 text-muted-foreground">
+                  <ShoppingBag className="w-6 h-6 mx-auto mb-1 opacity-50" />
+                  <p className="text-xs">Nenhuma venda registrada</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </motion.div>
 
       {/* Modals */}
