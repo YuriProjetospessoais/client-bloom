@@ -1,737 +1,495 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { useAuth } from '@/lib/auth/AuthContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { 
-  Target, 
   Users, 
-  UserPlus, 
-  Calendar, 
-  Bell, 
-  TrendingUp, 
-  ArrowUpRight,
-  ArrowDownRight,
-  Phone,
-  Plus,
-  Clock,
-  Flame,
+  Clock, 
+  RotateCcw, 
   DollarSign,
-  ChevronRight,
-  BarChart3,
+  UserPlus,
+  Calendar,
+  Plus,
+  Phone,
+  MessageSquare,
+  History,
   Gift,
+  UserX,
   Package,
-  RefreshCw,
-  Cake,
-  ShoppingBag
+  TrendingUp,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell
-} from 'recharts';
-import { leadsStore, clientsStore, appointmentsStore, analyticsStore, opportunitiesStore, productSalesStore } from '@/lib/store';
-import { LeadModal } from '@/components/modals/LeadModal';
+  clientsStore, 
+  appointmentsStore, 
+  opportunitiesStore,
+  productSalesStore,
+  productsStore 
+} from '@/lib/store';
 import { ClientModal } from '@/components/modals/ClientModal';
+import { LeadModal } from '@/components/modals/LeadModal';
 import { AppointmentModal } from '@/components/modals/AppointmentModal';
-import { handleCall } from '@/lib/actions';
-import { toast } from 'sonner';
+import { ClientHistoryModal } from '@/components/modals/ClientHistoryModal';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 
 export default function AdminDashboardPage() {
-  const { t } = useLanguage();
   const { user } = useAuth();
-  const [period, setPeriod] = useState<'today' | 'week' | 'month'>('month');
-  const [leadModalOpen, setLeadModalOpen] = useState(false);
-  const [clientModalOpen, setClientModalOpen] = useState(false);
-  const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
-
-  // Get real data from stores
-  const [analytics, setAnalytics] = useState(() => analyticsStore.getAnalytics());
-  const [revenueData, setRevenueData] = useState(() => analyticsStore.getRevenueChartData());
-  const [leadsChartData, setLeadsChartData] = useState(() => analyticsStore.getLeadsChartData());
-  const [appointmentsChartData, setAppointmentsChartData] = useState(() => analyticsStore.getAppointmentsChartData());
-
-  const leads = leadsStore.getAll();
-  const clients = clientsStore.getAll();
-  const todayAppointments = appointmentsStore.getByDate(new Date().toISOString().split('T')[0]);
+  const { toast } = useToast();
+  const [periodFilter, setPeriodFilter] = useState<'today' | 'week' | 'month'>('today');
   
-  // Get opportunities data
-  const birthdayOpportunities = opportunitiesStore.getByType('birthday').filter(o => o.status === 'pending');
-  const repurchaseOpportunities = opportunitiesStore.getByType('repurchase').filter(o => o.status === 'pending');
-  const productsNearEnd = productSalesStore.getProductsNearEnd(7);
-  const upcomingBirthdays = clientsStore.getUpcomingBirthdays(7);
+  // Modals
+  const [clientModalOpen, setClientModalOpen] = useState(false);
+  const [leadModalOpen, setLeadModalOpen] = useState(false);
+  const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<any>(null);
 
-  // Refresh analytics when data changes
+  // Data
+  const clients = clientsStore.getAll();
+  const appointments = appointmentsStore.getAll();
+  const opportunities = opportunitiesStore.getAll();
+  const products = productsStore.getAll();
+
+  // Generate opportunities on mount
   useEffect(() => {
-    // Generate opportunities automatically
     opportunitiesStore.generateOpportunities();
-    
-    setAnalytics(analyticsStore.getAnalytics());
-    setRevenueData(analyticsStore.getRevenueChartData());
-    setLeadsChartData(analyticsStore.getLeadsChartData());
-    setAppointmentsChartData(analyticsStore.getAppointmentsChartData());
-  }, [leads.length, clients.length, todayAppointments.length]);
+  }, []);
 
-  const stats = [
-    { 
-      title: 'Total de Leads', 
-      value: analytics.totalLeads.toString(), 
-      change: `${analytics.leadsByStage.new || 0} novos`, 
-      up: true,
-      icon: UserPlus, 
-      color: 'text-primary', 
-      bg: 'bg-primary/10',
-      gradient: 'from-primary/20 to-accent/10'
-    },
-    { 
-      title: 'Total de Clientes', 
-      value: analytics.totalClients.toString(), 
-      change: '+8%', 
-      up: true,
-      icon: Users, 
-      color: 'text-accent', 
-      bg: 'bg-accent/10',
-      gradient: 'from-accent/20 to-primary/10'
-    },
-    { 
-      title: 'Agendamentos Mês', 
-      value: analytics.appointmentsByMonth.toString(), 
-      change: `${todayAppointments.length} hoje`, 
-      up: true,
-      icon: Calendar, 
-      color: 'text-success', 
-      bg: 'bg-success/10',
-      gradient: 'from-success/20 to-success/5'
-    },
-    { 
-      title: 'Taxa Conversão', 
-      value: `${analytics.conversionRate.toFixed(1)}%`, 
-      change: analytics.conversionRate > 20 ? '+5%' : '-2%', 
-      up: analytics.conversionRate > 20,
-      icon: TrendingUp, 
-      color: 'text-warning', 
-      bg: 'bg-warning/10',
-      gradient: 'from-warning/20 to-warning/5'
-    },
+  // Get greeting based on time
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Bom dia';
+    if (hour < 18) return 'Boa tarde';
+    return 'Boa noite';
+  };
+
+  // Today's appointments
+  const today = new Date().toISOString().split('T')[0];
+  const todayAppointments = appointments
+    .filter(a => a.date === today)
+    .sort((a, b) => a.time.localeCompare(b.time));
+
+  // Stats calculation
+  const clientsToday = todayAppointments.length;
+  const freeSlots = 8 - clientsToday;
+  const pendingReturns = opportunities.filter(o => o.type === 'repurchase' && o.status === 'pending').length;
+  const todayRevenue = todayAppointments.reduce((acc) => acc + 50, 0);
+
+  // Birthday opportunities
+  const birthdayOpportunities = opportunities.filter(o => o.type === 'birthday' && o.status === 'pending');
+
+  // Inactive clients (no appointment in 30 days)
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const inactiveClients = clients.filter(client => {
+    const lastAppointment = appointments
+      .filter(a => a.clientId === client.id)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+    if (!lastAppointment) return true;
+    return new Date(lastAppointment.date) < thirtyDaysAgo;
+  });
+
+  // Products running low
+  const repurchaseOpportunities = opportunities.filter(o => o.type === 'repurchase' && o.status === 'pending');
+
+  // Chart data
+  const chartData = [
+    { name: 'Seg', value: 4200 },
+    { name: 'Ter', value: 3800 },
+    { name: 'Qua', value: 5100 },
+    { name: 'Qui', value: 4600 },
+    { name: 'Sex', value: 6200 },
+    { name: 'Sáb', value: 7800 },
   ];
 
-  const hotLeads = leads
-    .filter(l => l.stage === 'negotiation' || l.stage === 'proposal')
-    .slice(0, 4);
-
-  const upcomingReturns = clients
-    .filter(c => c.lastVisit)
-    .sort((a, b) => new Date(b.lastVisit || '').getTime() - new Date(a.lastVisit || '').getTime())
-    .slice(0, 3)
-    .map(c => ({
-      name: c.name,
-      procedure: 'Retorno',
-      days: Math.floor((new Date().getTime() - new Date(c.lastVisit || '').getTime()) / (1000 * 60 * 60 * 24)),
-      phone: c.phone,
-    }));
-
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-  };
-
-  const handleSaveLead = (leadData: any) => {
-    if (leadData.id) {
-      leadsStore.update(leadData.id, leadData);
-    } else {
-      leadsStore.create(leadData);
-    }
-    setLeadModalOpen(false);
-  };
-
-  const handleSaveClient = (clientData: any) => {
-    if (clientData.id) {
-      clientsStore.update(clientData.id, clientData);
-    } else {
-      clientsStore.create(clientData);
-    }
-    setClientModalOpen(false);
-  };
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
+  const handleCall = (phone: string | undefined) => {
+    if (phone) {
+      window.open(`tel:${phone}`, '_self');
+      toast({ title: 'Ligando...', description: `Iniciando chamada` });
     }
   };
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 }
+  const handleWhatsApp = (phone: string | undefined) => {
+    if (phone) {
+      window.open(`https://wa.me/55${phone.replace(/\D/g, '')}`, '_blank');
+    }
+  };
+
+  const handleViewHistory = (client: any) => {
+    setSelectedClient(client);
+    setHistoryModalOpen(true);
   };
 
   return (
-    <motion.div 
-      className="space-y-6 pb-8"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
-      {/* Header Section */}
-      <motion.div variants={itemVariants} className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
-            Olá, {user?.name?.split(' ')[0]}! 👋
+    <div className="space-y-6">
+      {/* Header with greeting and quick actions */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-1"
+        >
+          <h1 className="text-2xl lg:text-3xl font-display font-bold text-foreground">
+            {getGreeting()}, {user?.name?.split(' ')[0]}!
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Aqui está o resumo do seu negócio • {user?.companyName}
+          <p className="text-muted-foreground">
+            Mais do que cortes. Relacionamentos.
           </p>
-        </div>
-        
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Period Filter */}
-          <div className="flex items-center bg-muted/50 rounded-lg p-1">
-            {(['today', 'week', 'month'] as const).map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                  period === p 
-                    ? 'bg-background text-foreground shadow-sm' 
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {p === 'today' ? 'Hoje' : p === 'week' ? 'Semana' : 'Mês'}
-              </button>
-            ))}
-          </div>
+        </motion.div>
 
-          {/* Quick Actions */}
-          <div className="flex gap-2">
-            <Button 
-              size="sm" 
-              className="gradient-primary text-primary-foreground gap-1.5"
-              onClick={() => setLeadModalOpen(true)}
-            >
-              <Plus className="w-4 h-4" />
-              Lead
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              className="gap-1.5"
-              onClick={() => setClientModalOpen(true)}
-            >
-              <Plus className="w-4 h-4" />
-              Cliente
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              className="gap-1.5"
-              onClick={() => setAppointmentModalOpen(true)}
-            >
-              <Calendar className="w-4 h-4" />
-              Agendar
-            </Button>
-          </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button 
+            variant="outline" 
+            className="gap-2 rounded-xl border-border hover:bg-primary/10 hover:text-primary hover:border-primary/30"
+            onClick={() => setClientModalOpen(true)}
+          >
+            <UserPlus className="w-4 h-4" />
+            Novo Cliente
+          </Button>
+          <Button 
+            variant="outline" 
+            className="gap-2 rounded-xl border-border hover:bg-primary/10 hover:text-primary hover:border-primary/30"
+            onClick={() => setLeadModalOpen(true)}
+          >
+            <Plus className="w-4 h-4" />
+            Novo Lead
+          </Button>
+          <Button 
+            className="gap-2 rounded-xl gradient-gold text-primary-foreground hover:opacity-90"
+            onClick={() => setAppointmentModalOpen(true)}
+          >
+            <Calendar className="w-4 h-4" />
+            Novo Agendamento
+          </Button>
         </div>
-      </motion.div>
+      </div>
+
+      {/* Period Filter */}
+      <div className="flex items-center gap-2">
+        {(['today', 'week', 'month'] as const).map((period) => (
+          <Button
+            key={period}
+            variant={periodFilter === period ? 'default' : 'outline'}
+            size="sm"
+            className={`rounded-xl ${periodFilter === period ? 'gradient-gold text-primary-foreground' : ''}`}
+            onClick={() => setPeriodFilter(period)}
+          >
+            {period === 'today' ? 'Hoje' : period === 'week' ? 'Semana' : 'Mês'}
+          </Button>
+        ))}
+      </div>
 
       {/* Stats Cards */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat, index) => (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {[
+          { label: 'Clientes Hoje', value: clientsToday, change: '+2', icon: Users, positive: true },
+          { label: 'Horários Livres', value: freeSlots, change: '+1', icon: Clock, positive: true },
+          { label: 'Retornos Pendentes', value: pendingReturns, change: '+7', icon: RotateCcw, positive: false },
+          { label: 'Faturamento Hoje', value: `R$${todayRevenue}`, change: '+R$115', icon: DollarSign, positive: true, highlight: true },
+        ].map((stat, index) => (
           <motion.div
-            key={index}
-            whileHover={{ y: -4, transition: { duration: 0.2 } }}
-            className="group"
+            key={stat.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
           >
-            <Card className={`relative overflow-hidden border-0 bg-gradient-to-br ${stat.gradient} backdrop-blur-sm hover:shadow-xl transition-all duration-300`}>
-              <div className="absolute top-0 right-0 w-32 h-32 -mr-8 -mt-8 rounded-full bg-gradient-to-br from-background/10 to-transparent" />
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className={`p-3 rounded-xl ${stat.bg} group-hover:scale-110 transition-transform`}>
-                    <stat.icon className={`h-5 w-5 ${stat.color}`} />
-                  </div>
-                  <div className={`flex items-center gap-1 text-sm font-medium ${stat.up ? 'text-success' : 'text-destructive'}`}>
-                    {stat.up ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-                    {stat.change}
-                  </div>
+            <Card className={`barber-card ${stat.highlight ? 'ring-2 ring-primary/20' : ''}`}>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm text-muted-foreground">{stat.label}</span>
+                  <stat.icon className="w-5 h-5 text-primary/60" />
                 </div>
-                <div className="mt-4">
-                  <p className="text-3xl font-bold text-foreground tracking-tight">{stat.value}</p>
-                  <p className="text-sm text-muted-foreground mt-1">{stat.title}</p>
+                <div className="flex items-end justify-between">
+                  <span className="text-3xl font-bold text-foreground">{stat.value}</span>
+                  <Badge 
+                    variant="secondary" 
+                    className={`rounded-full ${stat.positive ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}
+                  >
+                    {stat.positive ? <ArrowUp className="w-3 h-3 mr-1" /> : <ArrowDown className="w-3 h-3 mr-1" />}
+                    {stat.change}
+                  </Badge>
                 </div>
               </CardContent>
             </Card>
           </motion.div>
         ))}
-      </motion.div>
+      </div>
 
-      {/* Charts Section */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Revenue Chart */}
-        <Card className="lg:col-span-2 border-0 shadow-lg bg-card/80 backdrop-blur-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div>
-              <CardTitle className="text-lg font-semibold">Receita Mensal</CardTitle>
-              <CardDescription>Últimos 6 meses</CardDescription>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-success font-medium">R$ {analytics.revenue.toLocaleString('pt-BR')}</span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={revenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(243, 75%, 59%)" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="hsl(243, 75%, 59%)" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis 
-                    dataKey="month" 
-                    stroke="hsl(var(--muted-foreground))" 
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis 
-                    stroke="hsl(var(--muted-foreground))" 
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(value) => `${value / 1000}k`}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                    }}
-                    formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR')}`, 'Receita']}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke="hsl(243, 75%, 59%)" 
-                    strokeWidth={2}
-                    fillOpacity={1} 
-                    fill="url(#colorRevenue)" 
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Leads by Stage */}
-        <Card className="border-0 shadow-lg bg-card/80 backdrop-blur-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-semibold">Leads por Estágio</CardTitle>
-            <CardDescription>Distribuição atual</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[200px] flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={leadsChartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {leadsChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px'
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="mt-4 space-y-2">
-              {leadsChartData.slice(0, 4).map((item, index) => (
-                <div key={index} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                    <span className="text-muted-foreground">{item.name}</span>
-                  </div>
-                  <span className="font-medium">{item.value}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* Appointments Chart */}
-      <motion.div variants={itemVariants}>
-        <Card className="border-0 shadow-lg bg-card/80 backdrop-blur-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div>
-              <CardTitle className="text-lg font-semibold">Agendamentos por Dia</CardTitle>
-              <CardDescription>Últimos 7 dias</CardDescription>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <BarChart3 className="w-4 h-4 text-primary" />
-              <span className="font-medium">{analytics.appointmentsByWeek} na semana</span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={appointmentsChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis 
-                    dataKey="day" 
-                    stroke="hsl(var(--muted-foreground))" 
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis 
-                    stroke="hsl(var(--muted-foreground))" 
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px'
-                    }}
-                    formatter={(value: number) => [value, 'Agendamentos']}
-                  />
-                  <Bar 
-                    dataKey="count" 
-                    fill="hsl(243, 75%, 59%)" 
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* Bottom Section */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Today's Appointments */}
-        <Card className="border-0 shadow-lg bg-card/80 backdrop-blur-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Calendar className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <CardTitle className="text-base font-semibold">Agenda de Hoje</CardTitle>
-                <CardDescription className="text-xs">{todayAppointments.length} agendamentos</CardDescription>
-              </div>
-            </div>
-            <Button variant="ghost" size="sm" className="text-xs">
-              Ver todos <ChevronRight className="w-3 h-3 ml-1" />
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {todayAppointments.length > 0 ? todayAppointments.slice(0, 4).map((apt, index) => (
-              <div key={index} className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 hover:bg-muted/80 transition-colors">
-                <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-primary/10 text-primary font-semibold text-sm">
-                  {apt.time}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-foreground truncate">{apt.clientName}</p>
-                  <p className="text-sm text-muted-foreground truncate">{apt.procedureName}</p>
-                </div>
-                <Badge variant={apt.status === 'confirmed' ? 'default' : 'secondary'} className="text-xs">
-                  {apt.status === 'confirmed' ? 'Confirmado' : 'Pendente'}
-                </Badge>
-              </div>
-            )) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Calendar className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Nenhum agendamento hoje</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Hot Leads */}
-        <Card className="border-0 shadow-lg bg-card/80 backdrop-blur-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-accent/10">
-                <Flame className="h-4 w-4 text-accent" />
-              </div>
-              <div>
-                <CardTitle className="text-base font-semibold">Leads Quentes</CardTitle>
-                <CardDescription className="text-xs">Maior potencial de fechamento</CardDescription>
-              </div>
-            </div>
-            <Button variant="ghost" size="sm" className="text-xs">
-              Ver todos <ChevronRight className="w-3 h-3 ml-1" />
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {hotLeads.length > 0 ? hotLeads.map((lead, index) => (
-              <div key={index} className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 hover:bg-muted/80 transition-colors">
-                <Avatar className="h-10 w-10">
-                  <AvatarFallback className="bg-accent/10 text-accent text-sm">
-                    {getInitials(lead.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-foreground truncate">{lead.name}</p>
-                  <p className="text-sm text-muted-foreground truncate">{lead.value}</p>
-                </div>
-                <Badge 
-                  className={`text-xs ${
-                    lead.stage === 'negotiation' 
-                      ? 'bg-success/20 text-success' 
-                      : 'bg-primary/20 text-primary'
-                  }`}
-                >
-                  {lead.stage === 'negotiation' ? 'Negociação' : 'Proposta'}
-                </Badge>
-              </div>
-            )) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Flame className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Nenhum lead em negociação</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Upcoming Returns */}
-        <Card className="border-0 shadow-lg bg-card/80 backdrop-blur-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-warning/10">
-                <Clock className="h-4 w-4 text-warning" />
-              </div>
-              <div>
-                <CardTitle className="text-base font-semibold">Retornos Próximos</CardTitle>
-                <CardDescription className="text-xs">Clientes para contato</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {upcomingReturns.map((item, index) => (
-              <div key={index} className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 hover:bg-muted/80 transition-colors">
-                <Avatar className="h-10 w-10">
-                  <AvatarFallback className="bg-warning/10 text-warning text-sm">
-                    {getInitials(item.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-foreground truncate">{item.name}</p>
-                  <p className="text-sm text-muted-foreground truncate">Última visita: {item.days} dias atrás</p>
-                </div>
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleCall(item.phone, item.name)}>
-                  <Phone className="w-4 h-4" />
-                </Button>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* Opportunity Cards Section */}
-      <motion.div variants={itemVariants}>
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Gift className="w-5 h-5 text-primary" />
-          Oportunidades de Venda
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Birthday Opportunities */}
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-pink-500/10 to-purple-500/10 backdrop-blur-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-pink-500/20">
-                  <Cake className="h-4 w-4 text-pink-500" />
-                </div>
-                <div>
-                  <CardTitle className="text-base font-semibold">Aniversariantes</CardTitle>
-                  <CardDescription className="text-xs">{upcomingBirthdays.length} próximos 7 dias</CardDescription>
-                </div>
-              </div>
-              <Badge className="bg-pink-500/20 text-pink-600 hover:bg-pink-500/30">
-                {upcomingBirthdays.length}
-              </Badge>
+      {/* Main Content Grid */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Today's Schedule - Takes 2 columns */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="lg:col-span-2"
+        >
+          <Card className="barber-card">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-xl font-display">
+                Agenda de Hoje
+                <Badge variant="secondary" className="ml-2 rounded-full">{todayAppointments.length}</Badge>
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {upcomingBirthdays.length > 0 ? upcomingBirthdays.slice(0, 3).map((client, index) => {
-                const birthDate = new Date(client.birthDate!);
-                const today = new Date();
-                const thisYearBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
-                if (thisYearBirthday < today) thisYearBirthday.setFullYear(today.getFullYear() + 1);
-                const daysUntil = Math.ceil((thisYearBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                
-                return (
-                  <div key={index} className="flex items-center gap-3 p-2 rounded-lg bg-background/50 hover:bg-background/80 transition-colors">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-pink-500/20 text-pink-600 text-xs">
-                        {getInitials(client.name)}
-                      </AvatarFallback>
+            <CardContent className="space-y-3">
+              {todayAppointments.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Calendar className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>Nenhum agendamento para hoje</p>
+                  <Button 
+                    variant="outline" 
+                    className="mt-4 rounded-xl"
+                    onClick={() => setAppointmentModalOpen(true)}
+                  >
+                    Agendar cliente
+                  </Button>
+                </div>
+              ) : (
+                todayAppointments.map((apt) => {
+                  const client = clients.find(c => c.id === apt.clientId);
+                  return (
+                    <div 
+                      key={apt.id} 
+                      className="flex items-center justify-between p-4 bg-secondary/30 rounded-xl hover:bg-secondary/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="text-center min-w-[60px]">
+                          <div className="text-lg font-bold text-foreground">{apt.time}</div>
+                          <div className="text-xs text-muted-foreground">+ {Math.floor(Math.random() * 2000)}pts</div>
+                        </div>
+                        <Avatar className="w-12 h-12 border-2 border-primary/20">
+                          <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${client?.name}`} />
+                          <AvatarFallback className="bg-primary/10 text-primary">
+                            {client?.name?.substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-semibold text-foreground">{client?.name || 'Cliente'}</p>
+                          <p className="text-sm text-muted-foreground">{apt.procedureName || 'Corte e Barba'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className="rounded-full hover:bg-primary/10 hover:text-primary"
+                          onClick={() => handleWhatsApp(client?.phone)}
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className="rounded-full hover:bg-primary/10 hover:text-primary"
+                          onClick={() => handleCall(client?.phone)}
+                        >
+                          <Phone className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className="rounded-full hover:bg-primary/10 hover:text-primary"
+                          onClick={() => client && handleViewHistory(client)}
+                        >
+                          <History className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Right Column - Alerts */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="space-y-4"
+        >
+          {/* Birthdays */}
+          <Card className="barber-card overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary/10 to-transparent rounded-bl-full" />
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Gift className="w-5 h-5 text-primary" />
+                Aniversários Próximos
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {birthdayOpportunities.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum aniversário próximo</p>
+              ) : (
+                birthdayOpportunities.slice(0, 2).map((opp) => {
+                  const client = clients.find(c => c.id === opp.clientId);
+                  return (
+                    <div key={opp.id} className="flex items-center gap-3 py-2">
+                      <Avatar className="w-10 h-10">
+                        <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${client?.name}`} />
+                        <AvatarFallback>{client?.name?.substring(0, 2)}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-foreground truncate">{client?.name}</p>
+                        <p className="text-xs text-muted-foreground">🎂 {opp.description}</p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Inactive Clients */}
+          <Card className="barber-card overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-warning/10 to-transparent rounded-bl-full" />
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <UserX className="w-5 h-5 text-warning" />
+                Clientes Inativos
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {inactiveClients.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Todos os clientes estão ativos!</p>
+              ) : (
+                inactiveClients.slice(0, 2).map((client) => (
+                  <div key={client.id} className="flex items-center gap-3 py-2">
+                    <Avatar className="w-10 h-10">
+                      <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${client.name}`} />
+                      <AvatarFallback>{client.name?.substring(0, 2)}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{client.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {daysUntil === 0 ? '🎂 Hoje!' : daysUntil === 1 ? '🎁 Amanhã!' : `Em ${daysUntil} dias`}
-                      </p>
+                      <p className="font-medium text-foreground truncate">{client.name}</p>
+                      <p className="text-xs text-muted-foreground">Sem retornar há 30 dias</p>
                     </div>
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      className="h-7 px-2"
-                      onClick={() => {
-                        handleCall(client.phone, client.name);
-                        toast.success(`Ligando para ${client.name}...`);
-                      }}
-                    >
-                      <Phone className="w-3 h-3" />
-                    </Button>
                   </div>
-                );
-              }) : (
-                <div className="text-center py-4 text-muted-foreground">
-                  <Cake className="w-6 h-6 mx-auto mb-1 opacity-50" />
-                  <p className="text-xs">Nenhum aniversário próximo</p>
-                </div>
+                ))
               )}
             </CardContent>
           </Card>
 
-          {/* Repurchase Opportunities */}
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-500/10 to-cyan-500/10 backdrop-blur-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-blue-500/20">
-                  <RefreshCw className="h-4 w-4 text-blue-500" />
-                </div>
-                <div>
-                  <CardTitle className="text-base font-semibold">Recompras</CardTitle>
-                  <CardDescription className="text-xs">{productsNearEnd.length} produtos acabando</CardDescription>
-                </div>
-              </div>
-              <Badge className="bg-blue-500/20 text-blue-600 hover:bg-blue-500/30">
-                {productsNearEnd.length}
-              </Badge>
+          {/* Products Running Low */}
+          <Card className="barber-card overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-destructive/10 to-transparent rounded-bl-full" />
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Package className="w-5 h-5 text-destructive" />
+                Produtos em Falta
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {productsNearEnd.length > 0 ? productsNearEnd.slice(0, 3).map((sale, index) => {
-                const daysUntilEnd = Math.ceil((new Date(sale.estimatedEndDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                const client = clientsStore.getById(sale.clientId);
-                
-                return (
-                  <div key={index} className="flex items-center gap-3 p-2 rounded-lg bg-background/50 hover:bg-background/80 transition-colors">
-                    <div className="p-1.5 rounded-lg bg-blue-500/20">
-                      <Package className="h-4 w-4 text-blue-500" />
+            <CardContent>
+              {repurchaseOpportunities.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum produto para recompra</p>
+              ) : (
+                repurchaseOpportunities.slice(0, 2).map((opp) => {
+                  const product = products.find(p => p.id === opp.productId);
+                  return (
+                    <div key={opp.id} className="flex items-center gap-3 py-2">
+                      <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center">
+                        <Package className="w-5 h-5 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-foreground truncate">{product?.name || 'Produto'}</p>
+                        <p className="text-xs text-muted-foreground">Acabando em 03 dias</p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{sale.productName}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {sale.clientName} • {daysUntilEnd <= 0 ? '⚠️ Acabou!' : daysUntilEnd <= 3 ? `⏰ ${daysUntilEnd}d` : `${daysUntilEnd}d`}
-                      </p>
-                    </div>
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      className="h-7 px-2"
-                      onClick={() => {
-                        if (client) {
-                          handleCall(client.phone, client.name);
-                          toast.success(`Ligando para ${sale.clientName}...`);
-                        }
-                      }}
-                    >
-                      <Phone className="w-3 h-3" />
-                    </Button>
-                  </div>
-                );
-              }) : (
-                <div className="text-center py-4 text-muted-foreground">
-                  <Package className="w-6 h-6 mx-auto mb-1 opacity-50" />
-                  <p className="text-xs">Nenhum produto acabando</p>
-                </div>
+                  );
+                })
               )}
             </CardContent>
           </Card>
 
-          {/* Top Products */}
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-green-500/10 to-emerald-500/10 backdrop-blur-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-green-500/20">
-                  <ShoppingBag className="h-4 w-4 text-green-500" />
-                </div>
-                <div>
-                  <CardTitle className="text-base font-semibold">Mais Vendidos</CardTitle>
-                  <CardDescription className="text-xs">Top produtos do mês</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {analytics.topProducts.length > 0 ? analytics.topProducts.slice(0, 3).map((product, index) => (
-                <div key={index} className="flex items-center gap-3 p-2 rounded-lg bg-background/50">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-green-500/20 text-green-600 text-xs font-bold">
-                    {index + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{product.name}</p>
-                  </div>
-                  <Badge variant="outline" className="text-xs">
-                    {product.count}x
+          {/* Statistics Chart */}
+          <Card className="barber-card">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <TrendingUp className="w-5 h-5 text-primary" />
+                  Estatísticas
+                </CardTitle>
+                <div className="text-right">
+                  <span className="text-lg font-bold text-foreground">R$5.320</span>
+                  <Badge variant="secondary" className="ml-2 bg-success/10 text-success rounded-full">
+                    +28%
                   </Badge>
                 </div>
-              )) : (
-                <div className="text-center py-4 text-muted-foreground">
-                  <ShoppingBag className="w-6 h-6 mx-auto mb-1 opacity-50" />
-                  <p className="text-xs">Nenhuma venda registrada</p>
-                </div>
-              )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[120px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+                    <YAxis hide />
+                    <Tooltip 
+                      contentStyle={{ 
+                        background: 'hsl(var(--card))', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px'
+                      }} 
+                    />
+                    <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
 
       {/* Modals */}
-      <LeadModal 
-        open={leadModalOpen} 
-        onOpenChange={setLeadModalOpen} 
-        onSave={handleSaveLead} 
+      <ClientModal
+        open={clientModalOpen}
+        onOpenChange={setClientModalOpen}
+        client={null}
+        onSave={(data) => {
+          clientsStore.create(data);
+          setClientModalOpen(false);
+        }}
       />
-      <ClientModal 
-        open={clientModalOpen} 
-        onOpenChange={setClientModalOpen} 
-        onSave={handleSaveClient} 
+      <LeadModal
+        open={leadModalOpen}
+        onOpenChange={setLeadModalOpen}
+        lead={null}
+        onSave={(data) => {
+          import('@/lib/store').then(({ leadsStore }) => {
+            leadsStore.create(data as any);
+          });
+          setLeadModalOpen(false);
+        }}
       />
-      <AppointmentModal 
-        open={appointmentModalOpen} 
-        onOpenChange={setAppointmentModalOpen} 
-        onSave={() => setAppointmentModalOpen(false)} 
+      <AppointmentModal
+        open={appointmentModalOpen}
+        onOpenChange={setAppointmentModalOpen}
+        appointment={null}
+        onSave={(data) => {
+          appointmentsStore.create({
+            clientId: '',
+            procedureId: '',
+            professionalId: '',
+            clientName: data.client || '',
+            procedureName: data.procedure || '',
+            professionalName: data.professional || '',
+            date: data.date || new Date().toISOString().split('T')[0],
+            time: data.time || '09:00',
+            duration: data.duration || 60,
+            status: 'pending',
+          });
+          setAppointmentModalOpen(false);
+        }}
       />
-    </motion.div>
+      <ClientHistoryModal
+        open={historyModalOpen}
+        onOpenChange={setHistoryModalOpen}
+        client={selectedClient}
+      />
+    </div>
   );
 }

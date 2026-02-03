@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Mail, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
+import barbershopBg from '@/assets/barbershop-bg.jpg';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -16,12 +15,11 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   
   const { login } = useAuth();
-  const { t } = useLanguage();
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = location.state?.from?.pathname || '/dashboard';
+  const from = location.state?.from?.pathname || '/admin/dashboard';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,21 +30,21 @@ export default function LoginPage() {
       
       if (success) {
         toast({
-          title: t.messages.success,
-          description: `${t.dashboard.welcomeBack}!`,
+          title: 'Bem-vindo de volta!',
+          description: 'Login realizado com sucesso.',
         });
         navigate(from, { replace: true });
       } else {
         toast({
-          title: t.messages.error,
-          description: t.auth.invalidCredentials,
+          title: 'Erro no login',
+          description: 'Email ou senha inválidos.',
           variant: 'destructive',
         });
       }
     } catch (error) {
       toast({
-        title: t.messages.error,
-        description: t.auth.invalidCredentials,
+        title: 'Erro no login',
+        description: 'Email ou senha inválidos.',
         variant: 'destructive',
       });
     } finally {
@@ -55,89 +53,71 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 gradient-primary relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-accent/90" />
-        <div className="relative z-10 flex flex-col justify-center px-12 text-white">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <h1 className="text-5xl font-bold mb-4">Lovable</h1>
-            <p className="text-xl opacity-90 mb-8">
-              CRM + Agendamento + Gestão de Leads
-            </p>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <span>Aumente suas vendas com alertas inteligentes</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <span>Pipeline visual de leads e oportunidades</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <span>Gestão completa de clientes e retornos</span>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-        
-        {/* Decorative elements */}
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl transform translate-x-1/2 translate-y-1/2" />
-        <div className="absolute top-0 left-0 w-64 h-64 bg-white/10 rounded-full blur-3xl transform -translate-x-1/2 -translate-y-1/2" />
-      </div>
+    <div className="min-h-screen relative flex items-center justify-center p-4">
+      {/* Background Image with Blur */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: `url(${barbershopBg})` }}
+      />
+      
+      {/* Dark Overlay */}
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
-      {/* Right side - Login form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-background">
+      {/* Content */}
+      <div className="relative z-10 w-full max-w-md">
+        {/* Logo and Branding */}
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="w-full max-w-md"
+          className="text-center mb-8"
         >
-          {/* Mobile logo */}
-          <div className="lg:hidden mb-8 text-center">
-            <h1 className="text-3xl font-bold text-gradient">Lovable</h1>
+          {/* Logo Icon */}
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl gradient-gold mb-4 shadow-xl">
+            <span className="text-3xl">✂️</span>
           </div>
+          
+          <h1 className="text-4xl font-display font-bold text-white mb-2">
+            BarberFlow
+          </h1>
+          <p className="text-xl text-amber-200/90 font-light">
+            Mais do que cortes.
+          </p>
+          <p className="text-xl text-amber-200/90 font-light">
+            Relacionamentos.
+          </p>
+        </motion.div>
 
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-foreground">{t.auth.loginTitle}</h2>
-            <p className="text-muted-foreground mt-2">{t.auth.loginSubtitle}</p>
-          </div>
+        {/* Login Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="bg-card/95 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/10"
+        >
+          <h2 className="text-2xl font-display font-semibold text-foreground text-center mb-6">
+            Bem-vindo de volta
+          </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email">{t.auth.email}</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="h-12"
-              />
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="h-14 pl-12 bg-secondary/50 border-border/50 rounded-xl text-base focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">{t.auth.password}</Label>
               <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
@@ -145,7 +125,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="h-12 pr-12"
+                  className="h-14 pl-12 pr-12 bg-secondary/50 border-border/50 rounded-xl text-base focus:ring-2 focus:ring-primary/30"
                 />
                 <button
                   type="button"
@@ -157,46 +137,42 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="rounded border-input" />
-                <span className="text-sm text-muted-foreground">{t.auth.rememberMe}</span>
-              </label>
-              <a href="#" className="text-sm text-primary hover:underline">
-                {t.auth.forgotPassword}
-              </a>
-            </div>
-
             <Button 
               type="submit" 
-              className="w-full h-12 text-base font-medium gradient-primary hover:opacity-90 transition-opacity"
+              className="w-full h-14 text-base font-semibold rounded-xl gradient-gold hover:opacity-90 transition-all duration-200 shadow-lg text-primary-foreground"
               disabled={isLoading}
             >
               {isLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
-                t.auth.login
+                'Entrar no sistema'
               )}
             </Button>
           </form>
 
-          {/* Demo credentials */}
-          <div className="mt-8 p-4 bg-muted/50 rounded-lg">
-            <p className="text-sm text-muted-foreground text-center mb-3">
+          <div className="mt-6 text-center">
+            <a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+              Esqueceu sua senha?
+            </a>
+          </div>
+
+          {/* Demo Credentials */}
+          <div className="mt-8 pt-6 border-t border-border/50">
+            <p className="text-xs text-muted-foreground text-center mb-3">
               Contas de demonstração:
             </p>
             <div className="space-y-2 text-xs">
-              <div className="flex justify-between items-center p-2 bg-background rounded">
-                <span className="font-medium">Super Admin:</span>
-                <span className="text-muted-foreground">admin@lovable.com / admin123</span>
+              <div className="flex justify-between items-center p-2.5 bg-secondary/50 rounded-lg">
+                <span className="font-medium text-foreground">Super Admin:</span>
+                <span className="text-muted-foreground font-mono">admin@lovable.com / admin123</span>
               </div>
-              <div className="flex justify-between items-center p-2 bg-background rounded">
-                <span className="font-medium">Admin Empresa:</span>
-                <span className="text-muted-foreground">empresa@clinica.com / empresa123</span>
+              <div className="flex justify-between items-center p-2.5 bg-secondary/50 rounded-lg">
+                <span className="font-medium text-foreground">Admin:</span>
+                <span className="text-muted-foreground font-mono">empresa@clinica.com / empresa123</span>
               </div>
-              <div className="flex justify-between items-center p-2 bg-background rounded">
-                <span className="font-medium">Usuário:</span>
-                <span className="text-muted-foreground">usuario@clinica.com / usuario123</span>
+              <div className="flex justify-between items-center p-2.5 bg-secondary/50 rounded-lg">
+                <span className="font-medium text-foreground">Usuário:</span>
+                <span className="text-muted-foreground font-mono">usuario@clinica.com / usuario123</span>
               </div>
             </div>
           </div>

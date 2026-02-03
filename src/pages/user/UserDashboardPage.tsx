@@ -1,15 +1,13 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   Calendar, 
   Target, 
-  DollarSign, 
   Users,
   ArrowUpRight,
   Phone,
@@ -19,10 +17,10 @@ import {
   Flame,
   TrendingUp,
   BarChart3,
-  Gift,
   Cake,
   RefreshCw,
-  Package
+  Package,
+  UserPlus
 } from 'lucide-react';
 import { 
   BarChart,
@@ -40,7 +38,6 @@ import { handleCall } from '@/lib/actions';
 import { toast } from 'sonner';
 
 export default function UserDashboardPage() {
-  const { t } = useLanguage();
   const { user } = useAuth();
   const [leadModalOpen, setLeadModalOpen] = useState(false);
   const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
@@ -60,12 +57,18 @@ export default function UserDashboardPage() {
 
   // Refresh analytics
   useEffect(() => {
-    // Generate opportunities automatically
     opportunitiesStore.generateOpportunities();
-    
     setAnalytics(analyticsStore.getAnalytics());
     setAppointmentsChartData(analyticsStore.getAppointmentsChartData());
   }, [leads.length, clients.length, todayAppointments.length]);
+
+  // Get greeting based on time
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Bom dia';
+    if (hour < 18) return 'Boa tarde';
+    return 'Boa noite';
+  };
 
   const stats = [
     { title: 'Meus Leads', value: myLeads.length.toString(), change: `+${analytics.leadsByStage.new || 0}`, icon: Target, color: 'text-primary', bg: 'bg-primary/10' },
@@ -89,9 +92,12 @@ export default function UserDashboardPage() {
   const handleSaveAppointment = (appointmentData: any) => {
     const dateStr = new Date().toISOString().split('T')[0];
     appointmentsStore.create({
-      clientName: appointmentData.client,
-      procedureName: appointmentData.procedure,
-      professionalName: appointmentData.professional,
+      clientId: '',
+      procedureId: '',
+      professionalId: '',
+      clientName: appointmentData.client || '',
+      procedureName: appointmentData.procedure || '',
+      professionalName: appointmentData.professional || '',
       date: appointmentData.date || dateStr,
       time: appointmentData.time,
       duration: appointmentData.duration || 60,
@@ -105,16 +111,33 @@ export default function UserDashboardPage() {
     <motion.div className="space-y-6 pb-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Olá, {user?.name?.split(' ')[0]}! 👋</h1>
-          <p className="text-muted-foreground mt-1">Veja seu desempenho de hoje • {user?.companyName}</p>
-        </div>
-        <div className="flex gap-2">
-          <Button size="sm" className="gradient-primary text-primary-foreground gap-1.5" onClick={() => setLeadModalOpen(true)}>
-            <Plus className="w-4 h-4" /> Novo Lead
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-1"
+        >
+          <h1 className="text-2xl lg:text-3xl font-display font-bold text-foreground">
+            {getGreeting()}, {user?.name?.split(' ')[0]}!
+          </h1>
+          <p className="text-muted-foreground">
+            Mais do que cortes. Relacionamentos.
+          </p>
+        </motion.div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button 
+            variant="outline" 
+            className="gap-2 rounded-xl border-border hover:bg-primary/10 hover:text-primary hover:border-primary/30"
+            onClick={() => setLeadModalOpen(true)}
+          >
+            <UserPlus className="w-4 h-4" />
+            Novo Lead
           </Button>
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setAppointmentModalOpen(true)}>
-            <Calendar className="w-4 h-4" /> Agendar
+          <Button 
+            className="gap-2 rounded-xl gradient-gold text-primary-foreground hover:opacity-90"
+            onClick={() => setAppointmentModalOpen(true)}
+          >
+            <Calendar className="w-4 h-4" />
+            Novo Agendamento
           </Button>
         </div>
       </div>
@@ -122,26 +145,33 @@ export default function UserDashboardPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat, index) => (
-          <Card key={index} className="border-0 bg-card/80 backdrop-blur-sm shadow-lg">
-            <CardContent className="p-4 lg:p-6">
-              <div className="flex items-center justify-between mb-3">
-                <div className={`p-2 lg:p-3 rounded-xl ${stat.bg}`}>
-                  <stat.icon className={`h-4 w-4 lg:h-5 lg:w-5 ${stat.color}`} />
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+          >
+            <Card className="barber-card">
+              <CardContent className="p-4 lg:p-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className={`p-2 lg:p-3 rounded-xl ${stat.bg}`}>
+                    <stat.icon className={`h-4 w-4 lg:h-5 lg:w-5 ${stat.color}`} />
+                  </div>
+                  {stat.change && <span className="flex items-center gap-1 text-xs font-medium text-success"><ArrowUpRight className="w-3 h-3" />{stat.change}</span>}
                 </div>
-                {stat.change && <span className="flex items-center gap-1 text-xs font-medium text-success"><ArrowUpRight className="w-3 h-3" />{stat.change}</span>}
-              </div>
-              <p className="text-xl lg:text-2xl font-bold text-foreground">{stat.value}</p>
-              <p className="text-xs lg:text-sm text-muted-foreground mt-1">{stat.title}</p>
-            </CardContent>
-          </Card>
+                <p className="text-xl lg:text-2xl font-bold text-foreground">{stat.value}</p>
+                <p className="text-xs lg:text-sm text-muted-foreground mt-1">{stat.title}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
         ))}
       </div>
 
       {/* Appointments Chart */}
-      <Card className="border-0 shadow-lg bg-card/80 backdrop-blur-sm">
+      <Card className="barber-card">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <div>
-            <CardTitle className="text-lg font-semibold">Agendamentos por Dia</CardTitle>
+            <CardTitle className="text-lg font-display">Agendamentos por Dia</CardTitle>
             <CardDescription>Últimos 7 dias</CardDescription>
           </div>
           <div className="flex items-center gap-2 text-sm">
@@ -177,7 +207,7 @@ export default function UserDashboardPage() {
                 />
                 <Bar 
                   dataKey="count" 
-                  fill="hsl(243, 75%, 59%)" 
+                  fill="hsl(var(--primary))" 
                   radius={[4, 4, 0, 0]}
                 />
               </BarChart>
@@ -188,12 +218,12 @@ export default function UserDashboardPage() {
 
       {/* Schedule & Leads */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border-0 shadow-lg bg-card/80 backdrop-blur-sm">
+        <Card className="barber-card">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-primary/10"><Clock className="h-4 w-4 text-primary" /></div>
               <div>
-                <CardTitle className="text-base font-semibold">Agenda de Hoje</CardTitle>
+                <CardTitle className="text-base font-display">Agenda de Hoje</CardTitle>
                 <CardDescription className="text-xs">{todayAppointments.length} agendamentos</CardDescription>
               </div>
             </div>
@@ -201,13 +231,13 @@ export default function UserDashboardPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {todayAppointments.length > 0 ? todayAppointments.slice(0, 4).map((apt, index) => (
-              <div key={index} className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
+              <div key={index} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors">
                 <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-primary/10 text-primary font-semibold text-sm">{apt.time}</div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-foreground truncate">{apt.clientName}</p>
                   <p className="text-sm text-muted-foreground truncate">{apt.procedureName}</p>
                 </div>
-                <Badge variant={apt.status === 'confirmed' ? 'default' : 'secondary'} className="text-xs">{apt.status === 'confirmed' ? 'Confirmado' : 'Pendente'}</Badge>
+                <Badge variant={apt.status === 'confirmed' ? 'default' : 'secondary'} className="text-xs rounded-full">{apt.status === 'confirmed' ? 'Confirmado' : 'Pendente'}</Badge>
               </div>
             )) : (
               <div className="text-center py-8 text-muted-foreground">
@@ -218,25 +248,28 @@ export default function UserDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-lg bg-card/80 backdrop-blur-sm">
+        <Card className="barber-card">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-accent/10"><Flame className="h-4 w-4 text-accent" /></div>
               <div>
-                <CardTitle className="text-base font-semibold">Meus Leads Ativos</CardTitle>
+                <CardTitle className="text-base font-display">Meus Leads Ativos</CardTitle>
                 <CardDescription className="text-xs">{myLeads.length} leads</CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
             {myLeads.length > 0 ? myLeads.slice(0, 4).map((lead, index) => (
-              <div key={index} className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
-                <Avatar className="h-10 w-10"><AvatarFallback className="bg-accent/10 text-accent text-sm">{getInitials(lead.name)}</AvatarFallback></Avatar>
+              <div key={index} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${lead.name}`} />
+                  <AvatarFallback className="bg-accent/10 text-accent text-sm">{getInitials(lead.name)}</AvatarFallback>
+                </Avatar>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-foreground truncate">{lead.name}</p>
                   <p className="text-sm text-muted-foreground truncate">{lead.value}</p>
                 </div>
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleCall(lead.phone, lead.name)}><Phone className="w-4 h-4" /></Button>
+                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full hover:bg-primary/10" onClick={() => handleCall(lead.phone, lead.name)}><Phone className="w-4 h-4" /></Button>
               </div>
             )) : (
               <div className="text-center py-8 text-muted-foreground">
@@ -251,18 +284,19 @@ export default function UserDashboardPage() {
       {/* Opportunity Cards Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Birthday Opportunities */}
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-accent/10 to-primary/10 backdrop-blur-sm">
+        <Card className="barber-card overflow-hidden relative">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-accent/10 to-transparent rounded-bl-full" />
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-accent/20">
                 <Cake className="h-4 w-4 text-accent" />
               </div>
               <div>
-                <CardTitle className="text-base font-semibold">Aniversariantes</CardTitle>
+                <CardTitle className="text-base font-display">Aniversariantes</CardTitle>
                 <CardDescription className="text-xs">{upcomingBirthdays.length} próximos 7 dias</CardDescription>
               </div>
             </div>
-            <Badge className="bg-accent/20 text-accent hover:bg-accent/30">
+            <Badge className="bg-accent/20 text-accent hover:bg-accent/30 rounded-full">
               {upcomingBirthdays.length}
             </Badge>
           </CardHeader>
@@ -275,8 +309,9 @@ export default function UserDashboardPage() {
               const daysUntil = Math.ceil((thisYearBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
               return (
-                <div key={index} className="flex items-center gap-3 p-2 rounded-lg bg-background/50 hover:bg-background/80 transition-colors">
+                <div key={index} className="flex items-center gap-3 p-2 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
                   <Avatar className="h-8 w-8">
+                    <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${client.name}`} />
                     <AvatarFallback className="bg-accent/20 text-accent text-xs">
                       {getInitials(client.name)}
                     </AvatarFallback>
@@ -290,7 +325,7 @@ export default function UserDashboardPage() {
                   <Button 
                     size="sm" 
                     variant="ghost" 
-                    className="h-7 px-2"
+                    className="h-7 px-2 rounded-full hover:bg-primary/10"
                     onClick={() => {
                       handleCall(client.phone, client.name);
                       toast.success(`Ligando para ${client.name}...`);
@@ -310,18 +345,19 @@ export default function UserDashboardPage() {
         </Card>
 
         {/* Repurchase Opportunities */}
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-primary/10 to-accent/10 backdrop-blur-sm">
+        <Card className="barber-card overflow-hidden relative">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary/10 to-transparent rounded-bl-full" />
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-primary/20">
                 <RefreshCw className="h-4 w-4 text-primary" />
               </div>
               <div>
-                <CardTitle className="text-base font-semibold">Recompras</CardTitle>
+                <CardTitle className="text-base font-display">Recompras</CardTitle>
                 <CardDescription className="text-xs">{productsNearEnd.length} produtos acabando</CardDescription>
               </div>
             </div>
-            <Badge className="bg-primary/20 text-primary hover:bg-primary/30">
+            <Badge className="bg-primary/20 text-primary hover:bg-primary/30 rounded-full">
               {productsNearEnd.length}
             </Badge>
           </CardHeader>
@@ -331,7 +367,7 @@ export default function UserDashboardPage() {
               const client = clientsStore.getById(sale.clientId);
               
               return (
-                <div key={index} className="flex items-center gap-3 p-2 rounded-lg bg-background/50 hover:bg-background/80 transition-colors">
+                <div key={index} className="flex items-center gap-3 p-2 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
                   <div className="p-1.5 rounded-lg bg-primary/20">
                     <Package className="h-4 w-4 text-primary" />
                   </div>
@@ -344,7 +380,7 @@ export default function UserDashboardPage() {
                   <Button 
                     size="sm" 
                     variant="ghost" 
-                    className="h-7 px-2"
+                    className="h-7 px-2 rounded-full hover:bg-primary/10"
                     onClick={() => {
                       if (client) {
                         handleCall(client.phone, client.name);
