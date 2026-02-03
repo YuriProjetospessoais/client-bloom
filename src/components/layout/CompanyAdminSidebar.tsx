@@ -7,10 +7,10 @@ import {
   Bell,
   Settings,
   Target,
-  ClipboardList,
   Package
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
+import { BarberFlowLogo } from './BarberFlowLogo';
 import {
   Sidebar,
   SidebarContent,
@@ -27,54 +27,14 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useAuth } from '@/lib/auth/AuthContext';
 
 const menuItems = [
-  { 
-    key: 'dashboard',
-    url: '/admin/dashboard', 
-    icon: LayoutDashboard,
-    label: 'dashboard',
-  },
-  { 
-    key: 'crm',
-    url: '/admin/crm', 
-    icon: Target,
-    label: 'crm',
-  },
-  { 
-    key: 'leads',
-    url: '/admin/leads', 
-    icon: UserPlus,
-    label: 'leads',
-  },
-  { 
-    key: 'clients',
-    url: '/admin/clients', 
-    icon: Users,
-    label: 'clients',
-  },
-  { 
-    key: 'schedule',
-    url: '/admin/schedule', 
-    icon: Calendar,
-    label: 'schedule',
-  },
-  { 
-    key: 'products',
-    url: '/admin/products', 
-    icon: Package,
-    label: 'products',
-  },
-  { 
-    key: 'alerts',
-    url: '/admin/alerts', 
-    icon: Bell,
-    label: 'alerts',
-  },
-  { 
-    key: 'settings',
-    url: '/admin/settings', 
-    icon: Settings,
-    label: 'settings',
-  },
+  { key: 'dashboard', url: '/admin/dashboard', icon: LayoutDashboard, label: 'dashboard' },
+  { key: 'crm', url: '/admin/crm', icon: Target, label: 'crm' },
+  { key: 'leads', url: '/admin/leads', icon: UserPlus, label: 'leads' },
+  { key: 'clients', url: '/admin/clients', icon: Users, label: 'clients' },
+  { key: 'schedule', url: '/admin/schedule', icon: Calendar, label: 'schedule' },
+  { key: 'products', url: '/admin/products', icon: Package, label: 'products' },
+  { key: 'alerts', url: '/admin/alerts', icon: Bell, label: 'alerts' },
+  { key: 'settings', url: '/admin/settings', icon: Settings, label: 'settings' },
 ];
 
 export function CompanyAdminSidebar() {
@@ -83,35 +43,25 @@ export function CompanyAdminSidebar() {
   const location = useLocation();
 
   return (
-    <Sidebar className="border-r border-sidebar-border">
+    <Sidebar className="border-r border-sidebar-border bg-sidebar-background">
       <SidebarHeader className="p-4 border-b border-sidebar-border">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
-            <span className="text-white font-bold text-lg">L</span>
-          </div>
-          <div>
-            <h2 className="font-bold text-sidebar-foreground truncate max-w-[140px]">
-              {user?.companyName || 'Lovable'}
-            </h2>
-            <p className="text-xs text-sidebar-foreground/60">Admin</p>
-          </div>
-        </div>
+        <BarberFlowLogo size="md" />
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="px-2 py-4">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-foreground/60">
+          <SidebarGroupLabel className="text-sidebar-foreground/50 text-xs uppercase tracking-wider px-4 mb-2">
             Menu
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-1">
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.key}>
                   <SidebarMenuButton asChild>
                     <NavLink 
                       to={item.url} 
-                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-                      activeClassName="bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary"
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
+                      activeClassName="bg-primary/10 text-primary font-medium border-l-4 border-primary"
                     >
                       <item.icon className="w-5 h-5" />
                       <span>{t.nav[item.label as keyof typeof t.nav]}</span>
@@ -126,7 +76,7 @@ export function CompanyAdminSidebar() {
 
       <SidebarFooter className="p-4 border-t border-sidebar-border">
         <div className="text-xs text-sidebar-foreground/40 text-center">
-          Lovable v1.0.0
+          BarberFlow v1.0.0
         </div>
       </SidebarFooter>
     </Sidebar>
