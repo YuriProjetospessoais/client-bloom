@@ -7,7 +7,8 @@ import {
   Bell,
   Settings,
   Target,
-  Package
+   Package,
+   CreditCard
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { BarberFlowLogo } from './BarberFlowLogo';
@@ -34,6 +35,7 @@ const menuItems = [
   { key: 'schedule', url: '/admin/schedule', icon: Calendar, label: 'schedule' },
   { key: 'products', url: '/admin/products', icon: Package, label: 'products' },
   { key: 'alerts', url: '/admin/alerts', icon: Bell, label: 'alerts' },
+   { key: 'plans', url: '/admin/plans', icon: CreditCard, label: 'plans' },
   { key: 'settings', url: '/admin/settings', icon: Settings, label: 'settings' },
 ];
 
