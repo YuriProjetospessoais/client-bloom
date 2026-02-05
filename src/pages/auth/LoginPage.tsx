@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Loader2, Mail, Lock } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Mail, Lock, Scissors } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -72,19 +72,27 @@ export default function LoginPage() {
           transition={{ duration: 0.6 }}
           className="text-center mb-8"
         >
-          {/* Logo Icon */}
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl gradient-gold mb-4 shadow-xl">
-            <span className="text-3xl">✂️</span>
+          {/* Premium Logo */}
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl gradient-gold mb-6 shadow-2xl relative overflow-hidden">
+            {/* Inner glow */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/25 to-transparent" />
+            {/* Decorative ring */}
+            <div className="absolute inset-1 rounded-2xl border border-white/20" />
+            <Scissors 
+              size={36} 
+              className="text-white relative z-10 rotate-[-45deg] drop-shadow-md" 
+              strokeWidth={2.5}
+            />
           </div>
           
-          <h1 className="text-4xl font-display font-bold text-white mb-2">
-            BarberFlow
+          <h1 className="text-4xl font-display font-bold text-white mb-1 tracking-tight">
+            Barber<span className="text-gold">Flow</span>
           </h1>
-          <p className="text-xl text-amber-200/90 font-light">
-            Mais do que cortes.
+          <p className="text-xs text-white/60 tracking-[0.3em] uppercase font-medium mb-4">
+            Professional Suite
           </p>
-          <p className="text-xl text-amber-200/90 font-light">
-            Relacionamentos.
+          <p className="text-lg text-primary-foreground/80 font-light italic">
+            Mais do que cortes. Relacionamentos.
           </p>
         </motion.div>
 
