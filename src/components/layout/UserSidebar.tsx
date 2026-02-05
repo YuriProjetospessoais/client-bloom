@@ -30,7 +30,7 @@ const menuItems = [
   { key: 'crm', url: '/user/crm', icon: Target, label: 'crm' },
   { key: 'leads', url: '/user/leads', icon: UserPlus, label: 'leads' },
   { key: 'schedule', url: '/user/schedule', icon: Calendar, label: 'schedule' },
-  { key: 'products', url: '/admin/products', icon: Package, label: 'products' },
+ { key: 'products', url: '/user/products', icon: Package, label: 'products' },
   { key: 'alerts', url: '/user/alerts', icon: Bell, label: 'alerts' },
   { key: 'profile', url: '/user/profile', icon: User, label: 'profile' },
 ];
