@@ -33,6 +33,7 @@ import ProductsPage from "./pages/admin/ProductsPage";
 import SchedulePage from "./pages/admin/SchedulePage";
 import AlertsPage from "./pages/admin/AlertsPage";
 import SettingsPage from "./pages/admin/SettingsPage";
+ import AdminPlansPage from "./pages/admin/PlansPage";
 
 // User Pages
 import UserDashboardPage from "./pages/user/UserDashboardPage";
@@ -86,6 +87,7 @@ const App = () => (
                   <Route path="schedule" element={<SchedulePage />} />
                   <Route path="alerts" element={<AlertsPage />} />
                   <Route path="settings" element={<SettingsPage />} />
+                   <Route path="plans" element={<AdminPlansPage />} />
                 </Route>
 
                 {/* User routes - /user */}
