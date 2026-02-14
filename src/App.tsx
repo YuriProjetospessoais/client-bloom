@@ -93,7 +93,7 @@ const App = () => (
 
                 {/* User routes - /user */}
                 <Route path="/user" element={
-                  <ProtectedRoute allowedRoles={['user']}>
+                  <ProtectedRoute allowedRoles={['employee']}>
                     <UserLayout />
                   </ProtectedRoute>
                 }>

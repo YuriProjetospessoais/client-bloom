@@ -18,8 +18,8 @@ export function UserMenu() {
   const { t } = useLanguage();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
