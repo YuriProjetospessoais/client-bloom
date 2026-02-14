@@ -16,13 +16,17 @@ const Index = () => {
     return <Navigate to="/login" replace />;
   }
 
-  // Redirect based on user role
-  if (user?.role === 'super_admin') {
-    return <Navigate to="/super-admin/dashboard" replace />;
-  } else if (user?.role === 'company_admin') {
-    return <Navigate to="/admin/dashboard" replace />;
-  } else {
-    return <Navigate to="/dashboard" replace />;
+  switch (user?.role) {
+    case 'super_admin':
+      return <Navigate to="/global/dashboard" replace />;
+    case 'company_admin':
+      return <Navigate to="/admin/dashboard" replace />;
+    case 'employee':
+      return <Navigate to="/user/dashboard" replace />;
+    case 'client':
+      return <Navigate to="/portal" replace />;
+    default:
+      return <Navigate to="/login" replace />;
   }
 };
 

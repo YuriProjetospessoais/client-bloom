@@ -27,11 +27,14 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   }
 
   if (allowedRoles && user && !allowedRoles.includes(user.role) && user.role !== 'super_admin') {
-    // Redirect to appropriate dashboard based on role
     if (user.role === 'company_admin') {
       return <Navigate to="/admin/dashboard" replace />;
+    } else if (user.role === 'employee') {
+      return <Navigate to="/user/dashboard" replace />;
+    } else if (user.role === 'client') {
+      return <Navigate to="/portal" replace />;
     } else {
-      return <Navigate to="/dashboard" replace />;
+      return <Navigate to="/login" replace />;
     }
   }
 

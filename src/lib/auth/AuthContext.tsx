@@ -1,50 +1,62 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { User, UserRole, AuthState } from './types';
+import { supabase } from '@/integrations/supabase/client';
+import type { Session } from '@supabase/supabase-js';
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  signup: (email: string, password: string, fullName: string) => Promise<{ success: boolean; message: string }>;
+  logout: () => Promise<void>;
   hasPermission: (requiredRole: UserRole | UserRole[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for demonstration
-const mockUsers: (User & { password: string })[] = [
-  {
-    id: '1',
-    email: 'admin@lovable.com',
-    password: 'admin123',
-    name: 'Super Admin',
-    role: 'super_admin',
-    createdAt: '2024-01-01',
-    lastLogin: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    email: 'empresa@clinica.com',
-    password: 'empresa123',
-    name: 'Dr. João Silva',
-    role: 'company_admin',
-    companyId: 'comp-1',
-    companyName: 'Clínica Bella Vita',
-    createdAt: '2024-01-15',
-    lastLogin: new Date().toISOString(),
-  },
-  {
-    id: '3',
-    email: 'usuario@clinica.com',
-    password: 'usuario123',
-    name: 'Maria Santos',
-    role: 'user',
-    companyId: 'comp-1',
-    companyName: 'Clínica Bella Vita',
-    createdAt: '2024-02-01',
-    lastLogin: new Date().toISOString(),
-  },
-];
+async function fetchUserRole(userId: string): Promise<{ role: UserRole; companyId?: string }> {
+  const { data } = await supabase
+    .from('user_roles')
+    .select('role, company_id')
+    .eq('user_id', userId)
+    .limit(1)
+    .maybeSingle();
 
-const AUTH_STORAGE_KEY = 'lovable-auth';
+  if (data) {
+    return { role: data.role as UserRole, companyId: data.company_id ?? undefined };
+  }
+  // Default to 'client' if no role assigned
+  return { role: 'client' };
+}
+
+async function fetchCompanyName(companyId: string): Promise<string | undefined> {
+  const { data } = await supabase
+    .from('companies')
+    .select('name')
+    .eq('id', companyId)
+    .maybeSingle();
+  return data?.name ?? undefined;
+}
+
+async function buildUser(session: Session): Promise<User> {
+  const supaUser = session.user;
+  const { role, companyId } = await fetchUserRole(supaUser.id);
+
+  let companyName: string | undefined;
+  if (companyId) {
+    companyName = await fetchCompanyName(companyId);
+  }
+
+  return {
+    id: supaUser.id,
+    email: supaUser.email ?? '',
+    name: supaUser.user_metadata?.full_name ?? supaUser.email?.split('@')[0] ?? '',
+    role,
+    companyId,
+    companyName,
+    avatar: supaUser.user_metadata?.avatar_url,
+    createdAt: supaUser.created_at,
+    lastLogin: new Date().toISOString(),
+  };
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({
@@ -53,68 +65,70 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading: true,
   });
 
-  // Restore session on mount
   useEffect(() => {
-    const stored = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (stored) {
-      try {
-        const user = JSON.parse(stored) as User;
-        setState({
-          user,
-          isAuthenticated: true,
-          isLoading: false,
-        });
-      } catch {
-        localStorage.removeItem(AUTH_STORAGE_KEY);
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session) {
+          // Use setTimeout to avoid potential deadlock with Supabase client
+          setTimeout(async () => {
+            const user = await buildUser(session);
+            setState({ user, isAuthenticated: true, isLoading: false });
+          }, 0);
+        } else {
+          setState({ user: null, isAuthenticated: false, isLoading: false });
+        }
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        const user = await buildUser(session);
+        setState({ user, isAuthenticated: true, isLoading: false });
+      } else {
         setState({ user: null, isAuthenticated: false, isLoading: false });
       }
-    } else {
-      setState({ user: null, isAuthenticated: false, isLoading: false });
-    }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = useCallback(async (email: string, password: string): Promise<boolean> => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const foundUser = mockUsers.find(u => u.email === email && u.password === password);
-    
-    if (foundUser) {
-      const { password: _, ...user } = foundUser;
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
-      setState({
-        user,
-        isAuthenticated: true,
-        isLoading: false,
-      });
-      return true;
-    }
-    
-    return false;
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return !error;
   }, []);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    setState({
-      user: null,
-      isAuthenticated: false,
-      isLoading: false,
+  const signup = useCallback(async (email: string, password: string, fullName: string) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: fullName },
+        emailRedirectTo: window.location.origin,
+      },
     });
+
+    if (error) {
+      return { success: false, message: error.message };
+    }
+    return { success: true, message: 'Conta criada! Verifique seu email para confirmar.' };
+  }, []);
+
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
+    setState({ user: null, isAuthenticated: false, isLoading: false });
   }, []);
 
   const hasPermission = useCallback((requiredRole: UserRole | UserRole[]): boolean => {
     if (!state.user) return false;
-
     const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-    
-    // Super admin has all permissions
     if (state.user.role === 'super_admin') return true;
-    
     return roles.includes(state.user.role);
   }, [state.user]);
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout, hasPermission }}>
+    <AuthContext.Provider value={{ ...state, login, signup, logout, hasPermission }}>
       {children}
     </AuthContext.Provider>
   );
