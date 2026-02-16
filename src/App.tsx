@@ -42,7 +42,14 @@ import UserLeadsPage from "./pages/user/UserLeadsPage";
 import UserSchedulePage from "./pages/user/UserSchedulePage";
 import UserAlertsPage from "./pages/user/UserAlertsPage";
 import UserProfilePage from "./pages/user/UserProfilePage";
- import UserProductsPage from "./pages/user/UserProductsPage";
+import UserProductsPage from "./pages/user/UserProductsPage";
+
+// Portal (Client) Pages
+import ClientPortalLayout from "./pages/layouts/ClientPortalLayout";
+import PortalDashboardPage from "./pages/portal/PortalDashboardPage";
+import PortalBookingPage from "./pages/portal/PortalBookingPage";
+import PortalAppointmentsPage from "./pages/portal/PortalAppointmentsPage";
+import PortalProfilePage from "./pages/portal/PortalProfilePage";
 
 const queryClient = new QueryClient();
 
@@ -105,6 +112,19 @@ const App = () => (
                    <Route path="products" element={<UserProductsPage />} />
                   <Route path="alerts" element={<UserAlertsPage />} />
                   <Route path="profile" element={<UserProfilePage />} />
+                </Route>
+
+                {/* Client Portal routes - /portal */}
+                <Route path="/portal" element={
+                  <ProtectedRoute allowedRoles={['client']}>
+                    <ClientPortalLayout />
+                  </ProtectedRoute>
+                }>
+                  <Route index element={<Navigate to="/portal/dashboard" replace />} />
+                  <Route path="dashboard" element={<PortalDashboardPage />} />
+                  <Route path="agendar" element={<PortalBookingPage />} />
+                  <Route path="agendamentos" element={<PortalAppointmentsPage />} />
+                  <Route path="perfil" element={<PortalProfilePage />} />
                 </Route>
 
                 {/* Catch-all */}
