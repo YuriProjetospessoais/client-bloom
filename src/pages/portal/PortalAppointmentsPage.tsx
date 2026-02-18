@@ -157,7 +157,7 @@ export default function PortalAppointmentsPage() {
 
       <ConfirmDialog
         open={!!confirmCancel}
-        onOpenChange={() => setConfirmCancel(null)}
+        onOpenChange={(open) => { if (!open) setConfirmCancel(null); }}
         title="Cancelar agendamento"
         description="Tem certeza que deseja cancelar este agendamento?"
         onConfirm={() => confirmCancel && handleCancel(confirmCancel)}
