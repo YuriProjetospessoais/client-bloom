@@ -24,10 +24,13 @@ export type Database = {
           end_time: string
           id: string
           notes: string | null
+          payment_method: string
+          payment_status: string
           professional_id: string | null
           service_id: string | null
           start_time: string
           status: Database["public"]["Enums"]["appointment_status"]
+          stripe_session_id: string | null
           updated_at: string
         }
         Insert: {
@@ -39,10 +42,13 @@ export type Database = {
           end_time: string
           id?: string
           notes?: string | null
+          payment_method?: string
+          payment_status?: string
           professional_id?: string | null
           service_id?: string | null
           start_time: string
           status?: Database["public"]["Enums"]["appointment_status"]
+          stripe_session_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -54,10 +60,13 @@ export type Database = {
           end_time?: string
           id?: string
           notes?: string | null
+          payment_method?: string
+          payment_status?: string
           professional_id?: string | null
           service_id?: string | null
           start_time?: string
           status?: Database["public"]["Enums"]["appointment_status"]
+          stripe_session_id?: string | null
           updated_at?: string
         }
         Relationships: [
