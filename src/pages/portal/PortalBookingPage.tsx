@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from 'sonner';
 import { format, addDays, parseISO, addMinutes } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CheckCircle, ArrowLeft, ArrowRight } from 'lucide-react';
+import { CheckCircle, ArrowLeft, ArrowRight, Banknote, QrCode, CreditCard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Service {
@@ -26,7 +26,8 @@ interface Professional {
   avatar_url: string | null;
 }
 
-type Step = 'service' | 'professional' | 'datetime' | 'confirm';
+type Step = 'service' | 'professional' | 'datetime' | 'payment' | 'confirm';
+type PaymentMethod = 'in_person' | 'pix' | 'credit_card';
 
 export default function PortalBookingPage() {
   const { user } = useAuth();
@@ -43,6 +44,7 @@ export default function PortalBookingPage() {
   const [clientId, setClientId] = useState<string | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [maxAdvanceDays, setMaxAdvanceDays] = useState(30);
+  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -168,14 +170,14 @@ export default function PortalBookingPage() {
   }
 
   async function handleConfirm() {
-    if (!clientId || !companyId || !selectedService || !selectedProfessional || !selectedDate || !selectedTime) return;
+    if (!clientId || !companyId || !selectedService || !selectedProfessional || !selectedDate || !selectedTime || !selectedPayment) return;
 
     setSubmitting(true);
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
     const [h, m] = selectedTime.split(':').map(Number);
     const endTime = format(addMinutes(new Date(2000, 0, 1, h, m), selectedService.duration_minutes), 'HH:mm');
 
-    const { error } = await supabase.from('appointments').insert({
+    const { data: aptData, error } = await supabase.from('appointments').insert({
       client_id: clientId,
       company_id: companyId,
       service_id: selectedService.id,
@@ -185,15 +187,40 @@ export default function PortalBookingPage() {
       end_time: endTime,
       booked_by_client: true,
       status: 'scheduled',
-    });
+      payment_method: selectedPayment,
+      payment_status: selectedPayment === 'in_person' ? 'pending' : 'awaiting',
+    }).select('id').single();
 
-    setSubmitting(false);
-
-    if (error) {
+    if (error || !aptData) {
+      setSubmitting(false);
       toast.error('Erro ao agendar. Tente novamente.');
       return;
     }
 
+    // If payment is online (pix or credit_card), redirect to Stripe
+    if (selectedPayment !== 'in_person') {
+      const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke('create-checkout', {
+        body: {
+          serviceName: selectedService.name,
+          servicePrice: Number(selectedService.price),
+          paymentMethod: selectedPayment === 'pix' ? 'pix' : 'card',
+          appointmentId: aptData.id,
+        },
+      });
+
+      setSubmitting(false);
+
+      if (checkoutError || !checkoutData?.url) {
+        toast.error('Erro ao iniciar pagamento. O agendamento foi criado, finalize o pagamento depois.');
+        navigate('/portal/agendamentos');
+        return;
+      }
+
+      window.location.href = checkoutData.url;
+      return;
+    }
+
+    setSubmitting(false);
     toast.success('Agendamento realizado com sucesso!');
     navigate('/portal/agendamentos');
   }
@@ -202,7 +229,14 @@ export default function PortalBookingPage() {
     { key: 'service', label: 'Serviço' },
     { key: 'professional', label: 'Profissional' },
     { key: 'datetime', label: 'Data & Hora' },
+    { key: 'payment', label: 'Pagamento' },
     { key: 'confirm', label: 'Confirmar' },
+  ];
+
+  const paymentOptions: { key: PaymentMethod; label: string; description: string; icon: typeof Banknote }[] = [
+    { key: 'in_person', label: 'Presencial', description: 'Pague no local do atendimento', icon: Banknote },
+    { key: 'pix', label: 'Pix', description: 'Pagamento instantâneo via Pix', icon: QrCode },
+    { key: 'credit_card', label: 'Cartão de Crédito', description: 'Pague com cartão de crédito', icon: CreditCard },
   ];
 
   const stepIndex = steps.findIndex((s) => s.key === step);
@@ -359,17 +393,50 @@ export default function PortalBookingPage() {
           )}
 
           {selectedTime && (
-            <Button className="w-full" onClick={() => setStep('confirm')}>
+            <Button className="w-full" onClick={() => setStep('payment')}>
               Continuar <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           )}
         </div>
       )}
 
-      {/* Step: Confirm */}
-      {step === 'confirm' && selectedService && selectedProfessional && selectedDate && selectedTime && (
-        <div className="space-y-4">
+      {/* Step: Payment Method */}
+      {step === 'payment' && (
+        <div className="space-y-3">
           <Button variant="ghost" size="sm" onClick={() => setStep('datetime')}>
+            <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
+          </Button>
+          <p className="text-sm text-muted-foreground">Escolha a forma de pagamento:</p>
+          {paymentOptions.map((opt) => (
+            <Card
+              key={opt.key}
+              className={cn(
+                'cursor-pointer card-interactive',
+                selectedPayment === opt.key && 'ring-2 ring-primary'
+              )}
+              onClick={() => {
+                setSelectedPayment(opt.key);
+                setStep('confirm');
+              }}
+            >
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                  <opt.icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="font-medium text-foreground">{opt.label}</p>
+                  <p className="text-xs text-muted-foreground">{opt.description}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Step: Confirm */}
+      {step === 'confirm' && selectedService && selectedProfessional && selectedDate && selectedTime && selectedPayment && (
+        <div className="space-y-4">
+          <Button variant="ghost" size="sm" onClick={() => setStep('payment')}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
           </Button>
 
@@ -400,6 +467,12 @@ export default function PortalBookingPage() {
                 <span className="text-muted-foreground">Duração</span>
                 <span className="font-medium text-foreground">{selectedService.duration_minutes} min</span>
               </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Pagamento</span>
+                <span className="font-medium text-foreground">
+                  {paymentOptions.find(p => p.key === selectedPayment)?.label}
+                </span>
+              </div>
               <div className="flex justify-between text-sm border-t pt-3">
                 <span className="text-muted-foreground">Valor</span>
                 <span className="font-bold text-foreground">R$ {Number(selectedService.price).toFixed(2)}</span>
@@ -408,7 +481,12 @@ export default function PortalBookingPage() {
           </Card>
 
           <Button className="w-full" size="lg" onClick={handleConfirm} disabled={submitting}>
-            {submitting ? 'Agendando...' : 'Confirmar Agendamento'}
+            {submitting
+              ? 'Processando...'
+              : selectedPayment === 'in_person'
+                ? 'Confirmar Agendamento'
+                : 'Ir para Pagamento'
+            }
           </Button>
         </div>
       )}
