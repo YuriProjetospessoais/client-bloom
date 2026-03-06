@@ -178,6 +178,8 @@ export type Database = {
           max_advance_days: number
           name: string
           phone: string | null
+          primary_color: string | null
+          slug: string | null
           status: Database["public"]["Enums"]["company_status"]
           updated_at: string
         }
@@ -192,6 +194,8 @@ export type Database = {
           max_advance_days?: number
           name: string
           phone?: string | null
+          primary_color?: string | null
+          slug?: string | null
           status?: Database["public"]["Enums"]["company_status"]
           updated_at?: string
         }
@@ -206,6 +210,8 @@ export type Database = {
           max_advance_days?: number
           name?: string
           phone?: string | null
+          primary_color?: string | null
+          slug?: string | null
           status?: Database["public"]["Enums"]["company_status"]
           updated_at?: string
         }
