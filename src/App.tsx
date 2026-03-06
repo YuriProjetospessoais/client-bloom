@@ -134,6 +134,43 @@ const App = () => (
                   <Route path="perfil" element={<PortalProfilePage />} />
                 </Route>
 
+                {/* Tenant routes - /:slug */}
+                <Route path="/:slug" element={<TenantProvider><TenantLandingPage /></TenantProvider>} />
+                
+                {/* Tenant Portal (client) */}
+                <Route path="/:slug" element={<TenantProvider><TenantPortalLayout /></TenantProvider>}>
+                  <Route path="dashboard" element={<PortalDashboardPage />} />
+                  <Route path="agendar" element={<PortalBookingPage />} />
+                  <Route path="agendamentos" element={<PortalAppointmentsPage />} />
+                  <Route path="perfil" element={<PortalProfilePage />} />
+                </Route>
+
+                {/* Tenant Admin */}
+                <Route path="/:slug/admin" element={<TenantProvider><TenantAdminLayout /></TenantProvider>}>
+                  <Route index element={<Navigate to="dashboard" replace />} />
+                  <Route path="dashboard" element={<AdminDashboardPage />} />
+                  <Route path="crm" element={<CRMPage />} />
+                  <Route path="leads" element={<LeadsPage />} />
+                  <Route path="clients" element={<ClientsPage />} />
+                  <Route path="products" element={<ProductsPage />} />
+                  <Route path="schedule" element={<SchedulePage />} />
+                  <Route path="alerts" element={<AlertsPage />} />
+                  <Route path="plans" element={<AdminPlansPage />} />
+                  <Route path="settings" element={<SettingsPage />} />
+                </Route>
+
+                {/* Tenant Staff */}
+                <Route path="/:slug/agenda" element={<TenantProvider><TenantStaffLayout /></TenantProvider>}>
+                  <Route index element={<Navigate to="dashboard" replace />} />
+                  <Route path="dashboard" element={<UserDashboardPage />} />
+                  <Route path="schedule" element={<UserSchedulePage />} />
+                  <Route path="crm" element={<UserCRMPage />} />
+                  <Route path="leads" element={<UserLeadsPage />} />
+                  <Route path="products" element={<UserProductsPage />} />
+                  <Route path="alerts" element={<UserAlertsPage />} />
+                  <Route path="profile" element={<UserProfilePage />} />
+                </Route>
+
                 {/* Catch-all */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
