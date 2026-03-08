@@ -54,6 +54,7 @@ import PortalProfilePage from "./pages/portal/PortalProfilePage";
 
 // Tenant Pages & Layouts
 import TenantLandingPage from "./pages/tenant/TenantLandingPage";
+import TenantBookingPage from "./pages/tenant/TenantBookingPage";
 import TenantPortalLayout from "./pages/layouts/TenantPortalLayout";
 import TenantAdminLayout from "./pages/layouts/TenantAdminLayout";
 import TenantStaffLayout from "./pages/layouts/TenantStaffLayout";
@@ -140,7 +141,7 @@ const App = () => (
                 {/* Tenant Portal (client) */}
                 <Route path="/:slug" element={<TenantProvider><TenantPortalLayout /></TenantProvider>}>
                   <Route path="dashboard" element={<PortalDashboardPage />} />
-                  <Route path="agendar" element={<PortalBookingPage />} />
+                  <Route path="agendar" element={<TenantBookingPage />} />
                   <Route path="agendamentos" element={<PortalAppointmentsPage />} />
                   <Route path="perfil" element={<PortalProfilePage />} />
                 </Route>
