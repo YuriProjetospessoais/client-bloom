@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/lib/theme/ThemeContext";
 import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import { AuthProvider } from "@/lib/auth/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { TenantProtectedRoute } from "@/components/auth/TenantProtectedRoute";
 import { TenantProvider } from "@/lib/tenant/TenantContext";
 
 // Public Pages
@@ -146,8 +147,14 @@ const App = () => (
                   <Route path="perfil" element={<PortalProfilePage />} />
                 </Route>
 
-                {/* Tenant Admin */}
-                <Route path="/:slug/admin" element={<TenantProvider><TenantAdminLayout /></TenantProvider>}>
+                {/* Tenant Admin — requires company_admin membership */}
+                <Route path="/:slug/admin" element={
+                  <TenantProvider>
+                    <TenantProtectedRoute allowedRoles={['company_admin']}>
+                      <TenantAdminLayout />
+                    </TenantProtectedRoute>
+                  </TenantProvider>
+                }>
                   <Route index element={<Navigate to="dashboard" replace />} />
                   <Route path="dashboard" element={<AdminDashboardPage />} />
                   <Route path="crm" element={<CRMPage />} />
@@ -160,8 +167,14 @@ const App = () => (
                   <Route path="settings" element={<SettingsPage />} />
                 </Route>
 
-                {/* Tenant Staff */}
-                <Route path="/:slug/agenda" element={<TenantProvider><TenantStaffLayout /></TenantProvider>}>
+                {/* Tenant Staff — requires employee membership */}
+                <Route path="/:slug/agenda" element={
+                  <TenantProvider>
+                    <TenantProtectedRoute allowedRoles={['employee']}>
+                      <TenantStaffLayout />
+                    </TenantProtectedRoute>
+                  </TenantProvider>
+                }>
                   <Route index element={<Navigate to="dashboard" replace />} />
                   <Route path="dashboard" element={<UserDashboardPage />} />
                   <Route path="schedule" element={<UserSchedulePage />} />
