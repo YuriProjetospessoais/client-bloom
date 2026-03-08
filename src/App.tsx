@@ -14,6 +14,7 @@ import { TenantProvider } from "@/lib/tenant/TenantContext";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import LoginPage from "./pages/auth/LoginPage";
+import TenantSelectionPage from "./pages/auth/TenantSelectionPage";
 
 // Layouts
 import SuperAdminLayout from "./pages/layouts/SuperAdminLayout";
@@ -75,6 +76,11 @@ const App = () => (
                 {/* Public routes */}
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<LoginPage />} />
+                <Route path="/select-tenant" element={
+                  <ProtectedRoute allowedRoles={['super_admin', 'company_admin', 'employee', 'client']}>
+                    <TenantSelectionPage />
+                  </ProtectedRoute>
+                } />
 
                 {/* Super Admin routes - /global */}
                 <Route path="/global" element={

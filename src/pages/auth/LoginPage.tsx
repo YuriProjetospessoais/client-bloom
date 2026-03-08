@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import barbershopBg from '@/assets/barbershop-bg.jpg';
 
 type AuthMode = 'login' | 'signup';
@@ -34,6 +35,24 @@ export default function LoginPage() {
         const success = await login(email, password);
         if (success) {
           toast({ title: 'Bem-vindo de volta!', description: 'Login realizado com sucesso.' });
+          
+          // Check if user has memberships to show tenant selection
+          const { data: session } = await supabase.auth.getSession();
+          if (session?.session?.user) {
+            const { data: roles } = await supabase
+              .from('user_roles')
+              .select('role, company_id')
+              .eq('user_id', session.session.user.id);
+            
+            // If user has memberships (excluding super_admin global access), show selection
+            const hasMemberships = roles && roles.some(r => r.company_id !== null);
+            if (hasMemberships) {
+              navigate('/select-tenant', { replace: true });
+              setIsLoading(false);
+              return;
+            }
+          }
+          
           navigate(from, { replace: true });
         } else {
           toast({ title: 'Erro no login', description: 'Email ou senha inválidos.', variant: 'destructive' });
