@@ -94,7 +94,7 @@ export default function GlobalDashboardPage() {
 
   const recentCompanies = companies.slice(0, 4);
 
-  const handleSaveCompany = (data: any) => {
+  const handleSaveCompany = async (data: any) => {
     if (data.id) {
       companiesStore.update(data.id, data);
     } else {
