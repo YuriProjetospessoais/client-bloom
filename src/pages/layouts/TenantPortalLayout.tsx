@@ -92,7 +92,7 @@ export default function TenantPortalLayout() {
       </header>
 
       {/* Mobile bottom nav */}
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-30 border-t bg-card/95 backdrop-blur">
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-30 border-t bg-card/95 backdrop-blur safe-area-bottom">
         <div className="flex items-center justify-around h-14">
           {navItems.map((item) => (
             <NavLink
