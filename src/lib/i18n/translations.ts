@@ -72,6 +72,7 @@ export const translations = {
       staff: 'Equipe',
       barbers: 'Barbeiros',
       blockedSlots: 'Bloqueios',
+      monthlyReport: 'Relatório Mensal',
     },
 
     // Dashboard
