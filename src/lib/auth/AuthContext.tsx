@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { User, UserRole, AuthState } from './types';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
@@ -64,23 +64,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated: false,
     isLoading: true,
   });
-  
-  // Ref to resolve pending login promises when auth state changes
-  const loginResolverRef = useRef<((user: User) => void) | null>(null);
 
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session) {
+          // Skip if login() already set the state
+          if (state.isAuthenticated && state.user?.id === session.user.id) return;
           const user = await buildUser(session);
           setState({ user, isAuthenticated: true, isLoading: false });
-          
-          // Resolve any pending login promise
-          if (loginResolverRef.current) {
-            loginResolverRef.current(user);
-            loginResolverRef.current = null;
-          }
         } else {
           setState({ user: null, isAuthenticated: false, isLoading: false });
         }
@@ -116,18 +109,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
     
-    // Wait for the auth state listener to update state and build user
-    const user = await new Promise<User>((resolve) => {
-      // If state is already updated (unlikely but possible), resolve immediately
-      if (state.isAuthenticated && state.user) {
-        resolve(state.user);
-        return;
-      }
-      // Otherwise wait for the auth state change listener
-      loginResolverRef.current = resolve;
-    });
+    // Build user immediately from the session we already have
+    if (data?.session) {
+      const user = await buildUser(data.session);
+      setState({ user, isAuthenticated: true, isLoading: false });
+      return { success: true, user };
+    }
     
-    return { success: true, user };
+    return { success: false };
   }, [state.isAuthenticated, state.user]);
 
   const signup = useCallback(async (email: string, password: string, fullName: string) => {
