@@ -7,9 +7,8 @@ import {
   Bell,
   Settings,
   Target,
-   Package,
-   CreditCard,
-} from 'lucide-react';
+  Package,
+  CreditCard,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { BarberFlowLogo } from './BarberFlowLogo';
