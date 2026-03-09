@@ -13,8 +13,9 @@ import { useTenant } from '@/lib/tenant/TenantContext';
 import { toast } from 'sonner';
 import { format, addDays, addMinutes, startOfDay, isSameDay, isToday, isTomorrow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CheckCircle, ArrowLeft, ArrowRight, Scissors, User, CalendarDays, Clock, Loader2 } from 'lucide-react';
+import { CheckCircle, ArrowLeft, ArrowRight, Scissors, User, CalendarDays, Clock, Loader2, Phone } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import ReturningCustomerStep from '@/components/booking/ReturningCustomerStep';
 
 interface Service {
   id: string;
@@ -31,7 +32,7 @@ interface Professional {
   specialties: string[] | null;
 }
 
-type Step = 'service' | 'professional' | 'datetime' | 'customer' | 'confirm';
+type Step = 'phone' | 'service' | 'professional' | 'datetime' | 'customer' | 'confirm';
 
 export default function TenantBookingPage() {
   const { slug } = useParams();
@@ -39,7 +40,7 @@ export default function TenantBookingPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [step, setStep] = useState<Step>('service');
+  const [step, setStep] = useState<Step>('phone');
   const [services, setServices] = useState<Service[]>([]);
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
@@ -68,7 +69,7 @@ export default function TenantBookingPage() {
 
   const companyId = tenant?.id;
 
-  // Load services & professionals (public RLS allows anon read)
+  // Load services & professionals
   useEffect(() => {
     if (!companyId) return;
     loadPublicData();
@@ -87,7 +88,7 @@ export default function TenantBookingPage() {
       .select('full_name, phone')
       .eq('user_id', user.id)
       .maybeSingle();
-      
+
     if (profile) {
       if (profile.full_name) setCustomerName(profile.full_name);
       if (profile.phone) setCustomerPhone(profile.phone);
@@ -157,15 +158,8 @@ export default function TenantBookingPage() {
     const available = whRes.data?.find((w) => w.is_available);
     if (!available) return [];
 
-    const booked = (aptsRes.data || []).map((a) => ({
-      start: a.start_time,
-      end: a.end_time,
-    }));
-
-    const blocked = (blockedRes.data || []).map((b) => ({
-      start: b.start_time,
-      end: b.end_time,
-    }));
+    const booked = (aptsRes.data || []).map((a) => ({ start: a.start_time, end: a.end_time }));
+    const blocked = (blockedRes.data || []).map((b) => ({ start: b.start_time, end: b.end_time }));
 
     const slots: string[] = [];
     const [startH, startM] = available.start_time.split(':').map(Number);
@@ -179,7 +173,6 @@ export default function TenantBookingPage() {
       const slotStart = format(cursor, 'HH:mm');
       const slotEnd = format(addMinutes(cursor, duration), 'HH:mm');
 
-      // Skip past slots for today
       if (isDateToday) {
         const [sh, sm] = slotStart.split(':').map(Number);
         const slotDate = new Date();
@@ -200,7 +193,7 @@ export default function TenantBookingPage() {
     return slots;
   }, [selectedProfessional, selectedService, companyId]);
 
-  // Load smart slots (next available days) when professional is selected
+  // Load smart slots when entering datetime step
   useEffect(() => {
     if (step === 'datetime' && selectedProfessional && selectedService && companyId) {
       loadSmartSlots();
@@ -215,7 +208,7 @@ export default function TenantBookingPage() {
 
     const today = startOfDay(new Date());
     const results: DaySlots[] = [];
-    const maxDays = Math.min(maxAdvanceDays, 14); // Check up to 14 days ahead for smart view
+    const maxDays = Math.min(maxAdvanceDays, 14);
 
     for (let i = 0; i < maxDays; i++) {
       const date = addDays(today, i);
@@ -233,7 +226,6 @@ export default function TenantBookingPage() {
           slots,
         });
 
-        // Show up to 5 days with availability
         if (results.length >= 5) break;
       }
     }
@@ -242,7 +234,7 @@ export default function TenantBookingPage() {
     setLoadingSlots(false);
   }
 
-  // Load calendar slots when a specific date is picked
+  // Load calendar slots
   useEffect(() => {
     if (slotsView === 'calendar' && selectedDate && selectedProfessional && selectedService && companyId) {
       loadCalendarSlots();
@@ -265,6 +257,42 @@ export default function TenantBookingPage() {
     }
   }
 
+  // ---- Returning customer handlers ----
+  function handleReturningRebook(info: { clientName: string; clientPhone: string; serviceId: string; professionalId: string }) {
+    // Pre-fill customer data
+    setCustomerName(info.clientName);
+    setCustomerPhone(info.clientPhone);
+
+    // Pre-select service and professional
+    const svc = services.find(s => s.id === info.serviceId);
+    const pro = professionals.find(p => p.id === info.professionalId);
+
+    if (svc) setSelectedService(svc);
+    if (pro) setSelectedProfessional(pro);
+
+    // If both found, jump straight to datetime
+    if (svc && pro) {
+      setStep('datetime');
+    } else if (svc) {
+      setStep('professional');
+    } else {
+      setStep('service');
+    }
+  }
+
+  function handleReturningNewBooking(info: { clientName: string; clientPhone: string }) {
+    setCustomerName(info.clientName);
+    setCustomerPhone(info.clientPhone);
+    setSelectedService(null);
+    setSelectedProfessional(null);
+    setStep('service');
+  }
+
+  function handleNewCustomer(phone: string) {
+    setCustomerPhone(phone);
+    setStep('service');
+  }
+
   async function handleConfirm() {
     if (!user) {
       toast.error('Você precisa estar logado para agendar.');
@@ -276,7 +304,6 @@ export default function TenantBookingPage() {
 
     setSubmitting(true);
 
-    // Get or create client record for this user+company
     let { data: clientData } = await supabase
       .from('clients')
       .select('id')
@@ -304,13 +331,9 @@ export default function TenantBookingPage() {
       }
       clientData = newClient;
     } else {
-      // Update existing client with new name/phone
       await supabase
         .from('clients')
-        .update({
-          name: customerName,
-          phone: customerPhone,
-        })
+        .update({ name: customerName, phone: customerPhone })
         .eq('id', clientData.id);
     }
 
@@ -334,12 +357,10 @@ export default function TenantBookingPage() {
 
     if (error || !aptData) {
       setSubmitting(false);
-      
-      // Handle the custom trigger error message for double booking
       if (error?.message?.includes('já existe um agendamento') || error?.code === '23505') {
         toast.error('Este horário acabou de ser reservado. Por favor, escolha outro.');
         reloadCurrentSlots();
-        setStep('datetime'); // Go back to datetime selection
+        setStep('datetime');
       } else {
         toast.error('Erro ao agendar. Tente novamente.');
       }
@@ -362,6 +383,7 @@ export default function TenantBookingPage() {
   }
 
   const steps: { key: Step; label: string; icon: typeof Scissors }[] = [
+    { key: 'phone', label: 'Início', icon: Phone },
     { key: 'service', label: 'Serviço', icon: Scissors },
     { key: 'professional', label: 'Profissional', icon: User },
     { key: 'datetime', label: 'Data & Hora', icon: CalendarDays },
@@ -418,9 +440,23 @@ export default function TenantBookingPage() {
         ))}
       </div>
 
+      {/* Step: Phone lookup (returning customer) */}
+      {step === 'phone' && companyId && (
+        <ReturningCustomerStep
+          companyId={companyId}
+          tenantColor={tenantColor}
+          onReturningCustomer={handleReturningRebook}
+          onNewCustomer={handleNewCustomer}
+          onNewBooking={handleReturningNewBooking}
+        />
+      )}
+
       {/* Step: Service */}
       {step === 'service' && (
         <div className="space-y-3">
+          <Button variant="ghost" size="sm" onClick={() => setStep('phone')}>
+            <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
+          </Button>
           <p className="text-sm text-muted-foreground">Escolha o serviço desejado:</p>
           {services.length === 0 ? (
             <Card>
@@ -452,10 +488,7 @@ export default function TenantBookingPage() {
                       {svc.duration_minutes} min
                     </div>
                   </div>
-                  <Badge
-                    className="text-white shrink-0"
-                    style={{ backgroundColor: tenantColor }}
-                  >
+                  <Badge className="text-white shrink-0" style={{ backgroundColor: tenantColor }}>
                     R$ {Number(svc.price).toFixed(2)}
                   </Badge>
                 </CardContent>
@@ -530,7 +563,6 @@ export default function TenantBookingPage() {
               <TabsTrigger value="calendar">Escolher no calendário</TabsTrigger>
             </TabsList>
 
-            {/* Smart view: next available slots grouped by day */}
             <TabsContent value="smart" className="mt-4 space-y-4">
               {loadingSlots ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-3">
@@ -584,7 +616,6 @@ export default function TenantBookingPage() {
               )}
             </TabsContent>
 
-            {/* Calendar view */}
             <TabsContent value="calendar" className="mt-4 space-y-4">
               <Card>
                 <CardContent className="p-4 flex justify-center">
@@ -659,7 +690,7 @@ export default function TenantBookingPage() {
           <Button variant="ghost" size="sm" onClick={() => setStep('datetime')}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
           </Button>
-          <p className="text-sm text-muted-foreground">Preencha seus dados:</p>
+          <p className="text-sm text-muted-foreground">Confirme seus dados:</p>
           <Card>
             <CardContent className="p-4 space-y-4">
               <div className="space-y-2">
@@ -725,10 +756,7 @@ export default function TenantBookingPage() {
             <Card className="border-amber-500/30 bg-amber-500/5">
               <CardContent className="p-4 text-center space-y-2">
                 <p className="text-sm text-foreground font-medium">Faça login para confirmar seu agendamento</p>
-                <Button
-                  variant="outline"
-                  onClick={() => navigate(`/${slug}`)}
-                >
+                <Button variant="outline" onClick={() => navigate(`/${slug}`)}>
                   Fazer Login
                 </Button>
               </CardContent>
