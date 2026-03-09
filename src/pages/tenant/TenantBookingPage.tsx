@@ -254,7 +254,17 @@ export default function TenantBookingPage() {
 
     setSubmitting(false);
     toast.success('Agendamento realizado com sucesso!');
-    navigate(`/${slug}/agendamentos`);
+    navigate(`/${slug}/confirmacao`, {
+      state: {
+        serviceName: selectedService.name,
+        professionalName: selectedProfessional.name,
+        date: dateStr,
+        time: selectedTime,
+        duration: selectedService.duration_minutes,
+        price: Number(selectedService.price),
+        barbershopName: tenant?.name || '',
+      },
+    });
   }
 
   const steps: { key: Step; label: string; icon: typeof Scissors }[] = [
