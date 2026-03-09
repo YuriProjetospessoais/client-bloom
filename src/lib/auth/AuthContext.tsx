@@ -1,10 +1,10 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { User, UserRole, AuthState } from './types';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
 
 interface AuthContextType extends AuthState {
-  login: (email: string, password: string) => Promise<{ success: boolean; requiresMfa?: boolean }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; requiresMfa?: boolean; user?: User }>;
   signup: (email: string, password: string, fullName: string) => Promise<{ success: boolean; message: string }>;
   logout: () => Promise<void>;
   hasPermission: (requiredRole: UserRole | UserRole[]) => boolean;
@@ -64,17 +64,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated: false,
     isLoading: true,
   });
+  
+  // Ref to resolve pending login promises when auth state changes
+  const loginResolverRef = useRef<((user: User) => void) | null>(null);
 
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session) {
-          // Use setTimeout to avoid potential deadlock with Supabase client
-          setTimeout(async () => {
-            const user = await buildUser(session);
-            setState({ user, isAuthenticated: true, isLoading: false });
-          }, 0);
+          const user = await buildUser(session);
+          setState({ user, isAuthenticated: true, isLoading: false });
+          
+          // Resolve any pending login promise
+          if (loginResolverRef.current) {
+            loginResolverRef.current(user);
+            loginResolverRef.current = null;
+          }
         } else {
           setState({ user: null, isAuthenticated: false, isLoading: false });
         }
@@ -110,8 +116,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
     
-    return { success: true };
-  }, []);
+    // Wait for the auth state listener to update state and build user
+    const user = await new Promise<User>((resolve) => {
+      // If state is already updated (unlikely but possible), resolve immediately
+      if (state.isAuthenticated && state.user) {
+        resolve(state.user);
+        return;
+      }
+      // Otherwise wait for the auth state change listener
+      loginResolverRef.current = resolve;
+    });
+    
+    return { success: true, user };
+  }, [state.isAuthenticated, state.user]);
 
   const signup = useCallback(async (email: string, password: string, fullName: string) => {
     const { error } = await supabase.auth.signUp({

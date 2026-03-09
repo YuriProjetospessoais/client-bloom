@@ -28,21 +28,18 @@ export default function LoginPage() {
 
   const from = location.state?.from?.pathname || '/';
 
-  const handleSuccessfulLogin = async () => {
+  const handleSuccessfulLogin = async (user: { id: string; companyId?: string }) => {
     // Check if user has memberships to show tenant selection
-    const { data: session } = await supabase.auth.getSession();
-    if (session?.session?.user) {
-      const { data: roles } = await supabase
-        .from('user_roles')
-        .select('role, company_id')
-        .eq('user_id', session.session.user.id);
-      
-      // If user has memberships (excluding super_admin global access), show selection
-      const hasMemberships = roles && roles.some(r => r.company_id !== null);
-      if (hasMemberships) {
-        navigate('/select-tenant', { replace: true });
-        return;
-      }
+    const { data: roles } = await supabase
+      .from('user_roles')
+      .select('role, company_id')
+      .eq('user_id', user.id);
+    
+    // If user has memberships (excluding super_admin global access), show selection
+    const hasMemberships = roles && roles.some(r => r.company_id !== null);
+    if (hasMemberships) {
+      navigate('/select-tenant', { replace: true });
+      return;
     }
     
     navigate(from, { replace: true });
@@ -50,6 +47,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return; // Prevent double submission
     setIsLoading(true);
 
     try {
@@ -60,11 +58,14 @@ export default function LoginPage() {
           if (result.requiresMfa) {
             setMfaRequired(true);
             toast({ title: 'Autenticação em duas etapas', description: 'Por favor, insira seu código 2FA.' });
+            setIsLoading(false);
             return;
           }
 
           toast({ title: 'Bem-vindo de volta!', description: 'Login realizado com sucesso.' });
-          await handleSuccessfulLogin();
+          if (result.user) {
+            await handleSuccessfulLogin(result.user);
+          }
         } else {
           toast({ title: 'Erro no login', description: 'Email ou senha inválidos.', variant: 'destructive' });
         }
@@ -130,7 +131,12 @@ export default function LoginPage() {
           {mfaRequired ? (
             <MfaVerify onVerified={async () => {
               toast({ title: 'Bem-vindo de volta!', description: 'Login realizado com sucesso.' });
-              await handleSuccessfulLogin();
+              const { data: { session } } = await supabase.auth.getSession();
+              if (session?.user) {
+                await handleSuccessfulLogin({ id: session.user.id });
+              } else {
+                navigate(from, { replace: true });
+              }
             }} />
           ) : (
             <>
