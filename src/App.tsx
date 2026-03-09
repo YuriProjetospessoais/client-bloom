@@ -38,7 +38,7 @@ import AlertsPage from "./pages/admin/AlertsPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import AdminPlansPage from "./pages/admin/PlansPage";
 import StaffPage from "./pages/admin/StaffPage";
-import BarbersPage from "./pages/admin/BarbersPage";
+
 
 // Barber Pages
 import BarberDashboardPage from "./pages/barber/BarberDashboardPage";
