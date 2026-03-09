@@ -51,6 +51,8 @@ interface Booking {
 
 export default function BarberDashboardPage() {
   const { user } = useAuth();
+  const { tenant } = useTenant();
+  const companyId = tenant?.id;
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
