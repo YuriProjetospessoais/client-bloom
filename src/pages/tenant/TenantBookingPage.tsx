@@ -512,60 +512,124 @@ export default function TenantBookingPage() {
             <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
           </Button>
 
-          <Card>
-            <CardContent className="p-4 flex justify-center">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(d) => setSelectedDate(d)}
-                disabled={(date) => {
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  return date < today || date > addDays(today, maxAdvanceDays);
-                }}
-                locale={ptBR}
-                className="pointer-events-auto"
-              />
-            </CardContent>
-          </Card>
+          <Tabs value={slotsView} onValueChange={(v) => setSlotsView(v as 'smart' | 'calendar')}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="smart">Próximos horários</TabsTrigger>
+              <TabsTrigger value="calendar">Escolher no calendário</TabsTrigger>
+            </TabsList>
 
-          {selectedDate && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <CalendarDays className="h-4 w-4" />
-                  Horários em {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {availableSlots.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-6">
-                    Nenhum horário disponível neste dia
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                    {availableSlots.map((slot) => (
-                      <Button
-                        key={slot}
-                        variant="outline"
-                        size="sm"
-                        className={cn(
-                          'transition-all',
-                          selectedTime === slot && 'text-white border-transparent'
-                        )}
-                        style={selectedTime === slot ? { backgroundColor: tenantColor } : undefined}
-                        onClick={() => setSelectedTime(slot)}
-                      >
-                        {slot}
-                      </Button>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+            {/* Smart view: next available slots grouped by day */}
+            <TabsContent value="smart" className="mt-4 space-y-4">
+              {loadingSlots ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">Buscando horários disponíveis...</p>
+                </div>
+              ) : smartSlots.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <CalendarDays className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
+                    <p className="text-muted-foreground">Nenhum horário disponível nos próximos dias</p>
+                    <p className="text-xs text-muted-foreground mt-1">Tente escolher no calendário para ver mais datas</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                smartSlots.map((day) => (
+                  <Card key={day.dateStr} className="overflow-hidden">
+                    <CardHeader className="pb-2 pt-3 px-4">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                        <CalendarDays className="h-4 w-4" style={{ color: tenantColor }} />
+                        {day.label}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-3">
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        {day.slots.map((slot) => {
+                          const isSelected = selectedDate && isSameDay(selectedDate, day.date) && selectedTime === slot;
+                          return (
+                            <Button
+                              key={`${day.dateStr}-${slot}`}
+                              variant="outline"
+                              size="sm"
+                              className={cn(
+                                'transition-all font-medium',
+                                isSelected && 'text-white border-transparent shadow-md'
+                              )}
+                              style={isSelected ? { backgroundColor: tenantColor } : undefined}
+                              onClick={() => {
+                                setSelectedDate(day.date);
+                                setSelectedTime(slot);
+                              }}
+                            >
+                              {slot}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </TabsContent>
 
-          {selectedTime && (
+            {/* Calendar view */}
+            <TabsContent value="calendar" className="mt-4 space-y-4">
+              <Card>
+                <CardContent className="p-4 flex justify-center">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(d) => setSelectedDate(d)}
+                    disabled={(date) => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      return date < today || date > addDays(today, maxAdvanceDays);
+                    }}
+                    locale={ptBR}
+                    className="pointer-events-auto"
+                  />
+                </CardContent>
+              </Card>
+
+              {selectedDate && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <CalendarDays className="h-4 w-4" />
+                      Horários em {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {calendarSlots.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-6">
+                        Nenhum horário disponível neste dia
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        {calendarSlots.map((slot) => (
+                          <Button
+                            key={slot}
+                            variant="outline"
+                            size="sm"
+                            className={cn(
+                              'transition-all',
+                              selectedTime === slot && 'text-white border-transparent'
+                            )}
+                            style={selectedTime === slot ? { backgroundColor: tenantColor } : undefined}
+                            onClick={() => setSelectedTime(slot)}
+                          >
+                            {slot}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+          </Tabs>
+
+          {selectedTime && selectedDate && (
             <Button
               className="w-full text-white"
               style={{ backgroundColor: tenantColor }}
