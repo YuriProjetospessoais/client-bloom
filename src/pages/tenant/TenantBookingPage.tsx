@@ -132,7 +132,7 @@ export default function TenantBookingPage() {
     const now = new Date();
     const isDateToday = isSameDay(date, now);
 
-    const [whRes, aptsRes] = await Promise.all([
+    const [whRes, aptsRes, blockedRes] = await Promise.all([
       supabase
         .from('working_hours')
         .select('start_time, end_time, is_available')
@@ -146,6 +146,12 @@ export default function TenantBookingPage() {
         .eq('professional_id', selectedProfessional.id)
         .eq('date', dateStr)
         .in('status', ['scheduled', 'confirmed']),
+      supabase
+        .from('blocked_slots')
+        .select('start_time, end_time')
+        .eq('company_id', companyId)
+        .eq('professional_id', selectedProfessional.id)
+        .eq('date', dateStr),
     ]);
 
     const available = whRes.data?.find((w) => w.is_available);
@@ -154,6 +160,11 @@ export default function TenantBookingPage() {
     const booked = (aptsRes.data || []).map((a) => ({
       start: a.start_time,
       end: a.end_time,
+    }));
+
+    const blocked = (blockedRes.data || []).map((b) => ({
+      start: b.start_time,
+      end: b.end_time,
     }));
 
     const slots: string[] = [];
