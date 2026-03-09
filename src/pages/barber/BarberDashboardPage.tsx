@@ -65,6 +65,11 @@ export default function BarberDashboardPage() {
   const [notesValue, setNotesValue] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
 
+  // Block time
+  const [blockTimeOpen, setBlockTimeOpen] = useState(false);
+  const [professionalId, setProfessionalId] = useState<string | null>(null);
+  const [blockedSlots, setBlockedSlots] = useState<{ id: string; date: string; start_time: string; end_time: string; reason: string | null }[]>([]);
+
   const fetchBookings = useCallback(async () => {
     setLoading(true);
     try {
