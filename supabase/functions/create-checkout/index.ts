@@ -18,6 +18,11 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_ANON_KEY") ?? ""
   );
 
+  const supabaseAdmin = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+  );
+
   try {
     const authHeader = req.headers.get("Authorization")!;
     const token = authHeader.replace("Bearer ", "");
@@ -25,10 +30,41 @@ serve(async (req) => {
     const user = data.user;
     if (!user?.email) throw new Error("User not authenticated");
 
-    const { serviceName, servicePrice, paymentMethod, appointmentId } = await req.json();
+    const { paymentMethod, appointmentId } = await req.json();
 
-    if (!serviceName || !servicePrice || !paymentMethod || !appointmentId) {
+    if (!paymentMethod || !appointmentId) {
       throw new Error("Missing required fields");
+    }
+
+    // Server-side lookup: fetch appointment + service price from DB
+    const { data: appointment, error: aptError } = await supabaseAdmin
+      .from("appointments")
+      .select("service_id, client_id, clients(user_id)")
+      .eq("id", appointmentId)
+      .single();
+
+    if (aptError || !appointment) {
+      throw new Error("Appointment not found");
+    }
+
+    // Verify ownership: the authenticated user must own the client record
+    const clientData = appointment.clients as { user_id: string } | null;
+    if (!clientData || clientData.user_id !== user.id) {
+      throw new Error("Unauthorized: you do not own this appointment");
+    }
+
+    if (!appointment.service_id) {
+      throw new Error("Appointment has no service assigned");
+    }
+
+    const { data: service, error: svcError } = await supabaseAdmin
+      .from("services")
+      .select("name, price")
+      .eq("id", appointment.service_id)
+      .single();
+
+    if (svcError || !service) {
+      throw new Error("Service not found");
     }
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
@@ -52,8 +88,8 @@ serve(async (req) => {
         {
           price_data: {
             currency: "brl",
-            product_data: { name: serviceName },
-            unit_amount: Math.round(servicePrice * 100),
+            product_data: { name: service.name },
+            unit_amount: Math.round(Number(service.price) * 100),
           },
           quantity: 1,
         },
@@ -64,12 +100,6 @@ serve(async (req) => {
       cancel_url: `${req.headers.get("origin")}/portal/agendamentos?payment=cancelled`,
       metadata: { appointment_id: appointmentId },
     });
-
-    // Update appointment with stripe session id
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
 
     await supabaseAdmin
       .from("appointments")
