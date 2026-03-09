@@ -2,7 +2,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useTenant } from '@/lib/tenant/TenantContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Scissors, User, CalendarDays, Clock, Store, ArrowLeft, CalendarPlus } from 'lucide-react';
+import { CheckCircle, Scissors, User, CalendarDays, Clock, Store, ArrowLeft, CalendarPlus, MessageCircle } from 'lucide-react';
 import { format, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -102,6 +102,24 @@ export default function TenantBookingConfirmationPage() {
         >
           <CalendarPlus className="h-4 w-4 mr-2" />
           Ver Meus Agendamentos
+        </Button>
+        <Button
+          variant="outline"
+          className="w-full text-green-600 border-green-600 hover:bg-green-50 dark:hover:bg-green-950"
+          onClick={() => {
+            const msg = `✅ *Agendamento Confirmado!*\n\n` +
+              `📍 ${booking.barbershopName}\n` +
+              `✂️ ${booking.serviceName}\n` +
+              `👤 ${booking.professionalName}\n` +
+              `📅 ${formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1)}\n` +
+              `🕐 ${booking.time} (${booking.duration} min)\n` +
+              `💰 R$ ${booking.price.toFixed(2)}`;
+            const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+            window.open(url, '_blank');
+          }}
+        >
+          <MessageCircle className="h-4 w-4 mr-2" />
+          Compartilhar no WhatsApp
         </Button>
         <Button
           variant="outline"
