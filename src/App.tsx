@@ -38,6 +38,7 @@ import AlertsPage from "./pages/admin/AlertsPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import AdminPlansPage from "./pages/admin/PlansPage";
 import StaffPage from "./pages/admin/StaffPage";
+import BlockedSlotsPage from "./pages/admin/BlockedSlotsPage";
 
 
 // Barber Pages
@@ -119,6 +120,7 @@ const App = () => (
                    <Route path="plans" element={<AdminPlansPage />} />
                   <Route path="staff" element={<StaffPage />} />
                   <Route path="barbers" element={<StaffPage />} />
+                  <Route path="blocked-slots" element={<BlockedSlotsPage />} />
                 </Route>
 
                 {/* User routes - /user */}
@@ -181,6 +183,7 @@ const App = () => (
                   <Route path="plans" element={<AdminPlansPage />} />
                   <Route path="staff" element={<StaffPage />} />
                   <Route path="barbers" element={<StaffPage />} />
+                  <Route path="blocked-slots" element={<BlockedSlotsPage />} />
                   <Route path="settings" element={<SettingsPage />} />
                 </Route>
 
