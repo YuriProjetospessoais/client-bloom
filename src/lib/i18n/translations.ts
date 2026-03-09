@@ -71,6 +71,7 @@ export const translations = {
       profile: 'Perfil',
       staff: 'Equipe',
       barbers: 'Barbeiros',
+      blockedSlots: 'Bloqueios',
     },
 
     // Dashboard
@@ -321,6 +322,7 @@ export const translations = {
       profile: 'Profile',
       staff: 'Staff',
       barbers: 'Barbers',
+      blockedSlots: 'Block Time',
     },
 
     // Dashboard
@@ -571,6 +573,7 @@ export const translations = {
       profile: 'Perfil',
       staff: 'Equipo',
       barbers: 'Barberos',
+      blockedSlots: 'Bloqueos',
     },
 
     // Dashboard

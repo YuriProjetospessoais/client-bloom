@@ -28,7 +28,10 @@ import {
   FileText,
   StickyNote,
   Pencil,
+  Ban,
 } from 'lucide-react';
+import { BlockTimeModal } from '@/components/modals/BlockTimeModal';
+import { useTenant } from '@/lib/tenant/TenantContext';
 import { format, startOfWeek, endOfWeek, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -48,6 +51,8 @@ interface Booking {
 
 export default function BarberDashboardPage() {
   const { user } = useAuth();
+  const { tenant } = useTenant();
+  const companyId = tenant?.id;
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -60,12 +65,17 @@ export default function BarberDashboardPage() {
   const [notesValue, setNotesValue] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
 
+  // Block time
+  const [blockTimeOpen, setBlockTimeOpen] = useState(false);
+  const [professionalId, setProfessionalId] = useState<string | null>(null);
+  const [blockedSlots, setBlockedSlots] = useState<{ id: string; date: string; start_time: string; end_time: string; reason: string | null }[]>([]);
+
   const fetchBookings = useCallback(async () => {
     setLoading(true);
     try {
       const { data: prof } = await supabase
         .from('professionals')
-        .select('id')
+        .select('id, company_id')
         .eq('user_id', user?.id)
         .maybeSingle();
 
@@ -74,6 +84,19 @@ export default function BarberDashboardPage() {
         setLoading(false);
         return;
       }
+
+      setProfessionalId(prof.id);
+
+      // Fetch blocked slots for this professional
+      const { data: blocks } = await supabase
+        .from('blocked_slots')
+        .select('id, date, start_time, end_time, reason')
+        .eq('professional_id', prof.id)
+        .gte('date', format(new Date(), 'yyyy-MM-dd'))
+        .order('date', { ascending: true })
+        .order('start_time', { ascending: true });
+
+      setBlockedSlots(blocks || []);
 
       const { data: appointments, error } = await supabase
         .from('appointments')
@@ -333,11 +356,21 @@ export default function BarberDashboardPage() {
   return (
     <motion.div className="space-y-6 pb-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       {/* Header */}
-      <div className="space-y-1">
-        <h1 className="text-2xl lg:text-3xl font-display font-bold text-foreground">
-          {getGreeting()}, {user?.name?.split(' ')[0]}!
-        </h1>
-        <p className="text-muted-foreground">Seus agendamentos e compromissos</p>
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl lg:text-3xl font-display font-bold text-foreground">
+            {getGreeting()}, {user?.name?.split(' ')[0]}!
+          </h1>
+          <p className="text-muted-foreground">Seus agendamentos e compromissos</p>
+        </div>
+        <Button
+          variant="outline"
+          className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
+          onClick={() => setBlockTimeOpen(true)}
+        >
+          <Ban className="h-4 w-4" />
+          <span className="hidden sm:inline">Bloquear Horário</span>
+        </Button>
       </div>
 
       {/* Stats */}
@@ -549,6 +582,73 @@ export default function BarberDashboardPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Blocked Slots Section */}
+      {blockedSlots.length > 0 && (
+        <Card className="glass-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Ban className="h-4 w-4 text-destructive" />
+              Horários Bloqueados ({blockedSlots.length})
+            </CardTitle>
+            <CardDescription>Períodos indisponíveis na sua agenda</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {blockedSlots.map((block) => (
+                <div
+                  key={block.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-destructive/5 border border-destructive/10"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex flex-col items-center justify-center w-12 h-12 rounded-lg bg-destructive/10 text-destructive">
+                      <span className="text-xs font-bold">{block.start_time.slice(0, 5)}</span>
+                      <span className="text-[10px]">{block.end_time.slice(0, 5)}</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        {format(new Date(block.date + 'T00:00:00'), "dd/MM/yyyy (EEEE)", { locale: ptBR })}
+                      </p>
+                      {block.reason && (
+                        <p className="text-xs text-muted-foreground">{block.reason}</p>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:bg-destructive/10"
+                    onClick={async () => {
+                      const { error } = await supabase.from('blocked_slots').delete().eq('id', block.id);
+                      if (error) {
+                        toast.error('Erro ao remover bloqueio.');
+                      } else {
+                        toast.success('Bloqueio removido!');
+                        setBlockedSlots((prev) => prev.filter((b) => b.id !== block.id));
+                      }
+                    }}
+                  >
+                    Remover
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Block Time Modal */}
+      {companyId && professionalId && (
+        <BlockTimeModal
+          open={blockTimeOpen}
+          onOpenChange={setBlockTimeOpen}
+          companyId={companyId}
+          professionals={[{ id: professionalId, name: user?.name || '' }]}
+          defaultProfessionalId={professionalId}
+          lockProfessional
+          onSaved={fetchBookings}
+        />
+      )}
     </motion.div>
   );
 }
