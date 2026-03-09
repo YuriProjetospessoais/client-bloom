@@ -12,38 +12,30 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-async function fetchUserRole(userId: string): Promise<{ role: UserRole; companyId?: string }> {
+async function fetchUserRoleWithCompany(userId: string): Promise<{ role: UserRole; companyId?: string; companyName?: string }> {
   const { data } = await supabase
     .from('user_roles')
-    .select('role, company_id')
+    .select('role, company_id, companies(name)')
     .eq('user_id', userId)
     .limit(1)
     .maybeSingle();
 
   if (data) {
-    return { role: data.role as UserRole, companyId: data.company_id ?? undefined };
+    const companyData = data.companies as { name: string } | null;
+    return { 
+      role: data.role as UserRole, 
+      companyId: data.company_id ?? undefined,
+      companyName: companyData?.name ?? undefined
+    };
   }
-  // Default to 'client' if no role assigned
   return { role: 'client' };
-}
-
-async function fetchCompanyName(companyId: string): Promise<string | undefined> {
-  const { data } = await supabase
-    .from('companies')
-    .select('name')
-    .eq('id', companyId)
-    .maybeSingle();
-  return data?.name ?? undefined;
 }
 
 async function buildUser(session: Session): Promise<User> {
   const supaUser = session.user;
-  const { role, companyId } = await fetchUserRole(supaUser.id);
-
-  let companyName: string | undefined;
-  if (companyId) {
-    companyName = await fetchCompanyName(companyId);
-  }
+  
+  // Single query to fetch role and company name together
+  const { role, companyId, companyName } = await fetchUserRoleWithCompany(supaUser.id);
 
   return {
     id: supaUser.id,
