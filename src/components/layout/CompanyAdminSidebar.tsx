@@ -9,7 +9,7 @@ import {
   Target,
    Package,
    CreditCard,
-   Scissors
+} from 'lucide-react';
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { BarberFlowLogo } from './BarberFlowLogo';
