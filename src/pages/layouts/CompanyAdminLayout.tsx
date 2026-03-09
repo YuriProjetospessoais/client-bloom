@@ -10,7 +10,7 @@ import { BarberFlowLogo } from '@/components/layout/BarberFlowLogo';
 export default function CompanyAdminLayout() {
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full overflow-x-hidden bg-background">
+      <div className="min-h-screen flex w-full overflow-x-hidden bg-background safe-area-container">
         <CompanyAdminSidebar />
         
         <div className="flex-1 min-w-0 flex flex-col">

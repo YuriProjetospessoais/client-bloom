@@ -36,7 +36,7 @@ export default function TenantStaffLayout() {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full overflow-x-hidden bg-background">
+      <div className="min-h-screen flex w-full overflow-x-hidden bg-background safe-area-container">
         <Sidebar>
           <SidebarContent>
             <SidebarGroup>

@@ -12,7 +12,7 @@ export default function UserLayout() {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full overflow-x-hidden">
+      <div className="min-h-screen flex w-full overflow-x-hidden safe-area-container">
         <UserSidebar />
         
         <div className="flex-1 min-w-0 flex flex-col">
