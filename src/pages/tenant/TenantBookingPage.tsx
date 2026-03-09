@@ -123,18 +123,14 @@ export default function TenantBookingPage() {
     setLoading(false);
   }
 
-  // Load available time slots when date/professional/service change
-  useEffect(() => {
-    if (selectedDate && selectedProfessional && selectedService && companyId) {
-      loadAvailableSlots();
-    }
-  }, [selectedDate, selectedProfessional, selectedService]);
+  // Helper: get slots for a single date
+  const getSlotsForDate = useCallback(async (date: Date): Promise<string[]> => {
+    if (!selectedProfessional || !selectedService || !companyId) return [];
 
-  async function loadAvailableSlots() {
-    if (!selectedDate || !selectedProfessional || !selectedService || !companyId) return;
-
-    const dayOfWeek = selectedDate.getDay();
-    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    const dayOfWeek = date.getDay();
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const now = new Date();
+    const isDateToday = isSameDay(date, now);
 
     const [whRes, aptsRes] = await Promise.all([
       supabase
@@ -153,10 +149,7 @@ export default function TenantBookingPage() {
     ]);
 
     const available = whRes.data?.find((w) => w.is_available);
-    if (!available) {
-      setAvailableSlots([]);
-      return;
-    }
+    if (!available) return [];
 
     const booked = (aptsRes.data || []).map((a) => ({
       start: a.start_time,
@@ -175,14 +168,89 @@ export default function TenantBookingPage() {
       const slotStart = format(cursor, 'HH:mm');
       const slotEnd = format(addMinutes(cursor, duration), 'HH:mm');
 
+      // Skip past slots for today
+      if (isDateToday) {
+        const [sh, sm] = slotStart.split(':').map(Number);
+        const slotDate = new Date();
+        slotDate.setHours(sh, sm, 0, 0);
+        if (slotDate <= now) {
+          cursor = addMinutes(cursor, 30);
+          continue;
+        }
+      }
+
       const hasConflict = booked.some((b) => slotStart < b.end && slotEnd > b.start);
       if (!hasConflict) slots.push(slotStart);
 
       cursor = addMinutes(cursor, 30);
     }
 
-    setAvailableSlots(slots);
+    return slots;
+  }, [selectedProfessional, selectedService, companyId]);
+
+  // Load smart slots (next available days) when professional is selected
+  useEffect(() => {
+    if (step === 'datetime' && selectedProfessional && selectedService && companyId) {
+      loadSmartSlots();
+    }
+  }, [step, selectedProfessional?.id, selectedService?.id]);
+
+  async function loadSmartSlots() {
+    setLoadingSlots(true);
+    setSmartSlots([]);
+    setSelectedDate(undefined);
     setSelectedTime(null);
+
+    const today = startOfDay(new Date());
+    const results: DaySlots[] = [];
+    const maxDays = Math.min(maxAdvanceDays, 14); // Check up to 14 days ahead for smart view
+
+    for (let i = 0; i < maxDays; i++) {
+      const date = addDays(today, i);
+      const slots = await getSlotsForDate(date);
+      if (slots.length > 0) {
+        let label: string;
+        if (isToday(date)) label = 'Hoje';
+        else if (isTomorrow(date)) label = 'Amanhã';
+        else label = format(date, "EEEE, dd 'de' MMMM", { locale: ptBR });
+
+        results.push({
+          date,
+          dateStr: format(date, 'yyyy-MM-dd'),
+          label: label.charAt(0).toUpperCase() + label.slice(1),
+          slots,
+        });
+
+        // Show up to 5 days with availability
+        if (results.length >= 5) break;
+      }
+    }
+
+    setSmartSlots(results);
+    setLoadingSlots(false);
+  }
+
+  // Load calendar slots when a specific date is picked
+  useEffect(() => {
+    if (slotsView === 'calendar' && selectedDate && selectedProfessional && selectedService && companyId) {
+      loadCalendarSlots();
+    }
+  }, [selectedDate, slotsView]);
+
+  async function loadCalendarSlots() {
+    if (!selectedDate) return;
+    setCalendarSlots([]);
+    setSelectedTime(null);
+    const slots = await getSlotsForDate(selectedDate);
+    setCalendarSlots(slots);
+  }
+
+  async function reloadCurrentSlots() {
+    if (slotsView === 'smart') {
+      await loadSmartSlots();
+    } else if (selectedDate) {
+      await loadCalendarSlots();
+    }
   }
 
   async function handleConfirm() {
