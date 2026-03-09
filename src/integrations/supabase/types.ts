@@ -588,7 +588,51 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      blocked_slots_public: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          date: string | null
+          end_time: string | null
+          id: string | null
+          professional_id: string | null
+          start_time: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          date?: string | null
+          end_time?: string | null
+          id?: string | null
+          professional_id?: string | null
+          start_time?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          date?: string | null
+          end_time?: string | null
+          id?: string | null
+          professional_id?: string | null
+          start_time?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blocked_slots_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blocked_slots_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       get_public_company_id: { Args: never; Returns: string }
