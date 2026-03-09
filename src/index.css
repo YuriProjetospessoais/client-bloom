@@ -158,6 +158,12 @@
     padding-right: env(safe-area-inset-right);
   }
 
+  /* Use on sticky headers that must not sit under the status bar */
+  .safe-area-header {
+    padding-top: env(safe-area-inset-top);
+    height: calc(4rem + env(safe-area-inset-top));
+  }
+
   .safe-area-top {
     padding-top: env(safe-area-inset-top);
   }

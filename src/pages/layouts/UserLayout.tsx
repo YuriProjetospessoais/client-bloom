@@ -17,7 +17,7 @@ export default function UserLayout() {
         
         <div className="flex-1 min-w-0 flex flex-col">
           {/* Top header */}
-          <header className="h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-30 flex items-center justify-between px-4 lg:px-6">
+          <header className="safe-area-header border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-30 flex items-center justify-between px-4 lg:px-6">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="lg:hidden" />
               <div className="hidden lg:block">
