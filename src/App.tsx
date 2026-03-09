@@ -150,6 +150,7 @@ const App = () => (
                 <Route path="/:slug" element={<TenantProvider><TenantPortalLayout /></TenantProvider>}>
                   <Route path="dashboard" element={<PortalDashboardPage />} />
                   <Route path="agendar" element={<TenantBookingPage />} />
+                  <Route path="confirmacao" element={<TenantBookingConfirmationPage />} />
                   <Route path="agendamentos" element={<PortalAppointmentsPage />} />
                   <Route path="perfil" element={<PortalProfilePage />} />
                 </Route>
