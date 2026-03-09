@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { User, UserRole, AuthState } from './types';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
@@ -64,9 +64,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated: false,
     isLoading: true,
   });
-  
-  // Ref to resolve pending login promises when auth state changes
-  const loginResolverRef = useRef<((user: User) => void) | null>(null);
 
   useEffect(() => {
     // Set up auth state listener FIRST
