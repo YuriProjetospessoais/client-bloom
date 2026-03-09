@@ -19,6 +19,7 @@ export default function LoginPage() {
   const [fullName, setFullName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [mfaRequired, setMfaRequired] = useState(false);
   
   const { login, signup } = useAuth();
   const { toast } = useToast();
