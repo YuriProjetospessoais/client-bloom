@@ -1,0 +1,1 @@
+CREATE POLICY "Users can insert own client record" ON public.clients FOR INSERT WITH CHECK (user_id = auth.uid());
