@@ -131,7 +131,12 @@ export default function LoginPage() {
           {mfaRequired ? (
             <MfaVerify onVerified={async () => {
               toast({ title: 'Bem-vindo de volta!', description: 'Login realizado com sucesso.' });
-              await handleSuccessfulLogin();
+              const { data: { session } } = await supabase.auth.getSession();
+              if (session?.user) {
+                await handleSuccessfulLogin({ id: session.user.id });
+              } else {
+                navigate(from, { replace: true });
+              }
             }} />
           ) : (
             <>
