@@ -34,11 +34,8 @@ async function fetchUserRoleWithCompany(userId: string): Promise<{ role: UserRol
 async function buildUser(session: Session): Promise<User> {
   const supaUser = session.user;
   
-  // Fetch role first to get companyId
-  const { role, companyId } = await fetchUserRole(supaUser.id);
-
-  // Fetch company name in parallel if companyId exists
-  const companyName = companyId ? await fetchCompanyName(companyId) : undefined;
+  // Single query to fetch role and company name together
+  const { role, companyId, companyName } = await fetchUserRoleWithCompany(supaUser.id);
 
   return {
     id: supaUser.id,
