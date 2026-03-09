@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
 
 interface AuthContextType extends AuthState {
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<{ success: boolean; requiresMfa?: boolean }>;
   signup: (email: string, password: string, fullName: string) => Promise<{ success: boolean; message: string }>;
   logout: () => Promise<void>;
   hasPermission: (requiredRole: UserRole | UserRole[]) => boolean;
