@@ -5,7 +5,7 @@ import { UserMenu } from '@/components/layout/UserMenu';
 import { LanguageSelector } from '@/components/layout/LanguageSelector';
 import TenantNotFound from '@/pages/tenant/TenantNotFound';
 import {
-  LayoutDashboard, Users, UserPlus, Package, Calendar, Bell, Settings, CreditCard
+  LayoutDashboard, Users, UserPlus, Package, Calendar, Bell, Settings, CreditCard, Scissors
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
