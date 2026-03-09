@@ -9,6 +9,7 @@ import {
   Target,
   Package,
   CreditCard,
+  Ban,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { BarberFlowLogo } from './BarberFlowLogo';
@@ -37,6 +38,7 @@ const menuItems = [
   { key: 'alerts', url: '/admin/alerts', icon: Bell, label: 'alerts' },
    { key: 'plans', url: '/admin/plans', icon: CreditCard, label: 'plans' },
   { key: 'staff', url: '/admin/staff', icon: Users, label: 'staff' },
+  { key: 'blocked-slots', url: '/admin/blocked-slots', icon: Ban, label: 'blockedSlots' },
   { key: 'settings', url: '/admin/settings', icon: Settings, label: 'settings' },
 ];
 
