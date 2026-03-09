@@ -356,11 +356,21 @@ export default function BarberDashboardPage() {
   return (
     <motion.div className="space-y-6 pb-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       {/* Header */}
-      <div className="space-y-1">
-        <h1 className="text-2xl lg:text-3xl font-display font-bold text-foreground">
-          {getGreeting()}, {user?.name?.split(' ')[0]}!
-        </h1>
-        <p className="text-muted-foreground">Seus agendamentos e compromissos</p>
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl lg:text-3xl font-display font-bold text-foreground">
+            {getGreeting()}, {user?.name?.split(' ')[0]}!
+          </h1>
+          <p className="text-muted-foreground">Seus agendamentos e compromissos</p>
+        </div>
+        <Button
+          variant="outline"
+          className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
+          onClick={() => setBlockTimeOpen(true)}
+        >
+          <Ban className="h-4 w-4" />
+          <span className="hidden sm:inline">Bloquear Horário</span>
+        </Button>
       </div>
 
       {/* Stats */}
