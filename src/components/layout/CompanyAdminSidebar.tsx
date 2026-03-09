@@ -10,6 +10,7 @@ import {
   Package,
   CreditCard,
   Ban,
+  FileBarChart,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { BarberFlowLogo } from './BarberFlowLogo';
@@ -39,6 +40,7 @@ const menuItems = [
    { key: 'plans', url: '/admin/plans', icon: CreditCard, label: 'plans' },
   { key: 'staff', url: '/admin/staff', icon: Users, label: 'staff' },
   { key: 'blocked-slots', url: '/admin/blocked-slots', icon: Ban, label: 'blockedSlots' },
+  { key: 'relatorio', url: '/admin/relatorio', icon: FileBarChart, label: 'monthlyReport' },
   { key: 'settings', url: '/admin/settings', icon: Settings, label: 'settings' },
 ];
 
