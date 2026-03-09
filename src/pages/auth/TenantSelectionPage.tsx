@@ -132,7 +132,7 @@ export default function TenantSelectionPage() {
             <Scissors size={28} className="text-white relative z-10 rotate-[-45deg] drop-shadow-md" strokeWidth={2.5} />
           </div>
           <h1 className="text-3xl font-display font-bold text-white mb-1 tracking-tight">
-            Barber<span className="text-gold">Flow</span>
+            Navalha<span className="text-gold">App</span>
           </h1>
           <p className="text-white/60 text-sm mt-2">
             Olá, <span className="text-white font-medium">{user?.name}</span>. Selecione uma empresa para continuar.
