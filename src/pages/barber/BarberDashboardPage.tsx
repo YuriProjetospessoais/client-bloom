@@ -28,7 +28,10 @@ import {
   FileText,
   StickyNote,
   Pencil,
+  Ban,
 } from 'lucide-react';
+import { BlockTimeModal } from '@/components/modals/BlockTimeModal';
+import { useTenant } from '@/lib/tenant/TenantContext';
 import { format, startOfWeek, endOfWeek, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
