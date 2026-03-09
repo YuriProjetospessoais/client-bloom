@@ -191,7 +191,8 @@ export default function TenantBookingPage() {
       }
 
       const hasConflict = booked.some((b) => slotStart < b.end && slotEnd > b.start);
-      if (!hasConflict) slots.push(slotStart);
+      const isBlocked = blocked.some((b) => slotStart < b.end && slotEnd > b.start);
+      if (!hasConflict && !isBlocked) slots.push(slotStart);
 
       cursor = addMinutes(cursor, 30);
     }
