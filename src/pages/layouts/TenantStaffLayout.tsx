@@ -3,7 +3,7 @@ import { useTenant } from '@/lib/tenant/TenantContext';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { UserMenu } from '@/components/layout/UserMenu';
 import TenantNotFound from '@/pages/tenant/TenantNotFound';
-import { LayoutDashboard, Calendar, Users, UserPlus, Package, Bell, User } from 'lucide-react';
+import { LayoutDashboard, Calendar, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -17,10 +17,6 @@ export default function TenantStaffLayout() {
   const navItems = [
     { to: `/${slug}/agenda/dashboard`, label: 'Dashboard', icon: LayoutDashboard },
     { to: `/${slug}/agenda/schedule`, label: 'Agenda', icon: Calendar },
-    { to: `/${slug}/agenda/crm`, label: 'CRM', icon: Users },
-    { to: `/${slug}/agenda/leads`, label: 'Leads', icon: UserPlus },
-    { to: `/${slug}/agenda/products`, label: 'Produtos', icon: Package },
-    { to: `/${slug}/agenda/alerts`, label: 'Alertas', icon: Bell },
     { to: `/${slug}/agenda/profile`, label: 'Perfil', icon: User },
   ];
 
