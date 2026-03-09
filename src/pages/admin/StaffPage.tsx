@@ -6,6 +6,13 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -14,32 +21,39 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/modals/ConfirmDialog';
-import { Plus, Edit, UserX, UserCheck, Search, ShieldCheck } from 'lucide-react';
+import { Plus, Edit, UserX, UserCheck, Search, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface StaffMember {
   id: string;
   name: string;
   email: string;
+  role: 'secretary' | 'employee';
   createdAt: string;
   banned: boolean;
+  specialties: string[];
 }
 
 export default function StaffPage() {
-  const { t } = useLanguage();
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [filterRole, setFilterRole] = useState<'all' | 'secretary' | 'employee'>('all');
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<StaffMember | null>(null);
-  const [formData, setFormData] = useState({ name: '', email: '', password: '' });
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'secretary' as 'secretary' | 'employee',
+    specialties: '',
+  });
   const [saving, setSaving] = useState(false);
 
-  // Deactivate/activate confirm
+  // Toggle confirm
   const [toggleConfirmOpen, setToggleConfirmOpen] = useState(false);
   const [toggleTarget, setToggleTarget] = useState<StaffMember | null>(null);
 
@@ -66,15 +80,21 @@ export default function StaffPage() {
     fetchStaff();
   }, [fetchStaff]);
 
-  const handleNewStaff = () => {
+  const handleNew = () => {
     setEditing(null);
-    setFormData({ name: '', email: '', password: '' });
+    setFormData({ name: '', email: '', password: '', role: 'secretary', specialties: '' });
     setModalOpen(true);
   };
 
-  const handleEditStaff = (member: StaffMember) => {
+  const handleEdit = (member: StaffMember) => {
     setEditing(member);
-    setFormData({ name: member.name, email: member.email, password: '' });
+    setFormData({
+      name: member.name,
+      email: member.email,
+      password: '',
+      role: member.role,
+      specialties: member.specialties.join(', '),
+    });
     setModalOpen(true);
   };
 
@@ -83,15 +103,21 @@ export default function StaffPage() {
     setSaving(true);
 
     try {
+      const specialties = formData.specialties
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+
       if (editing) {
-        const body: Record<string, string> = { action: 'update', userId: editing.id };
+        const body: Record<string, unknown> = { action: 'update', userId: editing.id };
         if (formData.name !== editing.name) body.name = formData.name;
         if (formData.email !== editing.email) body.email = formData.email;
         if (formData.password) body.password = formData.password;
+        if (editing.role === 'employee') body.specialties = specialties;
 
         const res = await supabase.functions.invoke('manage-staff', { body });
         if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
-        toast.success('Secretária atualizada com sucesso!');
+        toast.success('Colaborador atualizado com sucesso!');
       } else {
         if (!formData.password || formData.password.length < 6) {
           toast.error('A senha deve ter pelo menos 6 caracteres.');
@@ -100,10 +126,21 @@ export default function StaffPage() {
         }
 
         const res = await supabase.functions.invoke('manage-staff', {
-          body: { action: 'create', ...formData },
+          body: {
+            action: 'create',
+            name: formData.name,
+            email: formData.email,
+            password: formData.password,
+            role: formData.role,
+            specialties: formData.role === 'employee' ? specialties : undefined,
+          },
         });
         if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
-        toast.success('Secretária criada com sucesso!');
+        toast.success(
+          formData.role === 'employee'
+            ? 'Barbeiro criado com sucesso! Perfil profissional vinculado automaticamente.'
+            : 'Secretária criada com sucesso!'
+        );
       }
 
       setModalOpen(false);
@@ -141,24 +178,30 @@ export default function StaffPage() {
   const getInitials = (name: string) =>
     name.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase();
 
-  const filtered = staff.filter(
-    (s) =>
+  const getRoleLabel = (role: string) => (role === 'employee' ? 'Barbeiro' : 'Secretária');
+  const getRoleBadgeClass = (role: string) =>
+    role === 'employee' ? 'bg-primary/20 text-primary' : 'bg-blue-500/20 text-blue-500';
+
+  const filtered = staff.filter((s) => {
+    const matchesSearch =
       s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.email.toLowerCase().includes(search.toLowerCase())
-  );
+      s.email.toLowerCase().includes(search.toLowerCase());
+    const matchesRole = filterRole === 'all' || s.role === filterRole;
+    return matchesSearch && matchesRole;
+  });
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Equipe</h1>
+          <h1 className="text-3xl font-bold text-foreground">Gestão de Equipe</h1>
           <p className="text-muted-foreground mt-1">
-            Gerencie as secretárias e recepcionistas do seu estabelecimento
+            Gerencie secretárias e barbeiros do seu estabelecimento
           </p>
         </div>
-        <Button className="gradient-primary text-white gap-2" onClick={handleNewStaff}>
+        <Button className="gradient-primary text-white gap-2" onClick={handleNew}>
           <Plus className="w-4 h-4" />
-          Nova Secretária
+          Novo Colaborador
         </Button>
       </div>
 
@@ -167,21 +210,36 @@ export default function StaffPage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-primary" />
-                Secretárias ({staff.length})
+                <Users className="w-5 h-5 text-primary" />
+                Equipe ({staff.length})
               </CardTitle>
               <CardDescription>
-                Secretárias podem visualizar e gerenciar agendamentos e clientes
+                Secretárias gerenciam agendamentos. Barbeiros visualizam apenas seus próprios.
               </CardDescription>
             </div>
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nome ou e-mail..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
-              />
+            <div className="flex items-center gap-3">
+              <Select
+                value={filterRole}
+                onValueChange={(v) => setFilterRole(v as typeof filterRole)}
+              >
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="secretary">Secretárias</SelectItem>
+                  <SelectItem value="employee">Barbeiros</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="relative w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nome ou e-mail..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -193,7 +251,7 @@ export default function StaffPage() {
           ) : filtered.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               {staff.length === 0
-                ? 'Nenhuma secretária cadastrada. Clique em "Nova Secretária" para começar.'
+                ? 'Nenhum colaborador cadastrado. Clique em "Novo Colaborador" para começar.'
                 : 'Nenhum resultado encontrado.'}
             </div>
           ) : (
@@ -211,11 +269,16 @@ export default function StaffPage() {
                     </Avatar>
                     <div>
                       <p className="font-medium text-foreground">{member.name}</p>
-                      <p className="text-sm text-muted-foreground">{member.email}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {member.email}
+                        {member.specialties.length > 0 && ` • ${member.specialties.join(', ')}`}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Badge className="bg-blue-500/20 text-blue-500">Secretária</Badge>
+                    <Badge className={getRoleBadgeClass(member.role)}>
+                      {getRoleLabel(member.role)}
+                    </Badge>
                     <Badge
                       className={
                         member.banned
@@ -223,9 +286,9 @@ export default function StaffPage() {
                           : 'bg-emerald-500/20 text-emerald-500'
                       }
                     >
-                      {member.banned ? 'Inativa' : 'Ativa'}
+                      {member.banned ? 'Inativo' : 'Ativo'}
                     </Badge>
-                    <Button variant="ghost" size="icon" onClick={() => handleEditStaff(member)}>
+                    <Button variant="ghost" size="icon" onClick={() => handleEdit(member)}>
                       <Edit className="w-4 h-4" />
                     </Button>
                     <Button
@@ -248,11 +311,11 @@ export default function StaffPage() {
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>{editing ? 'Editar Secretária' : 'Nova Secretária'}</DialogTitle>
+            <DialogTitle>{editing ? 'Editar Colaborador' : 'Novo Colaborador'}</DialogTitle>
             <DialogDescription>
               {editing
-                ? 'Atualize as informações da conta. Deixe a senha em branco para manter a atual.'
-                : 'Crie uma conta de secretária para o seu estabelecimento.'}
+                ? 'Atualize as informações. Deixe a senha em branco para manter a atual.'
+                : 'Crie uma conta de acesso para um membro da equipe.'}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSave}>
@@ -293,9 +356,44 @@ export default function StaffPage() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label>Função</Label>
-                <Input value="Secretária" disabled className="bg-muted" />
+                <Label>Função *</Label>
+                {editing ? (
+                  <Input
+                    value={getRoleLabel(formData.role)}
+                    disabled
+                    className="bg-muted"
+                  />
+                ) : (
+                  <Select
+                    value={formData.role}
+                    onValueChange={(v) =>
+                      setFormData({ ...formData, role: v as 'secretary' | 'employee' })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="secretary">Secretária</SelectItem>
+                      <SelectItem value="employee">Barbeiro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
+              {formData.role === 'employee' && (
+                <div className="grid gap-2">
+                  <Label htmlFor="staff-specialties">Especialidades</Label>
+                  <Input
+                    id="staff-specialties"
+                    value={formData.specialties}
+                    onChange={(e) => setFormData({ ...formData, specialties: e.target.value })}
+                    placeholder="Ex: Corte, Barba, Pigmentação (separado por vírgula)"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Um perfil de barbeiro será criado automaticamente ao salvar.
+                  </p>
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>
@@ -316,8 +414,8 @@ export default function StaffPage() {
         title={toggleTarget?.banned ? 'Reativar Conta' : 'Desativar Conta'}
         description={
           toggleTarget?.banned
-            ? `Tem certeza que deseja reativar a conta de "${toggleTarget?.name}"? Ela poderá fazer login novamente.`
-            : `Tem certeza que deseja desativar a conta de "${toggleTarget?.name}"? Ela não conseguirá fazer login.`
+            ? `Deseja reativar "${toggleTarget?.name}"? Ele(a) poderá fazer login novamente.`
+            : `Deseja desativar "${toggleTarget?.name}"? Ele(a) não conseguirá fazer login.`
         }
         onConfirm={handleConfirmToggle}
       />

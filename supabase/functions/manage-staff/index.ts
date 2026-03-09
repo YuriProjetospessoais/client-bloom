@@ -29,7 +29,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check caller is company_admin
     const { data: callerRole } = await supabaseAdmin
       .from("user_roles")
       .select("role, company_id")
@@ -48,7 +47,8 @@ Deno.serve(async (req) => {
     const { action } = body;
 
     if (action === "create") {
-      const { name, email, password } = body;
+      const { name, email, password, role, specialties } = body;
+      const staffRole = role === "employee" ? "employee" : "secretary";
 
       if (!name || !email || !password) {
         return new Response(JSON.stringify({ error: "Campos obrigatórios: name, email, password" }), {
@@ -70,17 +70,38 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Assign secretary role
+      // Assign role
       const { error: roleError } = await supabaseAdmin
         .from("user_roles")
-        .insert({ user_id: newUser.user.id, role: "secretary", company_id: companyId });
+        .insert({ user_id: newUser.user.id, role: staffRole, company_id: companyId });
 
       if (roleError) {
-        // Rollback: delete user
         await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
         return new Response(JSON.stringify({ error: roleError.message }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+
+      // If barber (employee), create or link professional record
+      if (staffRole === "employee") {
+        const { error: profError } = await supabaseAdmin
+          .from("professionals")
+          .insert({
+            name,
+            company_id: companyId,
+            user_id: newUser.user.id,
+            specialties: Array.isArray(specialties) ? specialties : [],
+            active: true,
+          });
+
+        if (profError) {
+          // Rollback
+          await supabaseAdmin.from("user_roles").delete().eq("user_id", newUser.user.id);
+          await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+          return new Response(JSON.stringify({ error: profError.message }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
       }
 
       return new Response(JSON.stringify({ success: true, userId: newUser.user.id }), {
@@ -89,7 +110,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "update") {
-      const { userId, name, email } = body;
+      const { userId, name, email, password, role, specialties } = body;
 
       if (!userId) {
         return new Response(JSON.stringify({ error: "userId obrigatório" }), {
@@ -97,13 +118,13 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Verify user belongs to same company as secretary
+      // Verify user belongs to same company
       const { data: targetRole } = await supabaseAdmin
         .from("user_roles")
         .select("role, company_id")
         .eq("user_id", userId)
         .eq("company_id", companyId)
-        .eq("role", "secretary")
+        .in("role", ["secretary", "employee"])
         .maybeSingle();
 
       if (!targetRole) {
@@ -112,6 +133,7 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Update auth user
       const updates: Record<string, unknown> = {};
       if (email) updates.email = email;
       if (name) updates.user_metadata = { full_name: name };
@@ -130,20 +152,29 @@ Deno.serve(async (req) => {
         const profileUpdate: Record<string, string> = {};
         if (name) profileUpdate.full_name = name;
         if (email) profileUpdate.email = email;
-        await supabaseAdmin
-          .from("profiles")
-          .update(profileUpdate)
-          .eq("user_id", userId);
+        await supabaseAdmin.from("profiles").update(profileUpdate).eq("user_id", userId);
       }
 
       // Update password if provided
-      if (body.password) {
-        const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, { password: body.password });
+      if (password) {
+        const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, { password });
         if (error) {
           return new Response(JSON.stringify({ error: error.message }), {
             status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
+      }
+
+      // Update professional record if barber
+      if (targetRole.role === "employee" && specialties !== undefined) {
+        await supabaseAdmin
+          .from("professionals")
+          .update({
+            name: name || undefined,
+            specialties: Array.isArray(specialties) ? specialties : [],
+          })
+          .eq("user_id", userId)
+          .eq("company_id", companyId);
       }
 
       return new Response(JSON.stringify({ success: true }), {
@@ -166,7 +197,7 @@ Deno.serve(async (req) => {
         .select("role, company_id")
         .eq("user_id", userId)
         .eq("company_id", companyId)
-        .eq("role", "secretary")
+        .in("role", ["secretary", "employee"])
         .maybeSingle();
 
       if (!targetRole) {
@@ -177,7 +208,7 @@ Deno.serve(async (req) => {
 
       const banned = action === "deactivate";
       const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-        ban_duration: banned ? "876000h" : "none", // ~100 years ban or unban
+        ban_duration: banned ? "876000h" : "none",
       });
 
       if (error) {
@@ -186,18 +217,27 @@ Deno.serve(async (req) => {
         });
       }
 
+      // If barber, also toggle professional active status
+      if (targetRole.role === "employee") {
+        await supabaseAdmin
+          .from("professionals")
+          .update({ active: !banned })
+          .eq("user_id", userId)
+          .eq("company_id", companyId);
+      }
+
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     if (action === "list") {
-      // List all secretaries for this company
+      // List all staff (secretaries + barbers) for this company
       const { data: roles, error: rolesError } = await supabaseAdmin
         .from("user_roles")
-        .select("user_id")
+        .select("user_id, role")
         .eq("company_id", companyId)
-        .eq("role", "secretary");
+        .in("role", ["secretary", "employee"]);
 
       if (rolesError || !roles || roles.length === 0) {
         return new Response(JSON.stringify({ staff: [] }), {
@@ -205,19 +245,35 @@ Deno.serve(async (req) => {
         });
       }
 
-      const userIds = roles.map((r) => r.user_id);
+      // Get professional records for barbers
+      const barberUserIds = roles.filter((r) => r.role === "employee").map((r) => r.user_id);
+      let professionalsMap: Record<string, { specialties: string[] }> = {};
+      if (barberUserIds.length > 0) {
+        const { data: profs } = await supabaseAdmin
+          .from("professionals")
+          .select("user_id, specialties")
+          .eq("company_id", companyId)
+          .in("user_id", barberUserIds);
 
-      // Get user details from auth
+        if (profs) {
+          for (const p of profs) {
+            professionalsMap[p.user_id] = { specialties: p.specialties || [] };
+          }
+        }
+      }
+
       const staff = [];
-      for (const uid of userIds) {
-        const { data: { user: u } } = await supabaseAdmin.auth.admin.getUserById(uid);
+      for (const r of roles) {
+        const { data: { user: u } } = await supabaseAdmin.auth.admin.getUserById(r.user_id);
         if (u) {
           staff.push({
             id: u.id,
             email: u.email,
             name: u.user_metadata?.full_name || u.email?.split("@")[0] || "",
+            role: r.role,
             createdAt: u.created_at,
             banned: u.banned_until ? new Date(u.banned_until) > new Date() : false,
+            specialties: professionalsMap[u.id]?.specialties || [],
           });
         }
       }
