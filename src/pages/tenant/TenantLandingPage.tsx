@@ -97,14 +97,23 @@ export default function TenantLandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative py-20 lg:py-32 overflow-hidden flex flex-col items-center justify-center text-center px-4">
-        <div className="absolute inset-0 z-0 bg-muted/30" />
-        <div 
-          className="absolute inset-0 z-0 opacity-10"
-          style={{
-            backgroundImage: 'radial-gradient(circle at center, var(--tenant-primary-hex, var(--primary)) 0%, transparent 70%)',
-          }}
-        />
+      <section 
+        className="relative py-20 lg:py-32 overflow-hidden flex flex-col items-center justify-center text-center px-4"
+        style={tenant.coverUrl ? {
+          backgroundImage: `url(${tenant.coverUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        } : undefined}
+      >
+        <div className={`absolute inset-0 z-0 ${tenant.coverUrl ? 'bg-background/80 backdrop-blur-sm' : 'bg-muted/30'}`} />
+        {!tenant.coverUrl && (
+          <div 
+            className="absolute inset-0 z-0 opacity-10"
+            style={{
+              backgroundImage: 'radial-gradient(circle at center, var(--tenant-primary-hex, var(--primary)) 0%, transparent 70%)',
+            }}
+          />
+        )}
         
         <div className="relative z-10 max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
           {tenant.logoUrl ? (

@@ -7,6 +7,7 @@ export interface Tenant {
   name: string;
   slug: string;
   logoUrl: string | null;
+  coverUrl: string | null;
   primaryColor: string;
   status: string;
 }
@@ -44,7 +45,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
       const { data, error: fetchError } = await supabase
         .from('companies')
-        .select('id, name, slug, logo_url, primary_color, status')
+        .select('id, name, slug, logo_url, cover_url, primary_color, status')
         .eq('slug', slug)
         .eq('status', 'active')
         .maybeSingle();
@@ -68,6 +69,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         name: data.name,
         slug: data.slug!,
         logoUrl: data.logo_url,
+        coverUrl: data.cover_url,
         primaryColor: data.primary_color || '#8B5CF6',
         status: data.status,
       });

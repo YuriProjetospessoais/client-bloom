@@ -26,6 +26,7 @@ interface CompanyRow {
   status: string;
   primary_color: string | null;
   logo_url: string | null;
+  cover_url: string | null;
   email: string | null;
   phone: string | null;
   address: string | null;
@@ -142,11 +143,11 @@ export default function CompaniesPage() {
     setUsersLoading(false);
   };
 
-  const handleSaveCompany = async (data: { name: string; slug: string; email?: string; phone?: string; address?: string; primary_color?: string }) => {
+  const handleSaveCompany = async (data: { name: string; slug: string; email?: string; phone?: string; address?: string; primary_color?: string; logo_url?: string; cover_url?: string }) => {
     if (selectedCompany) {
       const { error } = await supabase
         .from('companies')
-        .update({ name: data.name, slug: data.slug, email: data.email, phone: data.phone, address: data.address, primary_color: data.primary_color })
+        .update({ name: data.name, slug: data.slug, email: data.email, phone: data.phone, address: data.address, primary_color: data.primary_color, logo_url: data.logo_url, cover_url: data.cover_url })
         .eq('id', selectedCompany.id);
 
       if (error) {
@@ -157,7 +158,7 @@ export default function CompaniesPage() {
     } else {
       const { data: newCompany, error } = await supabase
         .from('companies')
-        .insert({ name: data.name, slug: data.slug, email: data.email, phone: data.phone, address: data.address, primary_color: data.primary_color || '#8B5CF6' })
+        .insert({ name: data.name, slug: data.slug, email: data.email, phone: data.phone, address: data.address, primary_color: data.primary_color || '#8B5CF6', logo_url: data.logo_url, cover_url: data.cover_url })
         .select()
         .single();
 
