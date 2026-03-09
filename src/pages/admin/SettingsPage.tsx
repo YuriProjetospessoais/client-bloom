@@ -275,6 +275,35 @@ export default function SettingsPage() {
 
           <Card className="glass-card">
             <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Phone className="w-5 h-5" />
+                WhatsApp da Barbearia
+              </CardTitle>
+              <CardDescription>Número usado para notificações de agendamento</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="whatsapp-phone">Número WhatsApp</Label>
+                <Input
+                  id="whatsapp-phone"
+                  value={whatsappPhone}
+                  onChange={(e) => setWhatsappPhone(e.target.value)}
+                  placeholder="(11) 99999-9999"
+                />
+                <p className="text-xs text-muted-foreground">Inclua o DDD. Ex: (11) 99999-9999</p>
+              </div>
+              <Button
+                className="gradient-primary text-white"
+                onClick={handleSaveWhatsapp}
+                disabled={savingWhatsapp}
+              >
+                {savingWhatsapp ? 'Salvando...' : 'Salvar WhatsApp'}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-card">
+            <CardHeader>
               <CardTitle>Plano Atual</CardTitle>
               <CardDescription>Informações sobre sua assinatura</CardDescription>
             </CardHeader>
