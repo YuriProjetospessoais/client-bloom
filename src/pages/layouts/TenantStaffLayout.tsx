@@ -3,7 +3,7 @@ import { useTenant } from '@/lib/tenant/TenantContext';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { UserMenu } from '@/components/layout/UserMenu';
 import TenantNotFound from '@/pages/tenant/TenantNotFound';
-import { LayoutDashboard, Calendar, User } from 'lucide-react';
+import { LayoutDashboard, Calendar, User, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppointmentNotifications } from '@/hooks/use-appointment-notifications';
 import {
@@ -20,6 +20,7 @@ export default function TenantStaffLayout() {
   const navItems = [
     { to: `/${slug}/agenda/dashboard`, label: 'Dashboard', icon: LayoutDashboard },
     { to: `/${slug}/agenda/schedule`, label: 'Agenda', icon: Calendar },
+    { to: `/${slug}/agenda/returns`, label: 'Retornos', icon: RotateCcw },
     { to: `/${slug}/agenda/profile`, label: 'Perfil', icon: User },
   ];
 
