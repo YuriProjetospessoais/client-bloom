@@ -324,6 +324,7 @@ export const translations = {
       staff: 'Staff',
       barbers: 'Barbers',
       blockedSlots: 'Block Time',
+      monthlyReport: 'Monthly Report',
     },
 
     // Dashboard
