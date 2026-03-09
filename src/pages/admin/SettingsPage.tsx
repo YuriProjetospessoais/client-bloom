@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Building2, Users, Scissors, Plus, Edit, Trash2 } from 'lucide-react';
+import { Building2, Users, Scissors, Plus, Edit, Trash2, Phone } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { UserModal } from '@/components/modals/UserModal';
 import { ProcedureModal } from '@/components/modals/ProcedureModal';
@@ -43,15 +44,60 @@ export default function SettingsPage() {
   const [deleteProcedureOpen, setDeleteProcedureOpen] = useState(false);
   const [procedureToDelete, setProcedureToDelete] = useState<Procedure | null>(null);
   
-  // Loading state
   const [savingCompany, setSavingCompany] = useState(false);
+  const [whatsappPhone, setWhatsappPhone] = useState('');
+  const [savingWhatsapp, setSavingWhatsapp] = useState(false);
 
   // Load data on mount
   useEffect(() => {
     setUsers(usersStore.getAll());
     setProcedures(proceduresStore.getAll());
     setCompanySettings(companySettingsStore.get());
+
+    // Load WhatsApp phone from Supabase
+    async function loadWhatsapp() {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) return;
+      const { data: role } = await supabase
+        .from('user_roles')
+        .select('company_id')
+        .eq('user_id', authUser.id)
+        .maybeSingle();
+      if (!role?.company_id) return;
+      const { data: company } = await supabase
+        .from('companies')
+        .select('phone')
+        .eq('id', role.company_id)
+        .maybeSingle();
+      if (company?.phone) setWhatsappPhone(company.phone);
+    }
+    loadWhatsapp();
   }, []);
+
+  const handleSaveWhatsapp = async () => {
+    setSavingWhatsapp(true);
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) throw new Error('Não autenticado');
+      const { data: role } = await supabase
+        .from('user_roles')
+        .select('company_id')
+        .eq('user_id', authUser.id)
+        .maybeSingle();
+      if (!role?.company_id) throw new Error('Empresa não encontrada');
+      const { error } = await supabase
+        .from('companies')
+        .update({ phone: whatsappPhone || null })
+        .eq('id', role.company_id);
+      if (error) throw error;
+      toast.success('WhatsApp salvo com sucesso!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro ao salvar WhatsApp');
+    } finally {
+      setSavingWhatsapp(false);
+    }
+  };
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -223,6 +269,35 @@ export default function SettingsPage() {
                 disabled={savingCompany}
               >
                 {savingCompany ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Phone className="w-5 h-5" />
+                WhatsApp da Barbearia
+              </CardTitle>
+              <CardDescription>Número usado para notificações de agendamento</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="whatsapp-phone">Número WhatsApp</Label>
+                <Input
+                  id="whatsapp-phone"
+                  value={whatsappPhone}
+                  onChange={(e) => setWhatsappPhone(e.target.value)}
+                  placeholder="(11) 99999-9999"
+                />
+                <p className="text-xs text-muted-foreground">Inclua o DDD. Ex: (11) 99999-9999</p>
+              </div>
+              <Button
+                className="gradient-primary text-white"
+                onClick={handleSaveWhatsapp}
+                disabled={savingWhatsapp}
+              >
+                {savingWhatsapp ? 'Salvando...' : 'Salvar WhatsApp'}
               </Button>
             </CardContent>
           </Card>
