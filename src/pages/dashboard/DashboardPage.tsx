@@ -28,7 +28,7 @@ export default function DashboardPage() {
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl gradient-gold mb-4 shadow-xl">
           <span className="text-3xl">✂️</span>
         </div>
-        <h1 className="text-2xl font-display font-bold text-foreground">BarberFlow</h1>
+        <h1 className="text-2xl font-display font-bold text-foreground">NavalhApp</h1>
         <p className="text-muted-foreground mt-2">Carregando...</p>
       </motion.div>
     </div>
