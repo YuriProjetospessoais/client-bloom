@@ -115,6 +115,105 @@ export default function BarberDashboardPage() {
     fetchBookings();
   }, [fetchBookings]);
 
+  // Realtime subscription for new appointments
+  useEffect(() => {
+    if (!user?.id) return;
+
+    let professionalId: string | null = null;
+
+    const setupRealtime = async () => {
+      const { data: prof } = await supabase
+        .from('professionals')
+        .select('id, company_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!prof) return;
+      professionalId = prof.id;
+
+      const channel = supabase
+        .channel('barber-appointments')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'appointments',
+            filter: `professional_id=eq.${prof.id}`,
+          },
+          async (payload) => {
+            const apt = payload.new as any;
+            // Fetch client and service names
+            const [{ data: client }, { data: service }] = await Promise.all([
+              supabase.from('clients').select('name, notes, preferences').eq('id', apt.client_id).maybeSingle(),
+              apt.service_id
+                ? supabase.from('services').select('name').eq('id', apt.service_id).maybeSingle()
+                : Promise.resolve({ data: null }),
+            ]);
+
+            const newBooking: Booking = {
+              id: apt.id,
+              date: apt.date,
+              start_time: apt.start_time,
+              end_time: apt.end_time,
+              status: apt.status,
+              clientId: apt.client_id,
+              clientName: client?.name || 'Cliente',
+              serviceName: service?.name || 'Serviço',
+              notes: apt.notes,
+              clientNotes: client?.notes || null,
+              clientPreferences: client?.preferences as Record<string, string> | null,
+            };
+
+            setBookings((prev) => {
+              // Avoid duplicates
+              if (prev.some((b) => b.id === apt.id)) return prev;
+              return [...prev, newBooking].sort((a, b) => {
+                const cmp = a.date.localeCompare(b.date);
+                return cmp !== 0 ? cmp : a.start_time.localeCompare(b.start_time);
+              });
+            });
+
+            const dateFormatted = format(new Date(apt.date + 'T00:00:00'), "dd/MM", { locale: ptBR });
+            toast.info(`🆕 Novo agendamento: ${client?.name || 'Cliente'} — ${dateFormatted} às ${apt.start_time.slice(0, 5)}`, {
+              duration: 8000,
+            });
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'appointments',
+            filter: `professional_id=eq.${prof.id}`,
+          },
+          (payload) => {
+            const apt = payload.new as any;
+            setBookings((prev) =>
+              apt.status === 'cancelled'
+                ? prev.filter((b) => b.id !== apt.id)
+                : prev.map((b) => (b.id === apt.id ? { ...b, status: apt.status } : b))
+            );
+
+            if (apt.status === 'cancelled') {
+              toast.warning('Um agendamento foi cancelado.', { duration: 5000 });
+            }
+          }
+        )
+        .subscribe();
+
+      return channel;
+    };
+
+    let channelRef: ReturnType<typeof supabase.channel> | undefined;
+    setupRealtime().then((ch) => { channelRef = ch; });
+
+    return () => {
+      if (channelRef) supabase.removeChannel(channelRef);
+    };
+  }, [user?.id]);
+
   const handleStatusChange = async (bookingId: string, newStatus: 'completed' | 'no_show') => {
     setUpdatingId(bookingId);
     try {
