@@ -1,0 +1,11 @@
+CREATE INDEX IF NOT EXISTS idx_appointments_company_id ON public.appointments(company_id);
+CREATE INDEX IF NOT EXISTS idx_clients_company_id ON public.clients(company_id);
+CREATE INDEX IF NOT EXISTS idx_services_company_id ON public.services(company_id);
+CREATE INDEX IF NOT EXISTS idx_professionals_company_id ON public.professionals(company_id);
+CREATE INDEX IF NOT EXISTS idx_working_hours_company_id ON public.working_hours(company_id);
+CREATE INDEX IF NOT EXISTS idx_product_sales_company_id ON public.product_sales(company_id);
+CREATE INDEX IF NOT EXISTS idx_products_company_id ON public.products(company_id);
+CREATE INDEX IF NOT EXISTS idx_user_roles_company_id ON public.user_roles(company_id);
+CREATE INDEX IF NOT EXISTS idx_appointments_date ON public.appointments(date);
+CREATE INDEX IF NOT EXISTS idx_appointments_professional_id ON public.appointments(professional_id);
+CREATE INDEX IF NOT EXISTS idx_companies_slug ON public.companies(slug);
