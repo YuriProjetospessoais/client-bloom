@@ -275,8 +275,20 @@ export default function CompanySettingsTab() {
             <Input
               id="barbershop-phone"
               value={company?.phone || ''}
-              onChange={e => setCompany(prev => prev ? { ...prev, phone: e.target.value } : null)}
+              onChange={e => {
+                const raw = e.target.value.replace(/\D/g, '').slice(0, 11);
+                let masked = raw;
+                if (raw.length > 6) {
+                  masked = `(${raw.slice(0, 2)}) ${raw.slice(2, 7)}-${raw.slice(7)}`;
+                } else if (raw.length > 2) {
+                  masked = `(${raw.slice(0, 2)}) ${raw.slice(2)}`;
+                } else if (raw.length > 0) {
+                  masked = `(${raw}`;
+                }
+                setCompany(prev => prev ? { ...prev, phone: masked } : null);
+              }}
               placeholder="(11) 99999-9999"
+              maxLength={16}
             />
             <p className="text-xs text-muted-foreground">
               Usado para notificações de agendamento via WhatsApp
