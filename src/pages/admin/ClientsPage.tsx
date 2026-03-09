@@ -147,6 +147,7 @@ export default function ClientsPage() {
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead>Cliente</TableHead>
+                  <TableHead>Notas / Preferências</TableHead>
                   <TableHead>Visitas</TableHead>
                   <TableHead>Última Visita</TableHead>
                   <TableHead>Total Gasto</TableHead>
@@ -168,6 +169,19 @@ export default function ClientsPage() {
                           <p className="font-medium text-foreground">{client.name}</p>
                           <p className="text-sm text-muted-foreground">{client.phone}</p>
                         </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="max-w-[200px]">
+                        {(client as any).preferences?.cutStyle && (
+                          <p className="text-xs text-foreground truncate">✂️ {(client as any).preferences.cutStyle}</p>
+                        )}
+                        {client.notes && (
+                          <p className="text-xs text-muted-foreground truncate">📝 {client.notes}</p>
+                        )}
+                        {!(client as any).preferences?.cutStyle && !client.notes && (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="text-foreground">{client.visitCount}</TableCell>
@@ -210,7 +224,7 @@ export default function ClientsPage() {
                 ))}
                 {filteredClients.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       {searchTerm ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado'}
                     </TableCell>
                   </TableRow>
