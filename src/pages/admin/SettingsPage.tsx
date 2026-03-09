@@ -44,8 +44,9 @@ export default function SettingsPage() {
   const [deleteProcedureOpen, setDeleteProcedureOpen] = useState(false);
   const [procedureToDelete, setProcedureToDelete] = useState<Procedure | null>(null);
   
-  // Loading state
   const [savingCompany, setSavingCompany] = useState(false);
+  const [whatsappPhone, setWhatsappPhone] = useState('');
+  const [savingWhatsapp, setSavingWhatsapp] = useState(false);
 
   // Load data on mount
   useEffect(() => {
