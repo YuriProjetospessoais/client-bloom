@@ -41,7 +41,7 @@ export default function TenantPortalLayout() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-background safe-area-container">
       {/* Top navbar with tenant branding */}
       <header className="h-16 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 sticky top-0 z-30">
         <div className="max-w-5xl mx-auto h-full flex items-center justify-between px-4">
@@ -92,7 +92,7 @@ export default function TenantPortalLayout() {
       </header>
 
       {/* Mobile bottom nav */}
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-30 border-t bg-card/95 backdrop-blur">
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-30 border-t bg-card/95 backdrop-blur safe-area-bottom">
         <div className="flex items-center justify-around h-14">
           {navItems.map((item) => (
             <NavLink
