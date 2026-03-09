@@ -86,7 +86,7 @@ export default function TenantAdminLayout() {
         </Sidebar>
 
         <div className="flex-1 min-w-0 flex flex-col">
-          <header className="h-16 border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-30 flex items-center justify-between px-4 lg:px-6">
+          <header className="safe-area-header border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-30 flex items-center justify-between px-4 lg:px-6">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="lg:hidden" />
               <div className="hidden lg:flex items-center gap-2">
