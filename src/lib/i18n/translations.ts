@@ -576,6 +576,7 @@ export const translations = {
       staff: 'Equipo',
       barbers: 'Barberos',
       blockedSlots: 'Bloqueos',
+      monthlyReport: 'Informe Mensual',
     },
 
     // Dashboard
