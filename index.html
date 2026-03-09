@@ -35,8 +35,55 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   </head>
 
-  <body>
-    <div id="root"></div>
+  <body style="margin: 0; background-color: #0f172a;">
+    <div id="root">
+      <style>
+        .app-splash-wrapper {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          min-height: 100vh;
+          min-height: 100dvh;
+          background-color: #0f172a;
+          font-family: 'Playfair Display', serif;
+          color: white;
+        }
+        .app-splash-logo {
+          width: 80px; height: 80px;
+          border-radius: 1.5rem;
+          background: linear-gradient(135deg, hsl(45, 60%, 55%) 0%, hsl(38, 55%, 45%) 100%);
+          display: flex; align-items: center; justify-content: center;
+          box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);
+          margin-bottom: 24px;
+          animation: app-splash-pulse 2s infinite ease-in-out;
+          position: relative;
+          overflow: hidden;
+        }
+        .app-splash-logo::after {
+          content: ''; position: absolute; inset: 0;
+          background: linear-gradient(to bottom right, rgba(255,255,255,0.2), transparent);
+        }
+        .app-splash-logo svg {
+          width: 40px; height: 40px; color: white;
+          transform: rotate(-45deg); position: relative; z-index: 10;
+        }
+        .app-splash-title {
+          font-size: 2.5rem; font-weight: 700; margin: 0; letter-spacing: -0.02em;
+        }
+        .app-splash-title span { color: hsl(38, 55%, 50%); }
+        @keyframes app-splash-pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(0.95); }
+        }
+      </style>
+      <div class="app-splash-wrapper">
+        <div class="app-splash-logo">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg>
+        </div>
+        <h1 class="app-splash-title">Navalh<span>App</span></h1>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
