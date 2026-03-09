@@ -53,7 +53,51 @@ export default function SettingsPage() {
     setUsers(usersStore.getAll());
     setProcedures(proceduresStore.getAll());
     setCompanySettings(companySettingsStore.get());
+
+    // Load WhatsApp phone from Supabase
+    async function loadWhatsapp() {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) return;
+      const { data: role } = await supabase
+        .from('user_roles')
+        .select('company_id')
+        .eq('user_id', authUser.id)
+        .maybeSingle();
+      if (!role?.company_id) return;
+      const { data: company } = await supabase
+        .from('companies')
+        .select('phone')
+        .eq('id', role.company_id)
+        .maybeSingle();
+      if (company?.phone) setWhatsappPhone(company.phone);
+    }
+    loadWhatsapp();
   }, []);
+
+  const handleSaveWhatsapp = async () => {
+    setSavingWhatsapp(true);
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) throw new Error('Não autenticado');
+      const { data: role } = await supabase
+        .from('user_roles')
+        .select('company_id')
+        .eq('user_id', authUser.id)
+        .maybeSingle();
+      if (!role?.company_id) throw new Error('Empresa não encontrada');
+      const { error } = await supabase
+        .from('companies')
+        .update({ phone: whatsappPhone || null })
+        .eq('id', role.company_id);
+      if (error) throw error;
+      toast.success('WhatsApp salvo com sucesso!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro ao salvar WhatsApp');
+    } finally {
+      setSavingWhatsapp(false);
+    }
+  };
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
