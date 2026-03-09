@@ -38,7 +38,7 @@ import AlertsPage from "./pages/admin/AlertsPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import AdminPlansPage from "./pages/admin/PlansPage";
 import StaffPage from "./pages/admin/StaffPage";
-import BarbersPage from "./pages/admin/BarbersPage";
+
 
 // Barber Pages
 import BarberDashboardPage from "./pages/barber/BarberDashboardPage";
@@ -117,7 +117,7 @@ const App = () => (
                   <Route path="settings" element={<SettingsPage />} />
                    <Route path="plans" element={<AdminPlansPage />} />
                   <Route path="staff" element={<StaffPage />} />
-                  <Route path="barbers" element={<BarbersPage />} />
+                  <Route path="barbers" element={<StaffPage />} />
                 </Route>
 
                 {/* User routes - /user */}
@@ -179,7 +179,7 @@ const App = () => (
                   <Route path="alerts" element={<AlertsPage />} />
                   <Route path="plans" element={<AdminPlansPage />} />
                   <Route path="staff" element={<StaffPage />} />
-                  <Route path="barbers" element={<BarbersPage />} />
+                  <Route path="barbers" element={<StaffPage />} />
                   <Route path="settings" element={<SettingsPage />} />
                 </Route>
 
