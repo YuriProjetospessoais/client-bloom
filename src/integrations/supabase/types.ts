@@ -19,6 +19,7 @@ export type Database = {
           booked_by_client: boolean
           client_id: string
           company_id: string
+          completed_at: string | null
           created_at: string
           date: string
           end_time: string
@@ -37,6 +38,7 @@ export type Database = {
           booked_by_client?: boolean
           client_id: string
           company_id: string
+          completed_at?: string | null
           created_at?: string
           date: string
           end_time: string
@@ -55,6 +57,7 @@ export type Database = {
           booked_by_client?: boolean
           client_id?: string
           company_id?: string
+          completed_at?: string | null
           created_at?: string
           date?: string
           end_time?: string

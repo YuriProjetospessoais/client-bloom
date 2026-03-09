@@ -1,20 +1,35 @@
 import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import {
   Calendar as CalendarIcon,
   Clock,
   User,
   Scissors,
   ChevronRight,
+  CheckCircle2,
+  XCircle,
+  FileText,
+  StickyNote,
+  Pencil,
 } from 'lucide-react';
-import { format, startOfWeek, endOfWeek, isToday, isBefore, startOfDay, addDays } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface Booking {
@@ -23,9 +38,12 @@ interface Booking {
   start_time: string;
   end_time: string;
   status: string;
+  clientId: string;
   clientName: string;
   serviceName: string;
   notes: string | null;
+  clientNotes: string | null;
+  clientPreferences: Record<string, string> | null;
 }
 
 export default function BarberDashboardPage() {
@@ -34,11 +52,17 @@ export default function BarberDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [activeTab, setActiveTab] = useState('today');
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // Notes modal state
+  const [notesModalOpen, setNotesModalOpen] = useState(false);
+  const [notesTarget, setNotesTarget] = useState<Booking | null>(null);
+  const [notesValue, setNotesValue] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
 
   const fetchBookings = useCallback(async () => {
     setLoading(true);
     try {
-      // Get professional_id for current user
       const { data: prof } = await supabase
         .from('professionals')
         .select('id')
@@ -51,12 +75,11 @@ export default function BarberDashboardPage() {
         return;
       }
 
-      // Fetch appointments — RLS already restricts to own appointments
       const { data: appointments, error } = await supabase
         .from('appointments')
         .select(`
-          id, date, start_time, end_time, status, notes,
-          clients!appointments_client_id_fkey(name),
+          id, date, start_time, end_time, status, notes, client_id,
+          clients!appointments_client_id_fkey(name, notes, preferences),
           services!appointments_service_id_fkey(name)
         `)
         .eq('professional_id', prof.id)
@@ -72,9 +95,12 @@ export default function BarberDashboardPage() {
         start_time: apt.start_time,
         end_time: apt.end_time,
         status: apt.status,
+        clientId: apt.client_id,
         clientName: apt.clients?.name || 'Cliente',
         serviceName: apt.services?.name || 'Serviço',
         notes: apt.notes,
+        clientNotes: apt.clients?.notes || null,
+        clientPreferences: apt.clients?.preferences || null,
       }));
 
       setBookings(mapped);
@@ -88,6 +114,65 @@ export default function BarberDashboardPage() {
   useEffect(() => {
     fetchBookings();
   }, [fetchBookings]);
+
+  const handleStatusChange = async (bookingId: string, newStatus: 'completed' | 'no_show') => {
+    setUpdatingId(bookingId);
+    try {
+      const updateData: Record<string, unknown> = { status: newStatus };
+      if (newStatus === 'completed') {
+        updateData.completed_at = new Date().toISOString();
+      }
+
+      const { error } = await supabase
+        .from('appointments')
+        .update(updateData)
+        .eq('id', bookingId);
+
+      if (error) throw error;
+
+      setBookings((prev) =>
+        prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b))
+      );
+      toast.success(
+        newStatus === 'completed' ? 'Agendamento concluído!' : 'Marcado como não compareceu'
+      );
+    } catch (err: any) {
+      toast.error('Erro ao atualizar: ' + (err.message || ''));
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const openNotesModal = (booking: Booking) => {
+    setNotesTarget(booking);
+    setNotesValue(booking.clientNotes || '');
+    setNotesModalOpen(true);
+  };
+
+  const handleSaveNotes = async () => {
+    if (!notesTarget) return;
+    setSavingNotes(true);
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update({ notes: notesValue })
+        .eq('id', notesTarget.clientId);
+
+      if (error) throw error;
+
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.clientId === notesTarget.clientId ? { ...b, clientNotes: notesValue } : b
+        )
+      );
+      toast.success('Notas do cliente salvas!');
+      setNotesModalOpen(false);
+    } catch (err: any) {
+      toast.error('Erro ao salvar notas: ' + (err.message || ''));
+    } finally {
+      setSavingNotes(false);
+    }
+  };
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
@@ -108,16 +193,11 @@ export default function BarberDashboardPage() {
 
   const getFilteredBookings = () => {
     switch (activeTab) {
-      case 'today':
-        return todayBookings;
-      case 'week':
-        return weekBookings;
-      case 'upcoming':
-        return upcomingBookings;
-      case 'calendar':
-        return calendarBookings;
-      default:
-        return todayBookings;
+      case 'today': return todayBookings;
+      case 'week': return weekBookings;
+      case 'upcoming': return upcomingBookings;
+      case 'calendar': return calendarBookings;
+      default: return todayBookings;
     }
   };
 
@@ -139,10 +219,17 @@ export default function BarberDashboardPage() {
     return 'Boa noite';
   };
 
-  // Dates that have bookings (for calendar dots)
   const bookingDates = [...new Set(bookings.map((b) => b.date))];
-
   const filtered = getFilteredBookings();
+  const canChangeStatus = (status: string) => status === 'scheduled' || status === 'confirmed';
+
+  const getClientPreferencesSummary = (booking: Booking) => {
+    const parts: string[] = [];
+    if (booking.clientPreferences?.cutStyle) parts.push(booking.clientPreferences.cutStyle);
+    if (booking.clientNotes) parts.push(booking.clientNotes);
+    if (booking.clientPreferences?.freeNotes) parts.push(booking.clientPreferences.freeNotes);
+    return parts.join(' • ') || null;
+  };
 
   return (
     <motion.div className="space-y-6 pb-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -188,7 +275,6 @@ export default function BarberDashboardPage() {
           <TabsTrigger value="calendar">Calendário</TabsTrigger>
         </TabsList>
 
-        {/* Calendar picker (only in calendar tab) */}
         <TabsContent value="calendar" className="mt-4">
           <Card className="glass-card mb-4">
             <CardContent className="p-4 flex justify-center">
@@ -204,7 +290,6 @@ export default function BarberDashboardPage() {
           </Card>
         </TabsContent>
 
-        {/* Bookings list - rendered for all tabs */}
         <div className="mt-4">
           <Card className="glass-card">
             <CardHeader>
@@ -228,53 +313,143 @@ export default function BarberDashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {filtered.map((booking) => (
-                    <motion.div
-                      key={booking.id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="flex items-center gap-4 p-4 rounded-xl bg-muted/50 hover:bg-muted/70 transition-colors"
-                    >
-                      {/* Time block */}
-                      <div className="flex flex-col items-center justify-center w-16 h-16 rounded-xl bg-primary/10 text-primary flex-shrink-0">
-                        <span className="text-lg font-bold leading-none">
-                          {booking.start_time.slice(0, 5)}
-                        </span>
-                        <span className="text-[10px] mt-0.5 text-muted-foreground">
-                          {booking.end_time.slice(0, 5)}
-                        </span>
-                      </div>
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <User className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                          <span className="font-medium text-foreground truncate">{booking.clientName}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Scissors className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                          <span className="text-sm text-muted-foreground truncate">{booking.serviceName}</span>
-                        </div>
-                        {activeTab !== 'today' && (
-                          <div className="flex items-center gap-2 mt-1">
-                            <CalendarIcon className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                            <span className="text-xs text-muted-foreground">
-                              {format(new Date(booking.date + 'T00:00:00'), "dd/MM/yyyy (EEEE)", { locale: ptBR })}
+                  {filtered.map((booking) => {
+                    const prefSummary = getClientPreferencesSummary(booking);
+                    return (
+                      <motion.div
+                        key={booking.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="p-4 rounded-xl bg-muted/50 hover:bg-muted/70 transition-colors space-y-3"
+                      >
+                        <div className="flex items-center gap-4">
+                          {/* Time block */}
+                          <div className="flex flex-col items-center justify-center w-16 h-16 rounded-xl bg-primary/10 text-primary flex-shrink-0">
+                            <span className="text-lg font-bold leading-none">
+                              {booking.start_time.slice(0, 5)}
+                            </span>
+                            <span className="text-[10px] mt-0.5 text-muted-foreground">
+                              {booking.end_time.slice(0, 5)}
                             </span>
                           </div>
-                        )}
-                      </div>
 
-                      {/* Status */}
-                      {getStatusBadge(booking.status)}
-                    </motion.div>
-                  ))}
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <User className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                              <span className="font-medium text-foreground truncate">{booking.clientName}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Scissors className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                              <span className="text-sm text-muted-foreground truncate">{booking.serviceName}</span>
+                            </div>
+                            {activeTab !== 'today' && (
+                              <div className="flex items-center gap-2 mt-1">
+                                <CalendarIcon className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                                <span className="text-xs text-muted-foreground">
+                                  {format(new Date(booking.date + 'T00:00:00'), "dd/MM/yyyy (EEEE)", { locale: ptBR })}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Status */}
+                          <div className="flex-shrink-0">
+                            {getStatusBadge(booking.status)}
+                          </div>
+                        </div>
+
+                        {/* Client notes */}
+                        {prefSummary && (
+                          <div className="flex items-start gap-2 px-2 py-2 rounded-lg bg-accent/10 border border-accent/20">
+                            <StickyNote className="w-4 h-4 text-accent flex-shrink-0 mt-0.5" />
+                            <p className="text-xs text-accent-foreground/80 leading-relaxed">{prefSummary}</p>
+                          </div>
+                        )}
+
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-2 pt-1">
+                          {canChangeStatus(booking.status) && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1.5 text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-800 dark:hover:bg-emerald-950"
+                                disabled={updatingId === booking.id}
+                                onClick={() => handleStatusChange(booking.id, 'completed')}
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                                Concluído
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"
+                                disabled={updatingId === booking.id}
+                                onClick={() => handleStatusChange(booking.id, 'no_show')}
+                              >
+                                <XCircle className="w-4 h-4" />
+                                Não compareceu
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="gap-1.5 ml-auto text-muted-foreground"
+                            onClick={() => openNotesModal(booking)}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            Notas
+                          </Button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
       </Tabs>
+
+      {/* Notes Modal */}
+      <Dialog open={notesModalOpen} onOpenChange={setNotesModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-primary" />
+              Notas do Cliente — {notesTarget?.clientName}
+            </DialogTitle>
+            <DialogDescription>
+              Adicione preferências de corte, barba ou observações. Essas notas aparecerão automaticamente nos próximos agendamentos deste cliente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {notesTarget?.clientPreferences?.cutStyle && (
+              <div className="p-3 rounded-lg bg-muted/50">
+                <p className="text-xs font-medium text-muted-foreground mb-1">Estilo de corte salvo</p>
+                <p className="text-sm text-foreground">{notesTarget.clientPreferences.cutStyle}</p>
+              </div>
+            )}
+            <Textarea
+              value={notesValue}
+              onChange={(e) => setNotesValue(e.target.value)}
+              placeholder="Ex: Prefere low fade, manter comprimento no topo, barba com navalha..."
+              rows={5}
+              className="resize-none"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNotesModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button className="gradient-primary text-white" onClick={handleSaveNotes} disabled={savingNotes}>
+              {savingNotes ? 'Salvando...' : 'Salvar Notas'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
