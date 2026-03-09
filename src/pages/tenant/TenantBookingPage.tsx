@@ -46,12 +46,25 @@ export default function TenantBookingPage() {
   const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [maxAdvanceDays, setMaxAdvanceDays] = useState(30);
+  const [slotsView, setSlotsView] = useState<'smart' | 'calendar'>('smart');
+
+  // Smart slots: grouped by day
+  interface DaySlots {
+    date: Date;
+    dateStr: string;
+    label: string;
+    slots: string[];
+  }
+  const [smartSlots, setSmartSlots] = useState<DaySlots[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+
+  // Calendar-based slots
+  const [calendarSlots, setCalendarSlots] = useState<string[]>([]);
 
   const companyId = tenant?.id;
 
