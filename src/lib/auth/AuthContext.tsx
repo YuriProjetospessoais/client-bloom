@@ -116,18 +116,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
     
-    // Wait for the auth state listener to update state and build user
-    const user = await new Promise<User>((resolve) => {
-      // If state is already updated (unlikely but possible), resolve immediately
-      if (state.isAuthenticated && state.user) {
-        resolve(state.user);
-        return;
-      }
-      // Otherwise wait for the auth state change listener
-      loginResolverRef.current = resolve;
-    });
+    // Build user immediately from the session we already have
+    if (data?.session) {
+      const user = await buildUser(data.session);
+      setState({ user, isAuthenticated: true, isLoading: false });
+      return { success: true, user };
+    }
     
-    return { success: true, user };
+    return { success: false };
   }, [state.isAuthenticated, state.user]);
 
   const signup = useCallback(async (email: string, password: string, fullName: string) => {
