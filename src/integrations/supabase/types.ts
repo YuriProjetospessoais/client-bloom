@@ -540,6 +540,7 @@ export type Database = {
       get_public_company_id: { Args: never; Returns: string }
       get_request_header: { Args: { _name: string }; Returns: string }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
+      get_user_professional_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

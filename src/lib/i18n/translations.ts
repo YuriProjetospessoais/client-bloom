@@ -70,6 +70,7 @@ export const translations = {
       plans: 'Planos',
       profile: 'Perfil',
       staff: 'Equipe',
+      barbers: 'Barbeiros',
     },
 
     // Dashboard
@@ -319,6 +320,7 @@ export const translations = {
       plans: 'Plans',
       profile: 'Profile',
       staff: 'Staff',
+      barbers: 'Barbers',
     },
 
     // Dashboard
@@ -568,6 +570,7 @@ export const translations = {
       plans: 'Planes',
       profile: 'Perfil',
       staff: 'Equipo',
+      barbers: 'Barberos',
     },
 
     // Dashboard
