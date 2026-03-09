@@ -36,6 +36,7 @@ const menuItems = [
   { key: 'products', url: '/admin/products', icon: Package, label: 'products' },
   { key: 'alerts', url: '/admin/alerts', icon: Bell, label: 'alerts' },
    { key: 'plans', url: '/admin/plans', icon: CreditCard, label: 'plans' },
+  { key: 'staff', url: '/admin/staff', icon: Users, label: 'staff' },
   { key: 'settings', url: '/admin/settings', icon: Settings, label: 'settings' },
 ];
 
