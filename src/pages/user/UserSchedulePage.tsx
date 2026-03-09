@@ -3,11 +3,12 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Plus, Clock, Calendar as CalendarIcon, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Clock, Calendar as CalendarIcon, Trash2, GripVertical } from 'lucide-react';
 import { AppointmentModal } from '@/components/modals/AppointmentModal';
 import { ConfirmDialog } from '@/components/modals/ConfirmDialog';
 import { appointmentsStore, Appointment } from '@/lib/store';
 import { toast } from 'sonner';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 const timeSlots = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
 
@@ -125,6 +126,29 @@ export default function UserSchedulePage() {
     }
   };
 
+  const handleDragEnd = (result: DropResult) => {
+    const { draggableId, destination } = result;
+    if (!destination) return;
+    
+    const newTime = destination.droppableId;
+    const appointment = appointments.find(a => a.id === draggableId);
+    if (!appointment || appointment.time === newTime) return;
+
+    const existingAtTarget = appointments.find(a => a.time === newTime);
+    if (existingAtTarget) {
+      toast.error('Já existe um agendamento neste horário!');
+      return;
+    }
+
+    const updated = appointmentsStore.update(draggableId, { time: newTime });
+    if (updated) {
+      loadAppointments();
+      toast.success(`Agendamento movido para ${newTime}`);
+    } else {
+      toast.error('Não foi possível mover o agendamento.');
+    }
+  };
+
   const isToday = currentDate.toDateString() === new Date().toDateString();
   const appointmentCount = appointments.length;
 
@@ -164,69 +188,97 @@ export default function UserSchedulePage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            {timeSlots.map((time) => {
-              const appointment = getAppointmentForTime(time);
-              return (
-                <div 
-                  key={time} 
-                  className={`flex items-stretch gap-4 p-3 rounded-lg border border-border/50 ${
-                    appointment ? 'bg-muted/30' : 'hover:bg-muted/20'
-                  } transition-colors`}
-                >
-                  <div className="flex items-center gap-2 w-20 flex-shrink-0">
-                    <Clock className="w-4 h-4 text-muted-foreground" />
-                    <span className="font-medium text-foreground">{time}</span>
-                  </div>
-                  {appointment ? (
-                    <div className="flex-1 flex items-center gap-4">
-                      <div className={`w-1 self-stretch rounded-full ${getStatusColor(appointment.status)}`} />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-foreground">{appointment.clientName}</span>
-                          <Badge variant="secondary" className="text-xs">{appointment.duration}min</Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">{appointment.procedureName}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className={`text-xs ${
-                          appointment.status === 'confirmed' 
-                            ? 'bg-green-500/20 text-green-500' 
-                            : appointment.status === 'completed'
-                            ? 'bg-blue-500/20 text-blue-500'
-                            : appointment.status === 'cancelled'
-                            ? 'bg-red-500/20 text-red-500'
-                            : 'bg-yellow-500/20 text-yellow-600'
-                        }`}>
-                          {getStatusLabel(appointment.status)}
-                        </Badge>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={() => handleDeleteAppointment(appointment)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex-1 flex items-center justify-center">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-muted-foreground hover:text-foreground" 
-                        onClick={() => handleNewAppointment(time)}
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <div className="space-y-2">
+              {timeSlots.map((time) => {
+                const appointment = getAppointmentForTime(time);
+                return (
+                  <Droppable key={time} droppableId={time}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className={`flex items-stretch gap-4 p-3 rounded-lg border transition-colors ${
+                          snapshot.isDraggingOver
+                            ? 'border-primary bg-primary/10'
+                            : appointment
+                            ? 'border-border/50 bg-muted/30'
+                            : 'border-border/50 hover:bg-muted/20'
+                        }`}
                       >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Horário livre
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                        <div className="flex items-center gap-2 w-20 flex-shrink-0">
+                          <Clock className="w-4 h-4 text-muted-foreground" />
+                          <span className="font-medium text-foreground">{time}</span>
+                        </div>
+                        {appointment ? (
+                          <Draggable draggableId={appointment.id} index={0}>
+                            {(dragProvided, dragSnapshot) => (
+                              <div
+                                ref={dragProvided.innerRef}
+                                {...dragProvided.draggableProps}
+                                className={`flex-1 flex items-center gap-4 ${
+                                  dragSnapshot.isDragging ? 'opacity-90 bg-card rounded-lg p-2 shadow-lg ring-2 ring-primary' : ''
+                                }`}
+                              >
+                                <div
+                                  {...dragProvided.dragHandleProps}
+                                  className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
+                                >
+                                  <GripVertical className="w-4 h-4" />
+                                </div>
+                                <div className={`w-1 self-stretch rounded-full ${getStatusColor(appointment.status)}`} />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-foreground">{appointment.clientName}</span>
+                                    <Badge variant="secondary" className="text-xs">{appointment.duration}min</Badge>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground">{appointment.procedureName}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge className={`text-xs ${
+                                    appointment.status === 'confirmed' 
+                                      ? 'bg-green-500/20 text-green-500' 
+                                      : appointment.status === 'completed'
+                                      ? 'bg-blue-500/20 text-blue-500'
+                                      : appointment.status === 'cancelled'
+                                      ? 'bg-red-500/20 text-red-500'
+                                      : 'bg-yellow-500/20 text-yellow-600'
+                                  }`}>
+                                    {getStatusLabel(appointment.status)}
+                                  </Badge>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                    onClick={() => handleDeleteAppointment(appointment)}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </Draggable>
+                        ) : (
+                          <div className="flex-1 flex items-center justify-center">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-muted-foreground hover:text-foreground" 
+                              onClick={() => handleNewAppointment(time)}
+                            >
+                              <Plus className="w-4 h-4 mr-1" />
+                              Horário livre
+                            </Button>
+                          </div>
+                        )}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                );
+              })}
+            </div>
+          </DragDropContext>
         </CardContent>
       </Card>
 
