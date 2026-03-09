@@ -127,9 +127,91 @@ export default function LoginPage() {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="bg-card/95 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/10"
         >
-          <h2 className="text-2xl font-display font-semibold text-foreground text-center mb-6">
-            {mode === 'login' ? 'Bem-vindo de volta' : 'Criar sua conta'}
-          </h2>
+          {mfaRequired ? (
+            <MfaVerify onVerified={async () => {
+              toast({ title: 'Bem-vindo de volta!', description: 'Login realizado com sucesso.' });
+              await handleSuccessfulLogin();
+            }} />
+          ) : (
+            <>
+              <h2 className="text-2xl font-display font-semibold text-foreground text-center mb-6">
+                {mode === 'login' ? 'Bem-vindo de volta' : 'Criar sua conta'}
+              </h2>
+
+              <form onSubmit={handleSubmit} className="space-y-5">
+                {mode === 'signup' && (
+                  <div className="relative">
+                    <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Nome completo"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      required
+                      className="h-14 pl-12 bg-secondary/50 border-border/50 rounded-xl text-base focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                )}
+
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="h-14 pl-12 bg-secondary/50 border-border/50 rounded-xl text-base focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="h-14 pl-12 pr-12 bg-secondary/50 border-border/50 rounded-xl text-base focus:ring-2 focus:ring-primary/30"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+
+                <Button 
+                  type="submit" 
+                  className="w-full h-14 text-base font-semibold rounded-xl gradient-gold hover:opacity-90 transition-all duration-200 shadow-lg text-primary-foreground"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : mode === 'login' ? (
+                    'Entrar no sistema'
+                  ) : (
+                    'Criar conta'
+                  )}
+                </Button>
+              </form>
+
+              <div className="mt-6 text-center">
+                <button
+                  type="button"
+                  onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                >
+                  {mode === 'login' ? 'Não tem conta? Cadastre-se' : 'Já tem conta? Faça login'}
+                </button>
+              </div>
+            </>
+          )}
+        </motion.div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {mode === 'signup' && (
