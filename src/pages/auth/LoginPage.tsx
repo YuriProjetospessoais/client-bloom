@@ -28,34 +28,43 @@ export default function LoginPage() {
 
   const from = location.state?.from?.pathname || '/';
 
+  const handleSuccessfulLogin = async () => {
+    // Check if user has memberships to show tenant selection
+    const { data: session } = await supabase.auth.getSession();
+    if (session?.session?.user) {
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('role, company_id')
+        .eq('user_id', session.session.user.id);
+      
+      // If user has memberships (excluding super_admin global access), show selection
+      const hasMemberships = roles && roles.some(r => r.company_id !== null);
+      if (hasMemberships) {
+        navigate('/select-tenant', { replace: true });
+        return;
+      }
+    }
+    
+    navigate(from, { replace: true });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
       if (mode === 'login') {
-        const success = await login(email, password);
-        if (success) {
-          toast({ title: 'Bem-vindo de volta!', description: 'Login realizado com sucesso.' });
-          
-          // Check if user has memberships to show tenant selection
-          const { data: session } = await supabase.auth.getSession();
-          if (session?.session?.user) {
-            const { data: roles } = await supabase
-              .from('user_roles')
-              .select('role, company_id')
-              .eq('user_id', session.session.user.id);
-            
-            // If user has memberships (excluding super_admin global access), show selection
-            const hasMemberships = roles && roles.some(r => r.company_id !== null);
-            if (hasMemberships) {
-              navigate('/select-tenant', { replace: true });
-              setIsLoading(false);
-              return;
-            }
+        const result = await login(email, password);
+        
+        if (result.success) {
+          if (result.requiresMfa) {
+            setMfaRequired(true);
+            toast({ title: 'Autenticação em duas etapas', description: 'Por favor, insira seu código 2FA.' });
+            return;
           }
-          
-          navigate(from, { replace: true });
+
+          toast({ title: 'Bem-vindo de volta!', description: 'Login realizado com sucesso.' });
+          await handleSuccessfulLogin();
         } else {
           toast({ title: 'Erro no login', description: 'Email ou senha inválidos.', variant: 'destructive' });
         }
