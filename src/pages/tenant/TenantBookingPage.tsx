@@ -326,7 +326,7 @@ export default function TenantBookingPage() {
       // Handle the custom trigger error message for double booking
       if (error?.message?.includes('já existe um agendamento') || error?.code === '23505') {
         toast.error('Este horário acabou de ser reservado. Por favor, escolha outro.');
-        loadAvailableSlots(); // Reload slots to reflect the new state
+        reloadCurrentSlots();
         setStep('datetime'); // Go back to datetime selection
       } else {
         toast.error('Erro ao agendar. Tente novamente.');
