@@ -5,14 +5,17 @@ import { UserMenu } from '@/components/layout/UserMenu';
 import TenantNotFound from '@/pages/tenant/TenantNotFound';
 import { LayoutDashboard, Calendar, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAppointmentNotifications } from '@/hooks/use-appointment-notifications';
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger
 } from '@/components/ui/sidebar';
 
+
 export default function TenantStaffLayout() {
   const { slug } = useParams();
   const { tenant, isLoading, error } = useTenant();
+  useAppointmentNotifications();
 
   const navItems = [
     { to: `/${slug}/agenda/dashboard`, label: 'Dashboard', icon: LayoutDashboard },

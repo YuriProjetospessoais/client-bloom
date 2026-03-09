@@ -8,6 +8,7 @@ import {
   LayoutDashboard, Users, UserPlus, Package, Calendar, Bell, Settings, CreditCard, Scissors
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAppointmentNotifications } from '@/hooks/use-appointment-notifications';
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger
@@ -16,6 +17,7 @@ import {
 export default function TenantAdminLayout() {
   const { slug } = useParams();
   const { tenant, isLoading, error } = useTenant();
+  useAppointmentNotifications();
 
   const navItems = [
     { to: `/${slug}/admin/dashboard`, label: 'Dashboard', icon: LayoutDashboard },
