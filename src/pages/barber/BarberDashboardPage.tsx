@@ -75,7 +75,7 @@ export default function BarberDashboardPage() {
     try {
       const { data: prof } = await supabase
         .from('professionals')
-        .select('id')
+        .select('id, company_id')
         .eq('user_id', user?.id)
         .maybeSingle();
 
@@ -84,6 +84,19 @@ export default function BarberDashboardPage() {
         setLoading(false);
         return;
       }
+
+      setProfessionalId(prof.id);
+
+      // Fetch blocked slots for this professional
+      const { data: blocks } = await supabase
+        .from('blocked_slots')
+        .select('id, date, start_time, end_time, reason')
+        .eq('professional_id', prof.id)
+        .gte('date', format(new Date(), 'yyyy-MM-dd'))
+        .order('date', { ascending: true })
+        .order('start_time', { ascending: true });
+
+      setBlockedSlots(blocks || []);
 
       const { data: appointments, error } = await supabase
         .from('appointments')
