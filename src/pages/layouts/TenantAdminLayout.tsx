@@ -27,6 +27,7 @@ export default function TenantAdminLayout() {
     { to: `/${slug}/admin/alerts`, label: 'Alertas', icon: Bell },
     { to: `/${slug}/admin/plans`, label: 'Planos', icon: CreditCard },
     { to: `/${slug}/admin/staff`, label: 'Equipe', icon: Users },
+    { to: `/${slug}/admin/barbers`, label: 'Barbeiros', icon: Scissors },
     { to: `/${slug}/admin/settings`, label: 'Configurações', icon: Settings },
   ];
 
