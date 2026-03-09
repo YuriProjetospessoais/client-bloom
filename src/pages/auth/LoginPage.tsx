@@ -114,10 +114,10 @@ export default function LoginPage() {
           <h1 className="text-4xl font-display font-bold text-white mb-1 tracking-tight">
             Navalha<span className="text-gold">App</span>
           </h1>
-          <p className="text-xs text-white/60 tracking-[0.3em] uppercase font-medium mb-4">
+          <p className="text-sm text-white/90 tracking-[0.3em] uppercase font-semibold mb-4">
             Professional Suite
           </p>
-          <p className="text-lg text-primary-foreground/80 font-light italic">
+          <p className="text-lg text-white/90 font-medium italic">
             Mais do que cortes. Relacionamentos.
           </p>
         </motion.div>
