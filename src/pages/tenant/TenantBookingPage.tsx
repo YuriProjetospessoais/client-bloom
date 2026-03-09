@@ -148,7 +148,7 @@ export default function TenantBookingPage() {
         .eq('date', dateStr)
         .in('status', ['scheduled', 'confirmed']),
       supabase
-        .from('blocked_slots')
+        .from('blocked_slots_public')
         .select('start_time, end_time')
         .eq('company_id', companyId)
         .eq('professional_id', selectedProfessional.id)
