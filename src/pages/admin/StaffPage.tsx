@@ -151,7 +151,7 @@ export default function StaffPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">{t.nav.staff || 'Equipe'}</h1>
+          <h1 className="text-3xl font-bold text-foreground">Equipe</h1>
           <p className="text-muted-foreground mt-1">
             Gerencie as secretárias e recepcionistas do seu estabelecimento
           </p>

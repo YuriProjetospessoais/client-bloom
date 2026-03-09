@@ -37,6 +37,7 @@ import SchedulePage from "./pages/admin/SchedulePage";
 import AlertsPage from "./pages/admin/AlertsPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import AdminPlansPage from "./pages/admin/PlansPage";
+import StaffPage from "./pages/admin/StaffPage";
 
 // User Pages
 import UserDashboardPage from "./pages/user/UserDashboardPage";
@@ -78,7 +79,7 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/select-tenant" element={
-                  <ProtectedRoute allowedRoles={['super_admin', 'company_admin', 'employee', 'client']}>
+                  <ProtectedRoute allowedRoles={['super_admin', 'company_admin', 'employee', 'secretary', 'client']}>
                     <TenantSelectionPage />
                   </ProtectedRoute>
                 } />
@@ -109,14 +110,15 @@ const App = () => (
                   <Route path="clients" element={<ClientsPage />} />
                   <Route path="products" element={<ProductsPage />} />
                   <Route path="schedule" element={<SchedulePage />} />
-                  <Route path="alerts" element={<AlertsPage />} />
+                   <Route path="alerts" element={<AlertsPage />} />
                   <Route path="settings" element={<SettingsPage />} />
                    <Route path="plans" element={<AdminPlansPage />} />
+                  <Route path="staff" element={<StaffPage />} />
                 </Route>
 
                 {/* User routes - /user */}
                 <Route path="/user" element={
-                  <ProtectedRoute allowedRoles={['employee']}>
+                  <ProtectedRoute allowedRoles={['employee', 'secretary']}>
                     <UserLayout />
                   </ProtectedRoute>
                 }>
@@ -172,13 +174,14 @@ const App = () => (
                   <Route path="schedule" element={<SchedulePage />} />
                   <Route path="alerts" element={<AlertsPage />} />
                   <Route path="plans" element={<AdminPlansPage />} />
+                  <Route path="staff" element={<StaffPage />} />
                   <Route path="settings" element={<SettingsPage />} />
                 </Route>
 
-                {/* Tenant Staff — requires employee membership */}
+                {/* Tenant Staff — requires employee or secretary membership */}
                 <Route path="/:slug/agenda" element={
                   <TenantProvider>
-                    <TenantProtectedRoute allowedRoles={['employee']}>
+                    <TenantProtectedRoute allowedRoles={['employee', 'secretary']}>
                       <TenantStaffLayout />
                     </TenantProtectedRoute>
                   </TenantProvider>
