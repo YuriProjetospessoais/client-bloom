@@ -131,24 +131,21 @@ export default function CompanySettingsTab() {
     setSaving(true);
 
     try {
-      // Save company info
+      // Save company info (cast to any for description which isn't in generated types yet)
+      const updatePayload: any = {
+        name: company.name,
+        description: company.description || null,
+        address: company.address || null,
+        phone: company.phone || null,
+        logo_url: company.logo_url || null,
+      };
+
       const { error: companyErr } = await supabase
         .from('companies')
-        .update({
-          name: company.name,
-          address: company.address || null,
-          phone: company.phone || null,
-          logo_url: company.logo_url || null,
-          // description via raw update since not in generated types yet
-        } as any)
+        .update(updatePayload)
         .eq('id', companyId);
 
       if (companyErr) throw companyErr;
-
-      // Also update description separately to be safe
-      await supabase.rpc('get_request_header' as any, { _name: 'host' }).then(() => {
-        // Use a direct approach for description
-      });
 
       // Upsert working hours (company-level, no professional)
       for (const h of hours) {
