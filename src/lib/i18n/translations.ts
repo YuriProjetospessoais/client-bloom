@@ -72,6 +72,7 @@ export const translations = {
       staff: 'Equipe',
       barbers: 'Barbeiros',
       blockedSlots: 'Bloqueios',
+      monthlyReport: 'Relatório Mensal',
     },
 
     // Dashboard
@@ -323,6 +324,7 @@ export const translations = {
       staff: 'Staff',
       barbers: 'Barbers',
       blockedSlots: 'Block Time',
+      monthlyReport: 'Monthly Report',
     },
 
     // Dashboard
@@ -574,6 +576,7 @@ export const translations = {
       staff: 'Equipo',
       barbers: 'Barberos',
       blockedSlots: 'Bloqueos',
+      monthlyReport: 'Informe Mensual',
     },
 
     // Dashboard
