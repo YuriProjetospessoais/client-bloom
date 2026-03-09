@@ -29,7 +29,7 @@ export function MfaEnroll({ onComplete, onSkip }: MfaEnrollProps) {
     setIsLoading(true);
     const { data, error } = await supabase.auth.mfa.enroll({
       factorType: 'totp',
-      friendlyName: 'BarberFlow Authenticator',
+      friendlyName: 'NavalhaApp Authenticator',
     });
 
     if (error) {
