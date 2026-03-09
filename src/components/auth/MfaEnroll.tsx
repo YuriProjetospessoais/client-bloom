@@ -103,7 +103,7 @@ export function MfaEnroll({ onComplete, onSkip }: MfaEnrollProps) {
       </p>
 
       {qrCode && (
-        <div className="rounded-2xl bg-white p-4 shadow-md">
+        <div className="rounded-2xl bg-background p-4 shadow-md border border-border">
           <img src={qrCode} alt="QR Code MFA" className="w-48 h-48" />
         </div>
       )}
