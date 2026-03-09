@@ -71,6 +71,7 @@ export const translations = {
       profile: 'Perfil',
       staff: 'Equipe',
       barbers: 'Barbeiros',
+      blockedSlots: 'Bloqueios',
     },
 
     // Dashboard
