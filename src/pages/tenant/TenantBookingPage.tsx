@@ -4,13 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useTenant } from '@/lib/tenant/TenantContext';
 import { toast } from 'sonner';
 import { format, addDays, addMinutes } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CheckCircle, ArrowLeft, ArrowRight, Banknote, QrCode, CreditCard, Scissors, User, CalendarDays, Clock } from 'lucide-react';
+import { CheckCircle, ArrowLeft, ArrowRight, Scissors, User, CalendarDays, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Service {
@@ -28,8 +30,7 @@ interface Professional {
   specialties: string[] | null;
 }
 
-type Step = 'service' | 'professional' | 'datetime' | 'payment' | 'confirm';
-type PaymentMethod = 'in_person' | 'pix' | 'credit_card';
+type Step = 'service' | 'professional' | 'datetime' | 'customer' | 'confirm';
 
 export default function TenantBookingPage() {
   const { slug } = useParams();
@@ -45,7 +46,8 @@ export default function TenantBookingPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
-  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod | null>(null);
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [maxAdvanceDays, setMaxAdvanceDays] = useState(30);
@@ -57,6 +59,26 @@ export default function TenantBookingPage() {
     if (!companyId) return;
     loadPublicData();
   }, [companyId]);
+
+  useEffect(() => {
+    if (user) {
+      loadUserProfile();
+    }
+  }, [user]);
+
+  async function loadUserProfile() {
+    if (!user) return;
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name, phone')
+      .eq('user_id', user.id)
+      .maybeSingle();
+      
+    if (profile) {
+      if (profile.full_name) setCustomerName(profile.full_name);
+      if (profile.phone) setCustomerPhone(profile.phone);
+    }
+  }
 
   async function loadPublicData() {
     setLoading(true);
@@ -156,7 +178,7 @@ export default function TenantBookingPage() {
       return;
     }
 
-    if (!companyId || !selectedService || !selectedProfessional || !selectedDate || !selectedTime || !selectedPayment) return;
+    if (!companyId || !selectedService || !selectedProfessional || !selectedDate || !selectedTime || !customerName || !customerPhone) return;
 
     setSubmitting(true);
 
@@ -169,21 +191,14 @@ export default function TenantBookingPage() {
       .maybeSingle();
 
     if (!clientData) {
-      // Auto-create client record
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name, email, phone')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
       const { data: newClient, error: clientErr } = await supabase
         .from('clients')
         .insert({
           user_id: user.id,
           company_id: companyId,
-          name: profile?.full_name || user.email?.split('@')[0] || 'Cliente',
-          email: profile?.email || user.email,
-          phone: profile?.phone,
+          name: customerName,
+          phone: customerPhone,
+          email: user.email,
         })
         .select('id')
         .single();
@@ -194,6 +209,15 @@ export default function TenantBookingPage() {
         return;
       }
       clientData = newClient;
+    } else {
+      // Update existing client with new name/phone
+      await supabase
+        .from('clients')
+        .update({
+          name: customerName,
+          phone: customerPhone,
+        })
+        .eq('id', clientData.id);
     }
 
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
@@ -210,33 +234,21 @@ export default function TenantBookingPage() {
       end_time: endTime,
       booked_by_client: true,
       status: 'scheduled',
-      payment_method: selectedPayment,
-      payment_status: selectedPayment === 'in_person' ? 'pending' : 'awaiting',
+      payment_method: 'in_person',
+      payment_status: 'pending',
     }).select('id').single();
 
     if (error || !aptData) {
       setSubmitting(false);
-      toast.error('Erro ao agendar. Tente novamente.');
-      return;
-    }
-
-    if (selectedPayment !== 'in_person') {
-      const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke('create-checkout', {
-        body: {
-          serviceName: selectedService.name,
-          servicePrice: Number(selectedService.price),
-          paymentMethod: selectedPayment === 'pix' ? 'pix' : 'card',
-          appointmentId: aptData.id,
-        },
-      });
-
-      setSubmitting(false);
-      if (checkoutError || !checkoutData?.url) {
-        toast.error('Erro ao iniciar pagamento. O agendamento foi criado.');
-        navigate(`/${slug}/agendamentos`);
-        return;
+      
+      // Handle the custom trigger error message for double booking
+      if (error?.message?.includes('já existe um agendamento') || error?.code === '23505') {
+        toast.error('Este horário acabou de ser reservado. Por favor, escolha outro.');
+        loadAvailableSlots(); // Reload slots to reflect the new state
+        setStep('datetime'); // Go back to datetime selection
+      } else {
+        toast.error('Erro ao agendar. Tente novamente.');
       }
-      window.location.href = checkoutData.url;
       return;
     }
 
@@ -249,14 +261,8 @@ export default function TenantBookingPage() {
     { key: 'service', label: 'Serviço', icon: Scissors },
     { key: 'professional', label: 'Profissional', icon: User },
     { key: 'datetime', label: 'Data & Hora', icon: CalendarDays },
-    { key: 'payment', label: 'Pagamento', icon: CreditCard },
+    { key: 'customer', label: 'Seus Dados', icon: User },
     { key: 'confirm', label: 'Confirmar', icon: CheckCircle },
-  ];
-
-  const paymentOptions: { key: PaymentMethod; label: string; description: string; icon: typeof Banknote }[] = [
-    { key: 'in_person', label: 'Presencial', description: 'Pague no local do atendimento', icon: Banknote },
-    { key: 'pix', label: 'Pix', description: 'Pagamento instantâneo via Pix', icon: QrCode },
-    { key: 'credit_card', label: 'Cartão de Crédito', description: 'Pague com cartão de crédito', icon: CreditCard },
   ];
 
   const stepIndex = steps.findIndex((s) => s.key === step);
@@ -471,7 +477,7 @@ export default function TenantBookingPage() {
             <Button
               className="w-full text-white"
               style={{ backgroundColor: tenantColor }}
-              onClick={() => setStep('payment')}
+              onClick={() => setStep('customer')}
             >
               Continuar <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
@@ -479,47 +485,50 @@ export default function TenantBookingPage() {
         </div>
       )}
 
-      {/* Step: Payment Method */}
-      {step === 'payment' && (
+      {/* Step: Customer Info */}
+      {step === 'customer' && (
         <div className="space-y-3">
           <Button variant="ghost" size="sm" onClick={() => setStep('datetime')}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
           </Button>
-          <p className="text-sm text-muted-foreground">Escolha a forma de pagamento:</p>
-          {paymentOptions.map((opt) => (
-            <Card
-              key={opt.key}
-              className={cn(
-                'cursor-pointer transition-all hover:shadow-md',
-                selectedPayment === opt.key && 'ring-2'
-              )}
-              style={selectedPayment === opt.key ? { borderColor: tenantColor, boxShadow: `0 0 0 2px ${tenantColor}40` } : undefined}
-              onClick={() => {
-                setSelectedPayment(opt.key);
-                setStep('confirm');
-              }}
-            >
-              <CardContent className="p-4 flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-white"
-                  style={{ backgroundColor: `${tenantColor}20` }}
-                >
-                  <opt.icon className="h-5 w-5" style={{ color: tenantColor }} />
-                </div>
-                <div>
-                  <p className="font-medium text-foreground">{opt.label}</p>
-                  <p className="text-xs text-muted-foreground">{opt.description}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          <p className="text-sm text-muted-foreground">Preencha seus dados:</p>
+          <Card>
+            <CardContent className="p-4 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="customerName">Nome Completo</Label>
+                <Input
+                  id="customerName"
+                  placeholder="Seu nome"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="customerPhone">Telefone / WhatsApp</Label>
+                <Input
+                  id="customerPhone"
+                  placeholder="(00) 00000-0000"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                />
+              </div>
+              <Button
+                className="w-full text-white"
+                style={{ backgroundColor: tenantColor }}
+                onClick={() => setStep('confirm')}
+                disabled={!customerName.trim() || !customerPhone.trim()}
+              >
+                Continuar <ArrowRight className="h-4 w-4 ml-1" />
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       )}
 
       {/* Step: Confirm */}
-      {step === 'confirm' && selectedService && selectedProfessional && selectedDate && selectedTime && selectedPayment && (
+      {step === 'confirm' && selectedService && selectedProfessional && selectedDate && selectedTime && (
         <div className="space-y-4">
-          <Button variant="ghost" size="sm" onClick={() => setStep('payment')}>
+          <Button variant="ghost" size="sm" onClick={() => setStep('customer')}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
           </Button>
 
@@ -533,7 +542,8 @@ export default function TenantBookingPage() {
               <SummaryRow label="Data" value={format(selectedDate, "dd 'de' MMMM, yyyy", { locale: ptBR })} />
               <SummaryRow label="Horário" value={selectedTime} />
               <SummaryRow label="Duração" value={`${selectedService.duration_minutes} min`} />
-              <SummaryRow label="Pagamento" value={paymentOptions.find(p => p.key === selectedPayment)?.label || ''} />
+              <SummaryRow label="Cliente" value={customerName} />
+              <SummaryRow label="Contato" value={customerPhone} />
               <div className="flex justify-between text-sm border-t pt-3">
                 <span className="text-muted-foreground">Valor</span>
                 <span className="font-bold text-lg" style={{ color: tenantColor }}>
@@ -564,12 +574,7 @@ export default function TenantBookingPage() {
             onClick={handleConfirm}
             disabled={submitting || !user}
           >
-            {submitting
-              ? 'Processando...'
-              : selectedPayment === 'in_person'
-                ? 'Confirmar Agendamento'
-                : 'Ir para Pagamento'
-            }
+            {submitting ? 'Processando...' : 'Confirmar Agendamento'}
           </Button>
         </div>
       )}
@@ -581,7 +586,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between text-sm">
       <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium text-foreground">{value}</span>
+      <span className="font-medium text-foreground text-right">{value}</span>
     </div>
   );
 }
