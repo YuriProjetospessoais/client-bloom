@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,13 +6,14 @@ import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useTenant } from '@/lib/tenant/TenantContext';
 import { toast } from 'sonner';
-import { format, addDays, addMinutes } from 'date-fns';
+import { format, addDays, addMinutes, startOfDay, isSameDay, isToday, isTomorrow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CheckCircle, ArrowLeft, ArrowRight, Scissors, User, CalendarDays, Clock } from 'lucide-react';
+import { CheckCircle, ArrowLeft, ArrowRight, Scissors, User, CalendarDays, Clock, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Service {
