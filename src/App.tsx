@@ -65,6 +65,7 @@ import TenantBookingConfirmationPage from "./pages/tenant/TenantBookingConfirmat
 import TenantPortalLayout from "./pages/layouts/TenantPortalLayout";
 import TenantAdminLayout from "./pages/layouts/TenantAdminLayout";
 import TenantStaffLayout from "./pages/layouts/TenantStaffLayout";
+import CustomerReturnReminders from "./pages/staff/CustomerReturnReminders";
 
 const queryClient = new QueryClient();
 
@@ -199,6 +200,7 @@ const App = () => (
                   <Route path="products" element={<UserProductsPage />} />
                   <Route path="alerts" element={<UserAlertsPage />} />
                   <Route path="profile" element={<UserProfilePage />} />
+                  <Route path="returns" element={<CustomerReturnReminders />} />
                 </Route>
 
                 {/* Catch-all */}
