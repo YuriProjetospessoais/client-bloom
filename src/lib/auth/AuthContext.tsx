@@ -38,12 +38,12 @@ async function fetchCompanyName(companyId: string): Promise<string | undefined> 
 
 async function buildUser(session: Session): Promise<User> {
   const supaUser = session.user;
+  
+  // Fetch role first to get companyId
   const { role, companyId } = await fetchUserRole(supaUser.id);
 
-  let companyName: string | undefined;
-  if (companyId) {
-    companyName = await fetchCompanyName(companyId);
-  }
+  // Fetch company name in parallel if companyId exists
+  const companyName = companyId ? await fetchCompanyName(companyId) : undefined;
 
   return {
     id: supaUser.id,
