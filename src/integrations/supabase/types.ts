@@ -172,6 +172,7 @@ export type Database = {
           cancel_limit_hours: number
           cover_url: string | null
           created_at: string
+          description: string | null
           email: string | null
           id: string
           logo_url: string | null
@@ -189,6 +190,7 @@ export type Database = {
           cancel_limit_hours?: number
           cover_url?: string | null
           created_at?: string
+          description?: string | null
           email?: string | null
           id?: string
           logo_url?: string | null
@@ -206,6 +208,7 @@ export type Database = {
           cancel_limit_hours?: number
           cover_url?: string | null
           created_at?: string
+          description?: string | null
           email?: string | null
           id?: string
           logo_url?: string | null

@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Building2, Users, Scissors, Plus, Edit, Trash2, Phone } from 'lucide-react';
+import { Building2, Users, Scissors, Plus, Edit, Trash2 } from 'lucide-react';
+import CompanySettingsTab from '@/components/settings/CompanySettingsTab';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { UserModal } from '@/components/modals/UserModal';
@@ -44,60 +45,13 @@ export default function SettingsPage() {
   const [deleteProcedureOpen, setDeleteProcedureOpen] = useState(false);
   const [procedureToDelete, setProcedureToDelete] = useState<Procedure | null>(null);
   
-  const [savingCompany, setSavingCompany] = useState(false);
-  const [whatsappPhone, setWhatsappPhone] = useState('');
-  const [savingWhatsapp, setSavingWhatsapp] = useState(false);
 
   // Load data on mount
   useEffect(() => {
     setUsers(usersStore.getAll());
     setProcedures(proceduresStore.getAll());
     setCompanySettings(companySettingsStore.get());
-
-    // Load WhatsApp phone from Supabase
-    async function loadWhatsapp() {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) return;
-      const { data: role } = await supabase
-        .from('user_roles')
-        .select('company_id')
-        .eq('user_id', authUser.id)
-        .maybeSingle();
-      if (!role?.company_id) return;
-      const { data: company } = await supabase
-        .from('companies')
-        .select('phone')
-        .eq('id', role.company_id)
-        .maybeSingle();
-      if (company?.phone) setWhatsappPhone(company.phone);
-    }
-    loadWhatsapp();
   }, []);
-
-  const handleSaveWhatsapp = async () => {
-    setSavingWhatsapp(true);
-    try {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) throw new Error('Não autenticado');
-      const { data: role } = await supabase
-        .from('user_roles')
-        .select('company_id')
-        .eq('user_id', authUser.id)
-        .maybeSingle();
-      if (!role?.company_id) throw new Error('Empresa não encontrada');
-      const { error } = await supabase
-        .from('companies')
-        .update({ phone: whatsappPhone || null })
-        .eq('id', role.company_id);
-      if (error) throw error;
-      toast.success('WhatsApp salvo com sucesso!');
-    } catch (err) {
-      console.error(err);
-      toast.error('Erro ao salvar WhatsApp');
-    } finally {
-      setSavingWhatsapp(false);
-    }
-  };
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -177,17 +131,6 @@ export default function SettingsPage() {
     setProcedureToDelete(null);
   };
 
-  // Company settings handlers
-  const handleSaveCompanySettings = () => {
-    if (!companySettings) return;
-    
-    setSavingCompany(true);
-    setTimeout(() => {
-      companySettingsStore.update(companySettings);
-      toast.success('Alterações salvas com sucesso!');
-      setSavingCompany(false);
-    }, 500);
-  };
 
   const userLimit = companySettings?.userLimit || 15;
 
@@ -214,119 +157,8 @@ export default function SettingsPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="company" className="mt-6 space-y-6">
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle>Informações da Empresa</CardTitle>
-              <CardDescription>Dados cadastrais do seu negócio</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="company-name">Nome da Empresa</Label>
-                  <Input 
-                    id="company-name" 
-                    value={companySettings?.name || ''} 
-                    onChange={(e) => setCompanySettings(prev => prev ? { ...prev, name: e.target.value } : null)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="cnpj">CNPJ</Label>
-                  <Input 
-                    id="cnpj" 
-                    value={companySettings?.cnpj || ''} 
-                    onChange={(e) => setCompanySettings(prev => prev ? { ...prev, cnpj: e.target.value } : null)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Telefone</Label>
-                  <Input 
-                    id="phone" 
-                    value={companySettings?.phone || ''} 
-                    onChange={(e) => setCompanySettings(prev => prev ? { ...prev, phone: e.target.value } : null)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input 
-                    id="email" 
-                    value={companySettings?.email || ''} 
-                    onChange={(e) => setCompanySettings(prev => prev ? { ...prev, email: e.target.value } : null)}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address">Endereço</Label>
-                <Input 
-                  id="address" 
-                  value={companySettings?.address || ''} 
-                  onChange={(e) => setCompanySettings(prev => prev ? { ...prev, address: e.target.value } : null)}
-                />
-              </div>
-              <Button 
-                className="gradient-primary text-white" 
-                onClick={handleSaveCompanySettings}
-                disabled={savingCompany}
-              >
-                {savingCompany ? 'Salvando...' : 'Salvar Alterações'}
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Phone className="w-5 h-5" />
-                WhatsApp da Barbearia
-              </CardTitle>
-              <CardDescription>Número usado para notificações de agendamento</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="whatsapp-phone">Número WhatsApp</Label>
-                <Input
-                  id="whatsapp-phone"
-                  value={whatsappPhone}
-                  onChange={(e) => setWhatsappPhone(e.target.value)}
-                  placeholder="(11) 99999-9999"
-                />
-                <p className="text-xs text-muted-foreground">Inclua o DDD. Ex: (11) 99999-9999</p>
-              </div>
-              <Button
-                className="gradient-primary text-white"
-                onClick={handleSaveWhatsapp}
-                disabled={savingWhatsapp}
-              >
-                {savingWhatsapp ? 'Salvando...' : 'Salvar WhatsApp'}
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle>Plano Atual</CardTitle>
-              <CardDescription>Informações sobre sua assinatura</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between p-4 rounded-lg bg-primary/5 border border-primary/20">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-foreground text-lg">Plano {companySettings?.plan || 'Professional'}</h3>
-                    <Badge className="bg-primary text-primary-foreground">Ativo</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">Até {userLimit} usuários • Renovação em 15/02/2026</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-foreground">R$ 197</p>
-                  <p className="text-sm text-muted-foreground">/mês</p>
-                </div>
-              </div>
-              <div className="mt-4 flex items-center gap-2">
-                <Users className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">{users.length} de {userLimit} usuários utilizados</span>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="company" className="mt-6">
+          <CompanySettingsTab />
         </TabsContent>
 
         <TabsContent value="users" className="mt-6">
