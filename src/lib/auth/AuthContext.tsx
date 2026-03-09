@@ -94,9 +94,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return !error;
+  const login = useCallback(async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    
+    if (error) return { success: false };
+    
+    // Check if user has MFA enabled and requires it
+    if (data?.session && data.user) {
+      const { data: mfaData, error: mfaError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      
+      if (!mfaError && mfaData) {
+        if (mfaData.nextLevel === 'aal2' && mfaData.currentLevel !== 'aal2') {
+          return { success: true, requiresMfa: true };
+        }
+      }
+    }
+    
+    return { success: true };
   }, []);
 
   const signup = useCallback(async (email: string, password: string, fullName: string) => {
