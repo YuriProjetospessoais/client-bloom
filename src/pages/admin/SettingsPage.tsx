@@ -131,17 +131,6 @@ export default function SettingsPage() {
     setProcedureToDelete(null);
   };
 
-  // Company settings handlers
-  const handleSaveCompanySettings = () => {
-    if (!companySettings) return;
-    
-    setSavingCompany(true);
-    setTimeout(() => {
-      companySettingsStore.update(companySettings);
-      toast.success('Alterações salvas com sucesso!');
-      setSavingCompany(false);
-    }, 500);
-  };
 
   const userLimit = companySettings?.userLimit || 15;
 
