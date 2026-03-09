@@ -70,14 +70,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session) {
+          // Skip if login() already set the state
+          if (state.isAuthenticated && state.user?.id === session.user.id) return;
           const user = await buildUser(session);
           setState({ user, isAuthenticated: true, isLoading: false });
-          
-          // Resolve any pending login promise
-          if (loginResolverRef.current) {
-            loginResolverRef.current(user);
-            loginResolverRef.current = null;
-          }
         } else {
           setState({ user: null, isAuthenticated: false, isLoading: false });
         }
