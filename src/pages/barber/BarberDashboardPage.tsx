@@ -582,6 +582,73 @@ export default function BarberDashboardPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Blocked Slots Section */}
+      {blockedSlots.length > 0 && (
+        <Card className="glass-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Ban className="h-4 w-4 text-destructive" />
+              Horários Bloqueados ({blockedSlots.length})
+            </CardTitle>
+            <CardDescription>Períodos indisponíveis na sua agenda</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {blockedSlots.map((block) => (
+                <div
+                  key={block.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-destructive/5 border border-destructive/10"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex flex-col items-center justify-center w-12 h-12 rounded-lg bg-destructive/10 text-destructive">
+                      <span className="text-xs font-bold">{block.start_time.slice(0, 5)}</span>
+                      <span className="text-[10px]">{block.end_time.slice(0, 5)}</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        {format(new Date(block.date + 'T00:00:00'), "dd/MM/yyyy (EEEE)", { locale: ptBR })}
+                      </p>
+                      {block.reason && (
+                        <p className="text-xs text-muted-foreground">{block.reason}</p>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:bg-destructive/10"
+                    onClick={async () => {
+                      const { error } = await supabase.from('blocked_slots').delete().eq('id', block.id);
+                      if (error) {
+                        toast.error('Erro ao remover bloqueio.');
+                      } else {
+                        toast.success('Bloqueio removido!');
+                        setBlockedSlots((prev) => prev.filter((b) => b.id !== block.id));
+                      }
+                    }}
+                  >
+                    Remover
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Block Time Modal */}
+      {companyId && professionalId && (
+        <BlockTimeModal
+          open={blockTimeOpen}
+          onOpenChange={setBlockTimeOpen}
+          companyId={companyId}
+          professionals={[{ id: professionalId, name: user?.name || '' }]}
+          defaultProfessionalId={professionalId}
+          lockProfessional
+          onSaved={fetchBookings}
+        />
+      )}
     </motion.div>
   );
 }
