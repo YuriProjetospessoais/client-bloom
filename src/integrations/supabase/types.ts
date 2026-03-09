@@ -170,6 +170,7 @@ export type Database = {
         Row: {
           address: string | null
           cancel_limit_hours: number
+          cover_url: string | null
           created_at: string
           email: string | null
           id: string
@@ -186,6 +187,7 @@ export type Database = {
         Insert: {
           address?: string | null
           cancel_limit_hours?: number
+          cover_url?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -202,6 +204,7 @@ export type Database = {
         Update: {
           address?: string | null
           cancel_limit_hours?: number
+          cover_url?: string | null
           created_at?: string
           email?: string | null
           id?: string

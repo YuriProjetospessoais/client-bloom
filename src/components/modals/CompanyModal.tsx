@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
+import { ImageIcon, Loader2 } from 'lucide-react';
 
 const companySchema = z.object({
   name: z.string().trim().min(2, 'Nome deve ter pelo menos 2 caracteres').max(100),
@@ -15,6 +16,8 @@ const companySchema = z.object({
   phone: z.string().optional().or(z.literal('')),
   address: z.string().optional().or(z.literal('')),
   primary_color: z.string().optional(),
+  logo_url: z.string().optional().nullable(),
+  cover_url: z.string().optional().nullable(),
 });
 
 interface CompanyData {
@@ -25,13 +28,15 @@ interface CompanyData {
   phone?: string | null;
   address?: string | null;
   primary_color?: string | null;
+  logo_url?: string | null;
+  cover_url?: string | null;
 }
 
 interface CompanyModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   company?: CompanyData | null;
-  onSave: (data: { name: string; slug: string; email?: string; phone?: string; address?: string; primary_color?: string }) => Promise<void>;
+  onSave: (data: { name: string; slug: string; email?: string; phone?: string; address?: string; primary_color?: string; logo_url?: string; cover_url?: string }) => Promise<void>;
 }
 
 function generateSlug(name: string): string {
@@ -47,6 +52,8 @@ function generateSlug(name: string): string {
 
 export function CompanyModal({ open, onOpenChange, company, onSave }: CompanyModalProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [slugManual, setSlugManual] = useState(false);
   const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
   const [formData, setFormData] = useState({
@@ -56,6 +63,8 @@ export function CompanyModal({ open, onOpenChange, company, onSave }: CompanyMod
     phone: '',
     address: '',
     primary_color: '#8B5CF6',
+    logo_url: '',
+    cover_url: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -68,10 +77,12 @@ export function CompanyModal({ open, onOpenChange, company, onSave }: CompanyMod
         phone: company.phone || '',
         address: company.address || '',
         primary_color: company.primary_color || '#8B5CF6',
+        logo_url: company.logo_url || '',
+        cover_url: company.cover_url || '',
       });
       setSlugManual(true);
     } else {
-      setFormData({ name: '', slug: '', email: '', phone: '', address: '', primary_color: '#8B5CF6' });
+      setFormData({ name: '', slug: '', email: '', phone: '', address: '', primary_color: '#8B5CF6', logo_url: '', cover_url: '' });
       setSlugManual(false);
     }
     setErrors({});
@@ -109,6 +120,39 @@ export function CompanyModal({ open, onOpenChange, company, onSave }: CompanyMod
     return () => clearTimeout(timeout);
   }, [formData.slug, company?.id]);
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'logo_url' | 'cover_url') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+    const filePath = `uploads/${fileName}`;
+
+    if (field === 'logo_url') setIsUploadingLogo(true);
+    if (field === 'cover_url') setIsUploadingCover(true);
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('company_assets')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('company_assets')
+        .getPublicUrl(filePath);
+
+      setFormData(prev => ({ ...prev, [field]: data.publicUrl }));
+      toast.success('Imagem enviada com sucesso!');
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao enviar imagem');
+    } finally {
+      if (field === 'logo_url') setIsUploadingLogo(false);
+      if (field === 'cover_url') setIsUploadingCover(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
@@ -137,6 +181,8 @@ export function CompanyModal({ open, onOpenChange, company, onSave }: CompanyMod
         phone: formData.phone || undefined,
         address: formData.address || undefined,
         primary_color: formData.primary_color,
+        logo_url: formData.logo_url || undefined,
+        cover_url: formData.cover_url || undefined,
       });
     } finally {
       setIsLoading(false);
@@ -145,7 +191,7 @@ export function CompanyModal({ open, onOpenChange, company, onSave }: CompanyMod
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{company ? 'Editar Empresa' : 'Nova Empresa'}</DialogTitle>
           <DialogDescription>
@@ -221,6 +267,58 @@ export function CompanyModal({ open, onOpenChange, company, onSave }: CompanyMod
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
               placeholder="Rua, número, cidade"
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Logo da Empresa</Label>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 shrink-0 rounded border bg-muted overflow-hidden flex items-center justify-center">
+                  {formData.logo_url ? (
+                    <img src={formData.logo_url} alt="Logo" className="w-full h-full object-cover" />
+                  ) : (
+                    <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="flex-1 relative">
+                  <Input 
+                    type="file" 
+                    accept="image/*"
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    onChange={(e) => handleFileUpload(e, 'logo_url')}
+                    disabled={isUploadingLogo}
+                  />
+                  <Button type="button" variant="outline" size="sm" className="w-full" disabled={isUploadingLogo}>
+                    {isUploadingLogo ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Upload'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Capa da Landing Page</Label>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 shrink-0 rounded border bg-muted overflow-hidden flex items-center justify-center">
+                  {formData.cover_url ? (
+                    <img src={formData.cover_url} alt="Cover" className="w-full h-full object-cover" />
+                  ) : (
+                    <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="flex-1 relative">
+                  <Input 
+                    type="file" 
+                    accept="image/*"
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    onChange={(e) => handleFileUpload(e, 'cover_url')}
+                    disabled={isUploadingCover}
+                  />
+                  <Button type="button" variant="outline" size="sm" className="w-full" disabled={isUploadingCover}>
+                    {isUploadingCover ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Upload'}
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">
