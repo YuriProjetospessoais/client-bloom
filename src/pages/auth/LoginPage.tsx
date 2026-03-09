@@ -197,7 +197,7 @@ export default function LoginPage() {
                   disabled={isLoading}
                 >
                   {isLoading ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span className="flex items-center gap-2"><Loader2 className="w-5 h-5 animate-spin" /> Entrando...</span>
                   ) : mode === 'login' ? (
                     'Entrar no sistema'
                   ) : (
