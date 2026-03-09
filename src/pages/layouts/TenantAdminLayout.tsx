@@ -5,7 +5,7 @@ import { UserMenu } from '@/components/layout/UserMenu';
 import { LanguageSelector } from '@/components/layout/LanguageSelector';
 import TenantNotFound from '@/pages/tenant/TenantNotFound';
 import {
-  LayoutDashboard, Users, UserPlus, Package, Calendar, Bell, Settings, CreditCard, Scissors
+  LayoutDashboard, Users, UserPlus, Package, Calendar, Bell, Settings, CreditCard, Scissors, Ban
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppointmentNotifications } from '@/hooks/use-appointment-notifications';
@@ -29,6 +29,7 @@ export default function TenantAdminLayout() {
     { to: `/${slug}/admin/alerts`, label: 'Alertas', icon: Bell },
     { to: `/${slug}/admin/plans`, label: 'Planos', icon: CreditCard },
     { to: `/${slug}/admin/staff`, label: 'Gestão de Equipe', icon: Users },
+    { to: `/${slug}/admin/blocked-slots`, label: 'Bloqueios', icon: Ban },
     { to: `/${slug}/admin/settings`, label: 'Configurações', icon: Settings },
   ];
 
