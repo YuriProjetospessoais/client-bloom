@@ -77,7 +77,7 @@ export function UserSidebar() {
 
       <SidebarFooter className="p-4 border-t border-sidebar-border">
         <div className="text-xs text-sidebar-foreground/40 text-center">
-          BarberFlow v1.0.0
+          NavalhApp v1.0.0
         </div>
       </SidebarFooter>
     </Sidebar>

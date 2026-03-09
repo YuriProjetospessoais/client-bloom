@@ -41,7 +41,7 @@ export function BarberFlowLogo({ showText = true, size = 'md', className = '' }:
       {showText && (
         <div className="flex flex-col">
           <h2 className={`font-display font-bold text-foreground tracking-tight ${textSizeClasses[size]}`}>
-            Barber<span className="text-primary">Flow</span>
+            Navalh<span className="text-primary">App</span>
           </h2>
           {size === 'lg' && (
             <span className="text-xs text-muted-foreground tracking-widest uppercase font-medium -mt-0.5">
