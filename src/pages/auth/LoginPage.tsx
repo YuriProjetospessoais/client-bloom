@@ -112,7 +112,7 @@ export default function LoginPage() {
           </div>
           
           <h1 className="text-4xl font-display font-bold text-white mb-1 tracking-tight">
-            Barber<span className="text-gold">Flow</span>
+            Navalha<span className="text-gold">App</span>
           </h1>
           <p className="text-xs text-white/60 tracking-[0.3em] uppercase font-medium mb-4">
             Professional Suite
