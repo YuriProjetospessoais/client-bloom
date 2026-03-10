@@ -61,7 +61,7 @@ export default function CompanySettingsTab() {
       const [companyRes, hoursRes] = await Promise.all([
         supabase
           .from('companies')
-          .select('id, name, description, address, phone, logo_url')
+          .select('id, name, description, address, phone, logo_url, google_maps_url')
           .eq('id', role.company_id)
           .single(),
         supabase
