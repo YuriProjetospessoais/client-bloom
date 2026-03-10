@@ -297,6 +297,22 @@ export default function CompanySettingsTab() {
               Usado para notificações de agendamento via WhatsApp
             </p>
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="barbershop-maps" className="flex items-center gap-2">
+              <MapPin className="w-4 h-4" />
+              Link do Google Maps
+            </Label>
+            <Input
+              id="barbershop-maps"
+              value={company?.google_maps_url || ''}
+              onChange={e => setCompany(prev => prev ? { ...prev, google_maps_url: e.target.value } : null)}
+              placeholder="https://maps.google.com/..."
+            />
+            <p className="text-xs text-muted-foreground">
+              Cole o link de compartilhamento do Google Maps para a localização da barbearia
+            </p>
+          </div>
         </CardContent>
       </Card>
 
