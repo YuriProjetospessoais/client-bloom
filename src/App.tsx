@@ -152,6 +152,7 @@ const App = () => (
                   <Route path="dashboard" element={<PortalDashboardPage />} />
                   <Route path="agendar" element={<PortalBookingPage />} />
                   <Route path="agendamentos" element={<PortalAppointmentsPage />} />
+                  <Route path="contato" element={<PortalContactPage />} />
                   <Route path="perfil" element={<PortalProfilePage />} />
                 </Route>
 
