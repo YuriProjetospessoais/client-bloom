@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,69 +7,78 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/lib/theme/ThemeContext";
 import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import { AuthProvider } from "@/lib/auth/AuthContext";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { TenantProtectedRoute } from "@/components/auth/TenantProtectedRoute";
-import { TenantProvider } from "@/lib/tenant/TenantContext";
 
-// Public Pages
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
+// Only LoginPage is eagerly loaded — everything else is lazy
 import LoginPage from "./pages/auth/LoginPage";
-import TenantSelectionPage from "./pages/auth/TenantSelectionPage";
+
+// Lightweight loading fallback
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+  </div>
+);
+
+// Lazy-loaded route guards
+const ProtectedRoute = lazy(() => import("@/components/auth/ProtectedRoute").then(m => ({ default: m.ProtectedRoute })));
+const TenantProtectedRoute = lazy(() => import("@/components/auth/TenantProtectedRoute").then(m => ({ default: m.TenantProtectedRoute })));
+const TenantProvider = lazy(() => import("@/lib/tenant/TenantContext").then(m => ({ default: m.TenantProvider })));
+
+// Lazy-loaded pages
+const Index = lazy(() => import("./pages/Index"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const TenantSelectionPage = lazy(() => import("./pages/auth/TenantSelectionPage"));
 
 // Layouts
-import SuperAdminLayout from "./pages/layouts/SuperAdminLayout";
-import CompanyAdminLayout from "./pages/layouts/CompanyAdminLayout";
-import UserLayout from "./pages/layouts/UserLayout";
+const SuperAdminLayout = lazy(() => import("./pages/layouts/SuperAdminLayout"));
+const CompanyAdminLayout = lazy(() => import("./pages/layouts/CompanyAdminLayout"));
+const UserLayout = lazy(() => import("./pages/layouts/UserLayout"));
+const ClientPortalLayout = lazy(() => import("./pages/layouts/ClientPortalLayout"));
+const TenantPortalLayout = lazy(() => import("./pages/layouts/TenantPortalLayout"));
+const TenantAdminLayout = lazy(() => import("./pages/layouts/TenantAdminLayout"));
+const TenantStaffLayout = lazy(() => import("./pages/layouts/TenantStaffLayout"));
 
 // Global Admin Pages
-import GlobalDashboardPage from "./pages/global/GlobalDashboardPage";
-import CompaniesPage from "./pages/global/CompaniesPage";
-import GlobalUsersPage from "./pages/global/GlobalUsersPage";
-import PlansPage from "./pages/global/PlansPage";
+const GlobalDashboardPage = lazy(() => import("./pages/global/GlobalDashboardPage"));
+const CompaniesPage = lazy(() => import("./pages/global/CompaniesPage"));
+const GlobalUsersPage = lazy(() => import("./pages/global/GlobalUsersPage"));
+const PlansPage = lazy(() => import("./pages/global/PlansPage"));
 
 // Company Admin Pages
-import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
-import CRMPage from "./pages/admin/CRMPage";
-import LeadsPage from "./pages/admin/LeadsPage";
-import ClientsPage from "./pages/admin/ClientsPage";
-import ProductsPage from "./pages/admin/ProductsPage";
-import SchedulePage from "./pages/admin/SchedulePage";
-import AlertsPage from "./pages/admin/AlertsPage";
-import SettingsPage from "./pages/admin/SettingsPage";
-import AdminPlansPage from "./pages/admin/PlansPage";
-import StaffPage from "./pages/admin/StaffPage";
-import BlockedSlotsPage from "./pages/admin/BlockedSlotsPage";
-import MonthlyReportPage from "./pages/admin/MonthlyReportPage";
+const AdminDashboardPage = lazy(() => import("./pages/admin/AdminDashboardPage"));
+const CRMPage = lazy(() => import("./pages/admin/CRMPage"));
+const LeadsPage = lazy(() => import("./pages/admin/LeadsPage"));
+const ClientsPage = lazy(() => import("./pages/admin/ClientsPage"));
+const ProductsPage = lazy(() => import("./pages/admin/ProductsPage"));
+const SchedulePage = lazy(() => import("./pages/admin/SchedulePage"));
+const AlertsPage = lazy(() => import("./pages/admin/AlertsPage"));
+const SettingsPage = lazy(() => import("./pages/admin/SettingsPage"));
+const AdminPlansPage = lazy(() => import("./pages/admin/PlansPage"));
+const StaffPage = lazy(() => import("./pages/admin/StaffPage"));
+const BlockedSlotsPage = lazy(() => import("./pages/admin/BlockedSlotsPage"));
+const MonthlyReportPage = lazy(() => import("./pages/admin/MonthlyReportPage"));
 
-
-// Barber Pages
-import BarberDashboardPage from "./pages/barber/BarberDashboardPage";
 // User Pages
-import UserDashboardPage from "./pages/user/UserDashboardPage";
-import UserCRMPage from "./pages/user/UserCRMPage";
-import UserLeadsPage from "./pages/user/UserLeadsPage";
-import UserSchedulePage from "./pages/user/UserSchedulePage";
-import UserAlertsPage from "./pages/user/UserAlertsPage";
-import UserProfilePage from "./pages/user/UserProfilePage";
-import UserProductsPage from "./pages/user/UserProductsPage";
+const BarberDashboardPage = lazy(() => import("./pages/barber/BarberDashboardPage"));
+const UserDashboardPage = lazy(() => import("./pages/user/UserDashboardPage"));
+const UserCRMPage = lazy(() => import("./pages/user/UserCRMPage"));
+const UserLeadsPage = lazy(() => import("./pages/user/UserLeadsPage"));
+const UserSchedulePage = lazy(() => import("./pages/user/UserSchedulePage"));
+const UserAlertsPage = lazy(() => import("./pages/user/UserAlertsPage"));
+const UserProfilePage = lazy(() => import("./pages/user/UserProfilePage"));
+const UserProductsPage = lazy(() => import("./pages/user/UserProductsPage"));
 
-// Portal (Client) Pages
-import ClientPortalLayout from "./pages/layouts/ClientPortalLayout";
-import PortalDashboardPage from "./pages/portal/PortalDashboardPage";
-import PortalBookingPage from "./pages/portal/PortalBookingPage";
-import PortalAppointmentsPage from "./pages/portal/PortalAppointmentsPage";
-import PortalProfilePage from "./pages/portal/PortalProfilePage";
-import PortalContactPage from "./pages/portal/PortalContactPage";
+// Portal Pages
+const PortalDashboardPage = lazy(() => import("./pages/portal/PortalDashboardPage"));
+const PortalBookingPage = lazy(() => import("./pages/portal/PortalBookingPage"));
+const PortalAppointmentsPage = lazy(() => import("./pages/portal/PortalAppointmentsPage"));
+const PortalProfilePage = lazy(() => import("./pages/portal/PortalProfilePage"));
+const PortalContactPage = lazy(() => import("./pages/portal/PortalContactPage"));
 
-// Tenant Pages & Layouts
-import TenantLandingPage from "./pages/tenant/TenantLandingPage";
-import TenantBookingPage from "./pages/tenant/TenantBookingPage";
-import TenantBookingConfirmationPage from "./pages/tenant/TenantBookingConfirmationPage";
-import TenantPortalLayout from "./pages/layouts/TenantPortalLayout";
-import TenantAdminLayout from "./pages/layouts/TenantAdminLayout";
-import TenantStaffLayout from "./pages/layouts/TenantStaffLayout";
-import CustomerReturnReminders from "./pages/staff/CustomerReturnReminders";
+// Tenant Pages
+const TenantLandingPage = lazy(() => import("./pages/tenant/TenantLandingPage"));
+const TenantBookingPage = lazy(() => import("./pages/tenant/TenantBookingPage"));
+const TenantBookingConfirmationPage = lazy(() => import("./pages/tenant/TenantBookingConfirmationPage"));
+const CustomerReturnReminders = lazy(() => import("./pages/staff/CustomerReturnReminders"));
 
 const queryClient = new QueryClient();
 
@@ -81,140 +91,142 @@ const App = () => (
             <TooltipProvider>
               <Toaster />
               <Sonner />
-              <Routes>
-                {/* Public routes */}
-                <Route path="/" element={<Index />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/select-tenant" element={
-                  <ProtectedRoute allowedRoles={['super_admin', 'company_admin', 'employee', 'secretary', 'client']}>
-                    <TenantSelectionPage />
-                  </ProtectedRoute>
-                } />
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  {/* Public routes */}
+                  <Route path="/" element={<Index />} />
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/select-tenant" element={
+                    <ProtectedRoute allowedRoles={['super_admin', 'company_admin', 'employee', 'secretary', 'client']}>
+                      <TenantSelectionPage />
+                    </ProtectedRoute>
+                  } />
 
-                {/* Super Admin routes - /global */}
-                <Route path="/global" element={
-                  <ProtectedRoute allowedRoles={['super_admin']}>
-                    <SuperAdminLayout />
-                  </ProtectedRoute>
-                }>
-                  <Route index element={<Navigate to="/global/dashboard" replace />} />
-                  <Route path="dashboard" element={<GlobalDashboardPage />} />
-                  <Route path="companies" element={<CompaniesPage />} />
-                  <Route path="users" element={<GlobalUsersPage />} />
-                  <Route path="plans" element={<PlansPage />} />
-                </Route>
+                  {/* Super Admin routes - /global */}
+                  <Route path="/global" element={
+                    <ProtectedRoute allowedRoles={['super_admin']}>
+                      <SuperAdminLayout />
+                    </ProtectedRoute>
+                  }>
+                    <Route index element={<Navigate to="/global/dashboard" replace />} />
+                    <Route path="dashboard" element={<GlobalDashboardPage />} />
+                    <Route path="companies" element={<CompaniesPage />} />
+                    <Route path="users" element={<GlobalUsersPage />} />
+                    <Route path="plans" element={<PlansPage />} />
+                  </Route>
 
-                {/* Company Admin routes - /admin */}
-                <Route path="/admin" element={
-                  <ProtectedRoute allowedRoles={['company_admin']}>
-                    <CompanyAdminLayout />
-                  </ProtectedRoute>
-                }>
-                  <Route index element={<Navigate to="/admin/dashboard" replace />} />
-                  <Route path="dashboard" element={<AdminDashboardPage />} />
-                  <Route path="crm" element={<CRMPage />} />
-                  <Route path="leads" element={<LeadsPage />} />
-                  <Route path="clients" element={<ClientsPage />} />
-                  <Route path="products" element={<ProductsPage />} />
-                  <Route path="schedule" element={<SchedulePage />} />
-                   <Route path="alerts" element={<AlertsPage />} />
-                  <Route path="settings" element={<SettingsPage />} />
-                   <Route path="plans" element={<AdminPlansPage />} />
-                  <Route path="staff" element={<StaffPage />} />
-                  <Route path="barbers" element={<StaffPage />} />
-                  <Route path="blocked-slots" element={<BlockedSlotsPage />} />
-                  <Route path="relatorio" element={<MonthlyReportPage />} />
-                </Route>
+                  {/* Company Admin routes - /admin */}
+                  <Route path="/admin" element={
+                    <ProtectedRoute allowedRoles={['company_admin']}>
+                      <CompanyAdminLayout />
+                    </ProtectedRoute>
+                  }>
+                    <Route index element={<Navigate to="/admin/dashboard" replace />} />
+                    <Route path="dashboard" element={<AdminDashboardPage />} />
+                    <Route path="crm" element={<CRMPage />} />
+                    <Route path="leads" element={<LeadsPage />} />
+                    <Route path="clients" element={<ClientsPage />} />
+                    <Route path="products" element={<ProductsPage />} />
+                    <Route path="schedule" element={<SchedulePage />} />
+                    <Route path="alerts" element={<AlertsPage />} />
+                    <Route path="settings" element={<SettingsPage />} />
+                    <Route path="plans" element={<AdminPlansPage />} />
+                    <Route path="staff" element={<StaffPage />} />
+                    <Route path="barbers" element={<StaffPage />} />
+                    <Route path="blocked-slots" element={<BlockedSlotsPage />} />
+                    <Route path="relatorio" element={<MonthlyReportPage />} />
+                  </Route>
 
-                {/* User routes - /user */}
-                <Route path="/user" element={
-                  <ProtectedRoute allowedRoles={['employee', 'secretary']}>
-                    <UserLayout />
-                  </ProtectedRoute>
-                }>
-                  <Route index element={<Navigate to="/user/dashboard" replace />} />
-                  <Route path="dashboard" element={<UserDashboardPage />} />
-                  <Route path="crm" element={<UserCRMPage />} />
-                  <Route path="leads" element={<UserLeadsPage />} />
-                  <Route path="schedule" element={<UserSchedulePage />} />
-                   <Route path="products" element={<UserProductsPage />} />
-                  <Route path="alerts" element={<UserAlertsPage />} />
-                  <Route path="profile" element={<UserProfilePage />} />
-                </Route>
+                  {/* User routes - /user */}
+                  <Route path="/user" element={
+                    <ProtectedRoute allowedRoles={['employee', 'secretary']}>
+                      <UserLayout />
+                    </ProtectedRoute>
+                  }>
+                    <Route index element={<Navigate to="/user/dashboard" replace />} />
+                    <Route path="dashboard" element={<UserDashboardPage />} />
+                    <Route path="crm" element={<UserCRMPage />} />
+                    <Route path="leads" element={<UserLeadsPage />} />
+                    <Route path="schedule" element={<UserSchedulePage />} />
+                    <Route path="products" element={<UserProductsPage />} />
+                    <Route path="alerts" element={<UserAlertsPage />} />
+                    <Route path="profile" element={<UserProfilePage />} />
+                  </Route>
 
-                {/* Client Portal routes - /portal */}
-                <Route path="/portal" element={
-                  <ProtectedRoute allowedRoles={['client']}>
-                    <ClientPortalLayout />
-                  </ProtectedRoute>
-                }>
-                  <Route index element={<Navigate to="/portal/dashboard" replace />} />
-                  <Route path="dashboard" element={<PortalDashboardPage />} />
-                  <Route path="agendar" element={<PortalBookingPage />} />
-                  <Route path="agendamentos" element={<PortalAppointmentsPage />} />
-                  <Route path="contato" element={<PortalContactPage />} />
-                  <Route path="perfil" element={<PortalProfilePage />} />
-                </Route>
+                  {/* Client Portal routes - /portal */}
+                  <Route path="/portal" element={
+                    <ProtectedRoute allowedRoles={['client']}>
+                      <ClientPortalLayout />
+                    </ProtectedRoute>
+                  }>
+                    <Route index element={<Navigate to="/portal/dashboard" replace />} />
+                    <Route path="dashboard" element={<PortalDashboardPage />} />
+                    <Route path="agendar" element={<PortalBookingPage />} />
+                    <Route path="agendamentos" element={<PortalAppointmentsPage />} />
+                    <Route path="contato" element={<PortalContactPage />} />
+                    <Route path="perfil" element={<PortalProfilePage />} />
+                  </Route>
 
-                {/* Tenant routes - /:slug */}
-                <Route path="/:slug" element={<TenantProvider><TenantLandingPage /></TenantProvider>} />
-                
-                {/* Tenant Portal (client) */}
-                <Route path="/:slug" element={<TenantProvider><TenantPortalLayout /></TenantProvider>}>
-                  <Route path="dashboard" element={<PortalDashboardPage />} />
-                  <Route path="agendar" element={<TenantBookingPage />} />
-                  <Route path="confirmacao" element={<TenantBookingConfirmationPage />} />
-                  <Route path="agendamentos" element={<PortalAppointmentsPage />} />
-                  <Route path="contato" element={<PortalContactPage />} />
-                  <Route path="perfil" element={<PortalProfilePage />} />
-                </Route>
+                  {/* Tenant routes - /:slug */}
+                  <Route path="/:slug" element={<TenantProvider><TenantLandingPage /></TenantProvider>} />
+                  
+                  {/* Tenant Portal (client) */}
+                  <Route path="/:slug" element={<TenantProvider><TenantPortalLayout /></TenantProvider>}>
+                    <Route path="dashboard" element={<PortalDashboardPage />} />
+                    <Route path="agendar" element={<TenantBookingPage />} />
+                    <Route path="confirmacao" element={<TenantBookingConfirmationPage />} />
+                    <Route path="agendamentos" element={<PortalAppointmentsPage />} />
+                    <Route path="contato" element={<PortalContactPage />} />
+                    <Route path="perfil" element={<PortalProfilePage />} />
+                  </Route>
 
-                {/* Tenant Admin — requires company_admin membership */}
-                <Route path="/:slug/admin" element={
-                  <TenantProvider>
-                    <TenantProtectedRoute allowedRoles={['company_admin']}>
-                      <TenantAdminLayout />
-                    </TenantProtectedRoute>
-                  </TenantProvider>
-                }>
-                  <Route index element={<Navigate to="dashboard" replace />} />
-                  <Route path="dashboard" element={<AdminDashboardPage />} />
-                  <Route path="crm" element={<CRMPage />} />
-                  <Route path="leads" element={<LeadsPage />} />
-                  <Route path="clients" element={<ClientsPage />} />
-                  <Route path="products" element={<ProductsPage />} />
-                  <Route path="schedule" element={<SchedulePage />} />
-                  <Route path="alerts" element={<AlertsPage />} />
-                  <Route path="plans" element={<AdminPlansPage />} />
-                  <Route path="staff" element={<StaffPage />} />
-                  <Route path="barbers" element={<StaffPage />} />
-                  <Route path="blocked-slots" element={<BlockedSlotsPage />} />
-                  <Route path="relatorio" element={<MonthlyReportPage />} />
-                  <Route path="settings" element={<SettingsPage />} />
-                </Route>
+                  {/* Tenant Admin */}
+                  <Route path="/:slug/admin" element={
+                    <TenantProvider>
+                      <TenantProtectedRoute allowedRoles={['company_admin']}>
+                        <TenantAdminLayout />
+                      </TenantProtectedRoute>
+                    </TenantProvider>
+                  }>
+                    <Route index element={<Navigate to="dashboard" replace />} />
+                    <Route path="dashboard" element={<AdminDashboardPage />} />
+                    <Route path="crm" element={<CRMPage />} />
+                    <Route path="leads" element={<LeadsPage />} />
+                    <Route path="clients" element={<ClientsPage />} />
+                    <Route path="products" element={<ProductsPage />} />
+                    <Route path="schedule" element={<SchedulePage />} />
+                    <Route path="alerts" element={<AlertsPage />} />
+                    <Route path="plans" element={<AdminPlansPage />} />
+                    <Route path="staff" element={<StaffPage />} />
+                    <Route path="barbers" element={<StaffPage />} />
+                    <Route path="blocked-slots" element={<BlockedSlotsPage />} />
+                    <Route path="relatorio" element={<MonthlyReportPage />} />
+                    <Route path="settings" element={<SettingsPage />} />
+                  </Route>
 
-                {/* Tenant Staff — requires employee or secretary membership */}
-                <Route path="/:slug/agenda" element={
-                  <TenantProvider>
-                    <TenantProtectedRoute allowedRoles={['employee', 'secretary']}>
-                      <TenantStaffLayout />
-                    </TenantProtectedRoute>
-                  </TenantProvider>
-                }>
-                  <Route index element={<Navigate to="dashboard" replace />} />
-                  <Route path="dashboard" element={<BarberDashboardPage />} />
-                  <Route path="schedule" element={<UserSchedulePage />} />
-                  <Route path="crm" element={<UserCRMPage />} />
-                  <Route path="leads" element={<UserLeadsPage />} />
-                  <Route path="products" element={<UserProductsPage />} />
-                  <Route path="alerts" element={<UserAlertsPage />} />
-                  <Route path="profile" element={<UserProfilePage />} />
-                  <Route path="returns" element={<CustomerReturnReminders />} />
-                </Route>
+                  {/* Tenant Staff */}
+                  <Route path="/:slug/agenda" element={
+                    <TenantProvider>
+                      <TenantProtectedRoute allowedRoles={['employee', 'secretary']}>
+                        <TenantStaffLayout />
+                      </TenantProtectedRoute>
+                    </TenantProvider>
+                  }>
+                    <Route index element={<Navigate to="dashboard" replace />} />
+                    <Route path="dashboard" element={<BarberDashboardPage />} />
+                    <Route path="schedule" element={<UserSchedulePage />} />
+                    <Route path="crm" element={<UserCRMPage />} />
+                    <Route path="leads" element={<UserLeadsPage />} />
+                    <Route path="products" element={<UserProductsPage />} />
+                    <Route path="alerts" element={<UserAlertsPage />} />
+                    <Route path="profile" element={<UserProfilePage />} />
+                    <Route path="returns" element={<CustomerReturnReminders />} />
+                  </Route>
 
-                {/* Catch-all */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+                  {/* Catch-all */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
             </TooltipProvider>
           </AuthProvider>
         </BrowserRouter>
