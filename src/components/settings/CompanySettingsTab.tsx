@@ -140,6 +140,7 @@ export default function CompanySettingsTab() {
         address: company.address || null,
         phone: company.phone || null,
         logo_url: company.logo_url || null,
+        google_maps_url: company.google_maps_url || null,
       };
 
       const { error: companyErr } = await supabase
