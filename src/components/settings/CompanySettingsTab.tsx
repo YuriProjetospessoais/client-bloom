@@ -16,6 +16,7 @@ interface CompanyData {
   address: string;
   phone: string;
   logo_url: string;
+  google_maps_url: string;
 }
 
 interface WorkingHourRow {
