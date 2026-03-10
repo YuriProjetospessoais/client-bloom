@@ -165,6 +165,7 @@ const App = () => (
                   <Route path="agendar" element={<TenantBookingPage />} />
                   <Route path="confirmacao" element={<TenantBookingConfirmationPage />} />
                   <Route path="agendamentos" element={<PortalAppointmentsPage />} />
+                  <Route path="contato" element={<PortalContactPage />} />
                   <Route path="perfil" element={<PortalProfilePage />} />
                 </Route>
 
