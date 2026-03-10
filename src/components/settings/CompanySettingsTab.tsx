@@ -80,6 +80,7 @@ export default function CompanySettingsTab() {
           address: companyRes.data.address || '',
           phone: companyRes.data.phone || '',
           logo_url: companyRes.data.logo_url || '',
+          google_maps_url: (companyRes.data as any).google_maps_url || '',
         });
       }
 
