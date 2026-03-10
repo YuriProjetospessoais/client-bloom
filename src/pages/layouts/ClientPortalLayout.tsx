@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { BarberFlowLogo } from '@/components/layout/BarberFlowLogo';
-import { LayoutDashboard, CalendarPlus, CalendarDays, User, LogOut } from 'lucide-react';
+import { LayoutDashboard, CalendarPlus, CalendarDays, User, LogOut, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -10,6 +10,7 @@ const navItems = [
   { to: '/portal/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/portal/agendar', label: 'Agendar', icon: CalendarPlus },
   { to: '/portal/agendamentos', label: 'Agendamentos', icon: CalendarDays },
+  { to: '/portal/contato', label: 'Contato', icon: MapPin },
   { to: '/portal/perfil', label: 'Perfil', icon: User },
 ];
 

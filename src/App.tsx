@@ -59,6 +59,7 @@ import PortalDashboardPage from "./pages/portal/PortalDashboardPage";
 import PortalBookingPage from "./pages/portal/PortalBookingPage";
 import PortalAppointmentsPage from "./pages/portal/PortalAppointmentsPage";
 import PortalProfilePage from "./pages/portal/PortalProfilePage";
+import PortalContactPage from "./pages/portal/PortalContactPage";
 
 // Tenant Pages & Layouts
 import TenantLandingPage from "./pages/tenant/TenantLandingPage";
@@ -151,6 +152,7 @@ const App = () => (
                   <Route path="dashboard" element={<PortalDashboardPage />} />
                   <Route path="agendar" element={<PortalBookingPage />} />
                   <Route path="agendamentos" element={<PortalAppointmentsPage />} />
+                  <Route path="contato" element={<PortalContactPage />} />
                   <Route path="perfil" element={<PortalProfilePage />} />
                 </Route>
 
@@ -163,6 +165,7 @@ const App = () => (
                   <Route path="agendar" element={<TenantBookingPage />} />
                   <Route path="confirmacao" element={<TenantBookingConfirmationPage />} />
                   <Route path="agendamentos" element={<PortalAppointmentsPage />} />
+                  <Route path="contato" element={<PortalContactPage />} />
                   <Route path="perfil" element={<PortalProfilePage />} />
                 </Route>
 

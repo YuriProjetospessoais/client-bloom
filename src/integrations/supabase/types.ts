@@ -228,6 +228,7 @@ export type Database = {
           created_at: string
           description: string | null
           email: string | null
+          google_maps_url: string | null
           id: string
           logo_url: string | null
           max_active_appointments: number
@@ -246,6 +247,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           email?: string | null
+          google_maps_url?: string | null
           id?: string
           logo_url?: string | null
           max_active_appointments?: number
@@ -264,6 +266,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           email?: string | null
+          google_maps_url?: string | null
           id?: string
           logo_url?: string | null
           max_active_appointments?: number

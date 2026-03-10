@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Building2, Phone, Clock, ImageIcon, Loader2, Save } from 'lucide-react';
+import { Building2, Phone, Clock, ImageIcon, Loader2, Save, MapPin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -16,6 +16,7 @@ interface CompanyData {
   address: string;
   phone: string;
   logo_url: string;
+  google_maps_url: string;
 }
 
 interface WorkingHourRow {
@@ -60,7 +61,7 @@ export default function CompanySettingsTab() {
       const [companyRes, hoursRes] = await Promise.all([
         supabase
           .from('companies')
-          .select('id, name, description, address, phone, logo_url')
+          .select('id, name, description, address, phone, logo_url, google_maps_url')
           .eq('id', role.company_id)
           .single(),
         supabase
@@ -79,6 +80,7 @@ export default function CompanySettingsTab() {
           address: companyRes.data.address || '',
           phone: companyRes.data.phone || '',
           logo_url: companyRes.data.logo_url || '',
+          google_maps_url: (companyRes.data as any).google_maps_url || '',
         });
       }
 
@@ -138,6 +140,7 @@ export default function CompanySettingsTab() {
         address: company.address || null,
         phone: company.phone || null,
         logo_url: company.logo_url || null,
+        google_maps_url: company.google_maps_url || null,
       };
 
       const { error: companyErr } = await supabase
@@ -292,6 +295,22 @@ export default function CompanySettingsTab() {
             />
             <p className="text-xs text-muted-foreground">
               Usado para notificações de agendamento via WhatsApp
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="barbershop-maps" className="flex items-center gap-2">
+              <MapPin className="w-4 h-4" />
+              Link do Google Maps
+            </Label>
+            <Input
+              id="barbershop-maps"
+              value={company?.google_maps_url || ''}
+              onChange={e => setCompany(prev => prev ? { ...prev, google_maps_url: e.target.value } : null)}
+              placeholder="https://maps.google.com/..."
+            />
+            <p className="text-xs text-muted-foreground">
+              Cole o link de compartilhamento do Google Maps para a localização da barbearia
             </p>
           </div>
         </CardContent>
