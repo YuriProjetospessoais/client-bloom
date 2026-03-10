@@ -10,6 +10,7 @@ const navItems = [
   { to: '/portal/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/portal/agendar', label: 'Agendar', icon: CalendarPlus },
   { to: '/portal/agendamentos', label: 'Agendamentos', icon: CalendarDays },
+  { to: '/portal/contato', label: 'Contato', icon: MapPin },
   { to: '/portal/perfil', label: 'Perfil', icon: User },
 ];
 
