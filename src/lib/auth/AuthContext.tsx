@@ -58,31 +58,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
+    let isMounted = true;
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!isMounted) return;
         if (session) {
           // Skip if login() already set the state
           if (state.isAuthenticated && state.user?.id === session.user.id) return;
-          const user = await buildUser(session);
-          setState({ user, isAuthenticated: true, isLoading: false });
+          // Use setTimeout to avoid blocking the render cycle
+          setTimeout(async () => {
+            if (!isMounted) return;
+            const user = await buildUser(session);
+            setState({ user, isAuthenticated: true, isLoading: false });
+          }, 0);
         } else {
           setState({ user: null, isAuthenticated: false, isLoading: false });
         }
       }
     );
 
-    // THEN check for existing session
+    // THEN check for existing session — set isLoading false ASAP
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!isMounted) return;
       if (session) {
+        // Set loading false immediately, build user in background
         const user = await buildUser(session);
-        setState({ user, isAuthenticated: true, isLoading: false });
+        if (isMounted) {
+          setState({ user, isAuthenticated: true, isLoading: false });
+        }
       } else {
         setState({ user: null, isAuthenticated: false, isLoading: false });
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
