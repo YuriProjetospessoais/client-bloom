@@ -59,6 +59,7 @@ import PortalDashboardPage from "./pages/portal/PortalDashboardPage";
 import PortalBookingPage from "./pages/portal/PortalBookingPage";
 import PortalAppointmentsPage from "./pages/portal/PortalAppointmentsPage";
 import PortalProfilePage from "./pages/portal/PortalProfilePage";
+import PortalContactPage from "./pages/portal/PortalContactPage";
 
 // Tenant Pages & Layouts
 import TenantLandingPage from "./pages/tenant/TenantLandingPage";
