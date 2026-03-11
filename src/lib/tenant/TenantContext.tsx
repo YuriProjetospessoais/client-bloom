@@ -70,7 +70,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         slug: data.slug!,
         logoUrl: data.logo_url,
         coverUrl: data.cover_url,
-        primaryColor: data.primary_color || '#8B5CF6',
+        primaryColor: data.primary_color || '#C6973F',
         status: data.status,
       });
       setIsLoading(false);
