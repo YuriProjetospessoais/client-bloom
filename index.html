@@ -39,7 +39,17 @@
   <meta name="twitter:description" content="Navalhapp - CRM Premium para Barbearias. Gestão de clientes, agendamentos e relacionamentos.">
 </head>
 
-  <body style="margin: 0; background-color: #0f172a;">
+  <body>
+    <script>
+      // Apply theme class immediately to prevent FOUC (Flash of Unstyled Content)
+      (function() {
+        var stored = localStorage.getItem('lovable-theme');
+        var theme = stored === 'dark' || stored === 'light' ? stored :
+          (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.classList.remove('light', 'dark');
+        document.documentElement.classList.add(theme);
+      })();
+    </script>
     <div id="root">
       <style>
         .app-splash-wrapper {
