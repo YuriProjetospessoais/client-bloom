@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
@@ -39,7 +39,17 @@
   <meta name="twitter:description" content="Navalhapp - CRM Premium para Barbearias. Gestão de clientes, agendamentos e relacionamentos.">
 </head>
 
-  <body style="margin: 0; background-color: #0f172a;">
+  <body>
+    <script>
+      // Apply theme class immediately to prevent FOUC (Flash of Unstyled Content)
+      (function() {
+        var stored = localStorage.getItem('lovable-theme');
+        var theme = stored === 'dark' || stored === 'light' ? stored :
+          (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.classList.remove('light', 'dark');
+        document.documentElement.classList.add(theme);
+      })();
+    </script>
     <div id="root">
       <style>
         .app-splash-wrapper {
@@ -49,9 +59,13 @@
           justify-content: center;
           min-height: 100vh;
           min-height: 100dvh;
-          background-color: #0f172a;
+          background-color: hsl(35, 25%, 95%);
           font-family: 'Playfair Display', serif;
-          color: white;
+          color: hsl(25, 20%, 15%);
+        }
+        .dark .app-splash-wrapper {
+          background-color: hsl(25, 15%, 10%);
+          color: hsl(35, 20%, 92%);
         }
         .app-splash-logo {
           width: 80px; height: 80px;
