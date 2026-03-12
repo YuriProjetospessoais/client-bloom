@@ -224,59 +224,77 @@ export type Database = {
         Row: {
           address: string | null
           cancel_limit_hours: number
+          city: string | null
           cover_url: string | null
           created_at: string
           description: string | null
           email: string | null
           google_maps_url: string | null
           id: string
+          latitude: number | null
           logo_url: string | null
+          longitude: number | null
           max_active_appointments: number
           max_advance_days: number
           name: string
           phone: string | null
           primary_color: string | null
           slug: string | null
+          state: string | null
           status: Database["public"]["Enums"]["company_status"]
           updated_at: string
+          whatsapp_number: string | null
+          zip_code: string | null
         }
         Insert: {
           address?: string | null
           cancel_limit_hours?: number
+          city?: string | null
           cover_url?: string | null
           created_at?: string
           description?: string | null
           email?: string | null
           google_maps_url?: string | null
           id?: string
+          latitude?: number | null
           logo_url?: string | null
+          longitude?: number | null
           max_active_appointments?: number
           max_advance_days?: number
           name: string
           phone?: string | null
           primary_color?: string | null
           slug?: string | null
+          state?: string | null
           status?: Database["public"]["Enums"]["company_status"]
           updated_at?: string
+          whatsapp_number?: string | null
+          zip_code?: string | null
         }
         Update: {
           address?: string | null
           cancel_limit_hours?: number
+          city?: string | null
           cover_url?: string | null
           created_at?: string
           description?: string | null
           email?: string | null
           google_maps_url?: string | null
           id?: string
+          latitude?: number | null
           logo_url?: string | null
+          longitude?: number | null
           max_active_appointments?: number
           max_advance_days?: number
           name?: string
           phone?: string | null
           primary_color?: string | null
           slug?: string | null
+          state?: string | null
           status?: Database["public"]["Enums"]["company_status"]
           updated_at?: string
+          whatsapp_number?: string | null
+          zip_code?: string | null
         }
         Relationships: []
       }

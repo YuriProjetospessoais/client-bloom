@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTenant } from '@/lib/tenant/TenantContext';
 import { Button } from '@/components/ui/button';
-import { CalendarPlus, Scissors, MapPin, Phone, Clock, Instagram, Facebook, ArrowRight } from 'lucide-react';
+import { CalendarPlus, Scissors, MapPin, Phone, Clock, Instagram, Facebook, ArrowRight, MessageCircle, X } from 'lucide-react';
 import TenantNotFound from './TenantNotFound';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 
 interface Service {
   id: string;
@@ -27,6 +28,13 @@ interface CompanyDetails {
   address: string | null;
   phone: string | null;
   email: string | null;
+  city: string | null;
+  state: string | null;
+  zip_code: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  google_maps_url: string | null;
+  whatsapp_number: string | null;
 }
 
 export default function TenantLandingPage() {
@@ -37,6 +45,7 @@ export default function TenantLandingPage() {
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [companyDetails, setCompanyDetails] = useState<CompanyDetails | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [whatsappOpen, setWhatsappOpen] = useState(false);
 
   useEffect(() => {
     if (!tenant?.id) return;
@@ -45,14 +54,14 @@ export default function TenantLandingPage() {
       setIsLoadingData(true);
       
       const [servicesRes, profsRes, companyRes] = await Promise.all([
-        supabase.from('services').select('*').eq('company_id', tenant.id).eq('active', true).order('name'),
-        supabase.from('professionals').select('*').eq('company_id', tenant.id).eq('active', true).order('name'),
-        supabase.from('companies').select('address, phone, email').eq('id', tenant.id).single()
+        supabase.from('services').select('*').eq('company_id', tenant!.id).eq('active', true).order('name'),
+        supabase.from('professionals').select('*').eq('company_id', tenant!.id).eq('active', true).order('name'),
+        supabase.from('companies').select('address, phone, email, city, state, zip_code, latitude, longitude, google_maps_url, whatsapp_number').eq('id', tenant!.id).single()
       ]);
 
       if (servicesRes.data) setServices(servicesRes.data);
       if (profsRes.data) setProfessionals(profsRes.data);
-      if (companyRes.data) setCompanyDetails(companyRes.data);
+      if (companyRes.data) setCompanyDetails(companyRes.data as any);
       
       setIsLoadingData(false);
     }
@@ -73,9 +82,31 @@ export default function TenantLandingPage() {
   const primaryStyle = { backgroundColor: tenant.primaryColor, color: '#fff' };
   const primaryText = { color: tenant.primaryColor };
 
+  const fullAddress = [
+    companyDetails?.address,
+    companyDetails?.city,
+    companyDetails?.state,
+    companyDetails?.zip_code,
+  ].filter(Boolean).join(', ');
+
+  const hasCoordinates = companyDetails?.latitude && companyDetails?.longitude;
+  const mapEmbedUrl = hasCoordinates
+    ? `https://maps.google.com/maps?q=${companyDetails.latitude},${companyDetails.longitude}&z=15&output=embed`
+    : fullAddress
+      ? `https://maps.google.com/maps?q=${encodeURIComponent(fullAddress)}&z=15&output=embed`
+      : null;
+
+  const mapsDirectionUrl = hasCoordinates
+    ? `https://www.google.com/maps/dir/?api=1&destination=${companyDetails.latitude},${companyDetails.longitude}`
+    : companyDetails?.google_maps_url || (fullAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}` : null);
+
+  const whatsappUrl = companyDetails?.whatsapp_number
+    ? `https://wa.me/${companyDetails.whatsapp_number.replace(/\D/g, '')}`
+    : null;
+
   return (
     <div className="min-h-screen bg-background font-sans text-foreground flex flex-col">
-      {/* Navbar Minimalista */}
+      {/* Navbar */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -89,9 +120,7 @@ export default function TenantLandingPage() {
             <span className="font-bold text-lg truncate max-w-[200px] sm:max-w-none">{tenant.name}</span>
           </div>
           <Button asChild size="sm" style={primaryStyle} className="hover:opacity-90">
-            <Link to={`/${slug}/agendar`}>
-              Agendar
-            </Link>
+            <Link to={`/${slug}/agendar`}>Agendar</Link>
           </Button>
         </div>
       </header>
@@ -109,9 +138,7 @@ export default function TenantLandingPage() {
         {!tenant.coverUrl && (
           <div 
             className="absolute inset-0 z-0 opacity-10"
-            style={{
-              backgroundImage: 'radial-gradient(circle at center, var(--tenant-primary-hex, var(--primary)) 0%, transparent 70%)',
-            }}
+            style={{ backgroundImage: 'radial-gradient(circle at center, var(--tenant-primary-hex, var(--primary)) 0%, transparent 70%)' }}
           />
         )}
         
@@ -119,18 +146,13 @@ export default function TenantLandingPage() {
           {tenant.logoUrl ? (
             <img src={tenant.logoUrl} alt={tenant.name} className="h-32 w-32 rounded-3xl object-cover mx-auto shadow-2xl" />
           ) : (
-            <div
-              className="h-32 w-32 rounded-3xl flex items-center justify-center mx-auto shadow-2xl"
-              style={primaryStyle}
-            >
+            <div className="h-32 w-32 rounded-3xl flex items-center justify-center mx-auto shadow-2xl" style={primaryStyle}>
               <Scissors className="h-16 w-16" />
             </div>
           )}
           
           <div className="space-y-4">
-            <h1 className="text-4xl md:text-6xl font-black tracking-tight font-display">
-              {tenant.name}
-            </h1>
+            <h1 className="text-4xl md:text-6xl font-black tracking-tight font-display">{tenant.name}</h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
               Experiência premium em barbearia. Agende seu horário de forma rápida e garanta um atendimento de excelência.
             </p>
@@ -249,15 +271,15 @@ export default function TenantLandingPage() {
       </section>
 
       {/* Location & Contact */}
-      <section className="py-20 px-4 bg-muted/10">
+      <section id="localizacao" className="py-20 px-4 bg-muted/10 scroll-mt-16">
         <div className="container mx-auto max-w-5xl">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="space-y-8">
-              <div>
-                <h2 className="text-3xl font-bold font-display mb-2">Visite-nos</h2>
-                <p className="text-muted-foreground">Venha conhecer nosso espaço e tomar uma com a gente.</p>
-              </div>
+          <div className="text-center mb-12 space-y-2">
+            <h2 className="text-3xl font-bold font-display">Localização</h2>
+            <p className="text-muted-foreground">Venha nos visitar</p>
+          </div>
 
+          <div className="grid md:grid-cols-2 gap-12 items-stretch">
+            <div className="space-y-8">
               <div className="space-y-6">
                 <div className="flex gap-4">
                   <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 bg-background shadow-sm" style={primaryText}>
@@ -266,8 +288,19 @@ export default function TenantLandingPage() {
                   <div>
                     <h4 className="font-semibold text-lg">Endereço</h4>
                     <p className="text-muted-foreground mt-1">
-                      {companyDetails?.address || 'Endereço não informado'}
+                      {fullAddress || 'Endereço não informado'}
                     </p>
+                    {mapsDirectionUrl && (
+                      <a
+                        href={mapsDirectionUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm font-medium mt-2 hover:underline"
+                        style={primaryText}
+                      >
+                        Abrir no Google Maps <ArrowRight className="w-3 h-3" />
+                      </a>
+                    )}
                   </div>
                 </div>
 
@@ -298,11 +331,23 @@ export default function TenantLandingPage() {
               </div>
             </div>
             
+            {/* Google Maps Embed */}
             <div className="aspect-square md:aspect-auto md:h-full bg-card rounded-3xl overflow-hidden relative border shadow-sm min-h-[300px]">
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/20 text-muted-foreground">
-                <MapPin className="w-12 h-12 mb-4 opacity-50" />
-                <span className="text-sm font-medium">Localização no mapa</span>
-              </div>
+              {mapEmbedUrl ? (
+                <iframe
+                  src={mapEmbedUrl}
+                  className="w-full h-full min-h-[300px] border-0"
+                  allowFullScreen
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title="Localização da barbearia"
+                />
+              ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/20 text-muted-foreground">
+                  <MapPin className="w-12 h-12 mb-4 opacity-50" />
+                  <span className="text-sm font-medium">Localização não configurada</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -340,6 +385,49 @@ export default function TenantLandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Floating WhatsApp Button */}
+      {whatsappUrl && (
+        <button
+          onClick={() => setWhatsappOpen(true)}
+          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-transform hover:scale-110 active:scale-95"
+          style={{ backgroundColor: '#25D366' }}
+          aria-label="Falar no WhatsApp"
+        >
+          <svg viewBox="0 0 32 32" className="w-7 h-7 fill-white">
+            <path d="M16.004 0h-.008C7.174 0 0 7.176 0 16.004c0 3.5 1.128 6.744 3.046 9.378L1.054 31.29l6.118-1.958A15.908 15.908 0 0016.004 32C24.826 32 32 24.826 32 16.004 32 7.176 24.826 0 16.004 0zm9.302 22.602c-.39 1.1-2.296 2.106-3.168 2.178-.872.072-1.676.392-5.648-1.176-4.78-1.888-7.794-6.786-8.028-7.1-.234-.316-1.912-2.542-1.912-4.852 0-2.31 1.21-3.448 1.638-3.918.39-.43.91-.586 1.21-.586.35 0 .586.004.858.016.274.012.642-.104.974.744.352.878 1.17 2.856 1.288 3.062.078.156.156.39.04.624-.118.234-.176.38-.352.586-.176.196-.37.44-.528.586-.176.176-.36.37-.156.722.204.352.906 1.494 1.946 2.42 1.336 1.192 2.462 1.56 2.812 1.736.352.176.556.148.76-.088.204-.236.878-1.024 1.112-1.376.234-.352.468-.294.786-.176.316.116 2.012.95 2.364 1.126.352.176.586.264.664.41.078.146.078.84-.312 1.94z" />
+          </svg>
+        </button>
+      )}
+
+      {/* WhatsApp Dialog */}
+      <Dialog open={whatsappOpen} onOpenChange={setWhatsappOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="w-5 h-5" style={primaryText} />
+              Falar com a barbearia
+            </DialogTitle>
+            <DialogDescription>
+              Você será redirecionado para o WhatsApp da barbearia para falar diretamente com o atendimento.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <DialogClose asChild>
+              <Button variant="outline">Cancelar</Button>
+            </DialogClose>
+            <Button
+              asChild
+              style={{ backgroundColor: '#25D366', color: '#fff' }}
+              className="hover:opacity-90"
+            >
+              <a href={whatsappUrl!} target="_blank" rel="noopener noreferrer" onClick={() => setWhatsappOpen(false)}>
+                Falar no WhatsApp
+              </a>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

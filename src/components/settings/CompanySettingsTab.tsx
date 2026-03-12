@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Building2, Phone, Clock, ImageIcon, Loader2, Save, MapPin } from 'lucide-react';
+import { Building2, Phone, Clock, ImageIcon, Loader2, Save, MapPin, MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -14,9 +14,15 @@ interface CompanyData {
   name: string;
   description: string;
   address: string;
+  city: string;
+  state: string;
+  zip_code: string;
   phone: string;
   logo_url: string;
   google_maps_url: string;
+  latitude: number | null;
+  longitude: number | null;
+  whatsapp_number: string;
 }
 
 interface WorkingHourRow {
@@ -33,7 +39,7 @@ const DEFAULT_HOURS: WorkingHourRow[] = Array.from({ length: 7 }, (_, i) => ({
   day_of_week: i,
   start_time: '09:00',
   end_time: '19:00',
-  is_available: i >= 1 && i <= 6, // Mon-Sat
+  is_available: i >= 1 && i <= 6,
 }));
 
 export default function CompanySettingsTab() {
@@ -61,7 +67,7 @@ export default function CompanySettingsTab() {
       const [companyRes, hoursRes] = await Promise.all([
         supabase
           .from('companies')
-          .select('id, name, description, address, phone, logo_url, google_maps_url')
+          .select('id, name, description, address, phone, logo_url, google_maps_url, city, state, zip_code, latitude, longitude, whatsapp_number')
           .eq('id', role.company_id)
           .single(),
         supabase
@@ -73,14 +79,21 @@ export default function CompanySettingsTab() {
       ]);
 
       if (companyRes.data) {
+        const d = companyRes.data as any;
         setCompany({
-          id: companyRes.data.id,
-          name: companyRes.data.name || '',
-          description: (companyRes.data as any).description || '',
-          address: companyRes.data.address || '',
-          phone: companyRes.data.phone || '',
-          logo_url: companyRes.data.logo_url || '',
-          google_maps_url: (companyRes.data as any).google_maps_url || '',
+          id: d.id,
+          name: d.name || '',
+          description: d.description || '',
+          address: d.address || '',
+          city: d.city || '',
+          state: d.state || '',
+          zip_code: d.zip_code || '',
+          phone: d.phone || '',
+          logo_url: d.logo_url || '',
+          google_maps_url: d.google_maps_url || '',
+          latitude: d.latitude ?? null,
+          longitude: d.longitude ?? null,
+          whatsapp_number: d.whatsapp_number || '',
         });
       }
 
@@ -133,14 +146,19 @@ export default function CompanySettingsTab() {
     setSaving(true);
 
     try {
-      // Save company info (cast to any for description which isn't in generated types yet)
       const updatePayload: any = {
         name: company.name,
         description: company.description || null,
         address: company.address || null,
+        city: company.city || null,
+        state: company.state || null,
+        zip_code: company.zip_code || null,
         phone: company.phone || null,
         logo_url: company.logo_url || null,
         google_maps_url: company.google_maps_url || null,
+        latitude: company.latitude,
+        longitude: company.longitude,
+        whatsapp_number: company.whatsapp_number || null,
       };
 
       const { error: companyErr } = await supabase
@@ -150,27 +168,16 @@ export default function CompanySettingsTab() {
 
       if (companyErr) throw companyErr;
 
-      // Upsert working hours (company-level, no professional)
       for (const h of hours) {
         if (h.id) {
           await supabase
             .from('working_hours')
-            .update({
-              start_time: h.start_time,
-              end_time: h.end_time,
-              is_available: h.is_available,
-            })
+            .update({ start_time: h.start_time, end_time: h.end_time, is_available: h.is_available })
             .eq('id', h.id);
         } else {
           const { data } = await supabase
             .from('working_hours')
-            .insert({
-              company_id: companyId,
-              day_of_week: h.day_of_week,
-              start_time: h.start_time,
-              end_time: h.end_time,
-              is_available: h.is_available,
-            })
+            .insert({ company_id: companyId, day_of_week: h.day_of_week, start_time: h.start_time, end_time: h.end_time, is_available: h.is_available })
             .select('id')
             .single();
           if (data) h.id = data.id;
@@ -190,6 +197,10 @@ export default function CompanySettingsTab() {
     setHours(prev => prev.map(h =>
       h.day_of_week === dayIndex ? { ...h, [field]: value } : h
     ));
+  };
+
+  const updateField = (field: keyof CompanyData, value: any) => {
+    setCompany(prev => prev ? { ...prev, [field]: value } : null);
   };
 
   if (loading) {
@@ -224,13 +235,7 @@ export default function CompanySettingsTab() {
                 )}
               </div>
               <div className="relative">
-                <Input
-                  type="file"
-                  accept="image/*"
-                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                  onChange={handleLogoUpload}
-                  disabled={uploading}
-                />
+                <Input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" onChange={handleLogoUpload} disabled={uploading} />
                 <Button type="button" variant="outline" size="sm" disabled={uploading}>
                   {uploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                   {uploading ? 'Enviando...' : 'Alterar Logo'}
@@ -241,39 +246,92 @@ export default function CompanySettingsTab() {
 
           <div className="space-y-2">
             <Label htmlFor="barbershop-name">Nome da Barbearia *</Label>
-            <Input
-              id="barbershop-name"
-              value={company?.name || ''}
-              onChange={e => setCompany(prev => prev ? { ...prev, name: e.target.value } : null)}
-              placeholder="Ex: Barbearia do João"
-            />
+            <Input id="barbershop-name" value={company?.name || ''} onChange={e => updateField('name', e.target.value)} placeholder="Ex: Barbearia do João" />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="barbershop-desc">Descrição</Label>
-            <Textarea
-              id="barbershop-desc"
-              value={company?.description || ''}
-              onChange={e => setCompany(prev => prev ? { ...prev, description: e.target.value } : null)}
-              placeholder="Uma breve descrição da sua barbearia..."
-              rows={3}
-            />
+            <Textarea id="barbershop-desc" value={company?.description || ''} onChange={e => updateField('description', e.target.value)} placeholder="Uma breve descrição da sua barbearia..." rows={3} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Location */}
+      <Card className="glass-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MapPin className="w-5 h-5" />
+            Localização
+          </CardTitle>
+          <CardDescription>Endereço e coordenadas para exibição no mapa da landing page</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="barbershop-address">Endereço (Rua, número, bairro)</Label>
+            <Input id="barbershop-address" value={company?.address || ''} onChange={e => updateField('address', e.target.value)} placeholder="Rua Exemplo, 123 - Bairro" />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="barbershop-city">Cidade</Label>
+              <Input id="barbershop-city" value={company?.city || ''} onChange={e => updateField('city', e.target.value)} placeholder="São Paulo" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="barbershop-state">Estado</Label>
+              <Input id="barbershop-state" value={company?.state || ''} onChange={e => updateField('state', e.target.value)} placeholder="SP" maxLength={2} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="barbershop-zip">CEP</Label>
+              <Input id="barbershop-zip" value={company?.zip_code || ''} onChange={e => updateField('zip_code', e.target.value)} placeholder="01001-000" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="barbershop-lat">Latitude</Label>
+              <Input id="barbershop-lat" type="number" step="any" value={company?.latitude ?? ''} onChange={e => updateField('latitude', e.target.value ? parseFloat(e.target.value) : null)} placeholder="-23.550520" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="barbershop-lng">Longitude</Label>
+              <Input id="barbershop-lng" type="number" step="any" value={company?.longitude ?? ''} onChange={e => updateField('longitude', e.target.value ? parseFloat(e.target.value) : null)} placeholder="-46.633308" />
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="barbershop-address">Endereço</Label>
+            <Label htmlFor="barbershop-maps">Link do Google Maps (opcional)</Label>
+            <Input id="barbershop-maps" value={company?.google_maps_url || ''} onChange={e => updateField('google_maps_url', e.target.value)} placeholder="https://maps.google.com/..." />
+            <p className="text-xs text-muted-foreground">Se preenchido, será usado como link direto. Caso contrário, usamos latitude/longitude ou endereço.</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* WhatsApp */}
+      <Card className="glass-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageCircle className="w-5 h-5" />
+            WhatsApp
+          </CardTitle>
+          <CardDescription>Número exibido no botão flutuante de WhatsApp da landing page</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="barbershop-whatsapp">Número do WhatsApp</Label>
             <Input
-              id="barbershop-address"
-              value={company?.address || ''}
-              onChange={e => setCompany(prev => prev ? { ...prev, address: e.target.value } : null)}
-              placeholder="Rua, número, bairro, cidade"
+              id="barbershop-whatsapp"
+              value={company?.whatsapp_number || ''}
+              onChange={e => updateField('whatsapp_number', e.target.value)}
+              placeholder="5511999999999"
             />
+            <p className="text-xs text-muted-foreground">
+              Formato internacional sem espaços ou traços. Ex: 5511999999999 (55 = Brasil, 11 = DDD)
+            </p>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="barbershop-phone" className="flex items-center gap-2">
               <Phone className="w-4 h-4" />
-              Telefone / WhatsApp
+              Telefone (exibido na landing page)
             </Label>
             <Input
               id="barbershop-phone"
@@ -288,30 +346,11 @@ export default function CompanySettingsTab() {
                 } else if (raw.length > 0) {
                   masked = `(${raw}`;
                 }
-                setCompany(prev => prev ? { ...prev, phone: masked } : null);
+                updateField('phone', masked);
               }}
               placeholder="(11) 99999-9999"
               maxLength={16}
             />
-            <p className="text-xs text-muted-foreground">
-              Usado para notificações de agendamento via WhatsApp
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="barbershop-maps" className="flex items-center gap-2">
-              <MapPin className="w-4 h-4" />
-              Link do Google Maps
-            </Label>
-            <Input
-              id="barbershop-maps"
-              value={company?.google_maps_url || ''}
-              onChange={e => setCompany(prev => prev ? { ...prev, google_maps_url: e.target.value } : null)}
-              placeholder="https://maps.google.com/..."
-            />
-            <p className="text-xs text-muted-foreground">
-              Cole o link de compartilhamento do Google Maps para a localização da barbearia
-            </p>
           </div>
         </CardContent>
       </Card>
@@ -328,32 +367,16 @@ export default function CompanySettingsTab() {
         <CardContent>
           <div className="space-y-3">
             {hours.map(h => (
-              <div
-                key={h.day_of_week}
-                className="flex items-center gap-4 p-3 rounded-lg bg-muted/50"
-              >
+              <div key={h.day_of_week} className="flex items-center gap-4 p-3 rounded-lg bg-muted/50">
                 <div className="w-24 shrink-0">
                   <span className="font-medium text-sm text-foreground">{DAY_NAMES[h.day_of_week]}</span>
                 </div>
-                <Switch
-                  checked={h.is_available}
-                  onCheckedChange={val => updateHour(h.day_of_week, 'is_available', val)}
-                />
+                <Switch checked={h.is_available} onCheckedChange={val => updateHour(h.day_of_week, 'is_available', val)} />
                 {h.is_available ? (
                   <div className="flex items-center gap-2">
-                    <Input
-                      type="time"
-                      value={h.start_time}
-                      onChange={e => updateHour(h.day_of_week, 'start_time', e.target.value)}
-                      className="w-28"
-                    />
+                    <Input type="time" value={h.start_time} onChange={e => updateHour(h.day_of_week, 'start_time', e.target.value)} className="w-28" />
                     <span className="text-muted-foreground text-sm">até</span>
-                    <Input
-                      type="time"
-                      value={h.end_time}
-                      onChange={e => updateHour(h.day_of_week, 'end_time', e.target.value)}
-                      className="w-28"
-                    />
+                    <Input type="time" value={h.end_time} onChange={e => updateHour(h.day_of_week, 'end_time', e.target.value)} className="w-28" />
                   </div>
                 ) : (
                   <span className="text-sm text-muted-foreground">Fechado</span>
@@ -366,11 +389,7 @@ export default function CompanySettingsTab() {
 
       {/* Save */}
       <div className="flex justify-end">
-        <Button
-          className="gradient-primary text-white gap-2"
-          onClick={handleSave}
-          disabled={saving}
-        >
+        <Button className="gradient-primary text-white gap-2" onClick={handleSave} disabled={saving}>
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           {saving ? 'Salvando...' : 'Salvar Configurações'}
         </Button>
