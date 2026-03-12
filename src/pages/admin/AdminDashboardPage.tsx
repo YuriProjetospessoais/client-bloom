@@ -215,10 +215,10 @@ export default function AdminDashboardPage() {
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: 'Clientes Hoje', value: clientsToday, change: '+2', icon: Users, positive: true },
-          { label: 'Horários Livres', value: freeSlots, change: '+1', icon: Clock, positive: true },
+          { label: `Clientes ${periodLabel}`, value: clientsPeriod, change: '+2', icon: Users, positive: true },
+          ...(freeSlots !== null ? [{ label: 'Horários Livres', value: freeSlots, change: '+1', icon: Clock, positive: true }] : []),
           { label: 'Retornos Pendentes', value: pendingReturns, change: '+7', icon: RotateCcw, positive: false },
-          { label: 'Faturamento Hoje', value: `R$${todayRevenue}`, change: '+R$115', icon: DollarSign, positive: true, highlight: true },
+          { label: `Faturamento ${periodLabel}`, value: `R$${periodRevenue}`, change: '+R$115', icon: DollarSign, positive: true, highlight: true },
         ].map((stat, index) => (
           <motion.div
             key={stat.label}
