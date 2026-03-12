@@ -68,17 +68,45 @@ export default function AdminDashboardPage() {
     return 'Boa noite';
   };
 
-  // Today's appointments
-  const today = new Date().toISOString().split('T')[0];
+  // Date range based on period filter
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  
+  const getDateRange = (): { start: string; end: string } => {
+    const startDate = new Date(today);
+    const endDate = new Date(today);
+    if (periodFilter === 'week') {
+      const day = startDate.getDay();
+      startDate.setDate(startDate.getDate() - (day === 0 ? 6 : day - 1)); // Monday
+      endDate.setDate(startDate.getDate() + 6); // Sunday
+    } else if (periodFilter === 'month') {
+      startDate.setDate(1);
+      endDate.setMonth(endDate.getMonth() + 1);
+      endDate.setDate(0); // last day of month
+    }
+    return {
+      start: startDate.toISOString().split('T')[0],
+      end: endDate.toISOString().split('T')[0],
+    };
+  };
+
+  const { start, end } = getDateRange();
+  
+  const filteredAppointments = appointments
+    .filter(a => a.date >= start && a.date <= end)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+
+  // Today's appointments (always for the schedule card)
   const todayAppointments = appointments
-    .filter(a => a.date === today)
+    .filter(a => a.date === todayStr)
     .sort((a, b) => a.time.localeCompare(b.time));
 
-  // Stats calculation
-  const clientsToday = todayAppointments.length;
-  const freeSlots = 8 - clientsToday;
+  // Stats calculation based on period
+  const periodLabel = periodFilter === 'today' ? 'Hoje' : periodFilter === 'week' ? 'Semana' : 'Mês';
+  const clientsPeriod = filteredAppointments.length;
+  const freeSlots = periodFilter === 'today' ? Math.max(0, 8 - todayAppointments.length) : null;
   const pendingReturns = opportunities.filter(o => o.type === 'repurchase' && o.status === 'pending').length;
-  const todayRevenue = todayAppointments.reduce((acc) => acc + 50, 0);
+  const periodRevenue = filteredAppointments.reduce((acc) => acc + 50, 0);
 
   // Birthday opportunities
   const birthdayOpportunities = opportunities.filter(o => o.type === 'birthday' && o.status === 'pending');
@@ -187,10 +215,10 @@ export default function AdminDashboardPage() {
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: 'Clientes Hoje', value: clientsToday, change: '+2', icon: Users, positive: true },
-          { label: 'Horários Livres', value: freeSlots, change: '+1', icon: Clock, positive: true },
+          { label: `Clientes ${periodLabel}`, value: clientsPeriod, change: '+2', icon: Users, positive: true },
+          ...(freeSlots !== null ? [{ label: 'Horários Livres', value: freeSlots, change: '+1', icon: Clock, positive: true }] : []),
           { label: 'Retornos Pendentes', value: pendingReturns, change: '+7', icon: RotateCcw, positive: false },
-          { label: 'Faturamento Hoje', value: `R$${todayRevenue}`, change: '+R$115', icon: DollarSign, positive: true, highlight: true },
+          { label: `Faturamento ${periodLabel}`, value: `R$${periodRevenue}`, change: '+R$115', icon: DollarSign, positive: true, highlight: true },
         ].map((stat, index) => (
           <motion.div
             key={stat.label}
