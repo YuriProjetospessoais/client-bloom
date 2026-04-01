@@ -215,6 +215,7 @@ const App = () => (
                     <Route index element={<Navigate to="dashboard" replace />} />
                     <Route path="dashboard" element={<BarberDashboardPage />} />
                     <Route path="schedule" element={<UserSchedulePage />} />
+                    <Route path="clients" element={<ClientsPage />} />
                     <Route path="crm" element={<UserCRMPage />} />
                     <Route path="leads" element={<UserLeadsPage />} />
                     <Route path="products" element={<UserProductsPage />} />
