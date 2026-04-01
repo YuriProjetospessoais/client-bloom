@@ -3,9 +3,10 @@ import { useTenant } from '@/lib/tenant/TenantContext';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { UserMenu } from '@/components/layout/UserMenu';
 import TenantNotFound from '@/pages/tenant/TenantNotFound';
-import { LayoutDashboard, Calendar, User, RotateCcw } from 'lucide-react';
+import { LayoutDashboard, Calendar, User, RotateCcw, Users, Bell, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppointmentNotifications } from '@/hooks/use-appointment-notifications';
+import { useAuth } from '@/lib/auth/AuthContext';
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger
@@ -15,11 +16,19 @@ import {
 export default function TenantStaffLayout() {
   const { slug } = useParams();
   const { tenant, isLoading, error } = useTenant();
+  const { user } = useAuth();
   useAppointmentNotifications();
+
+  const isSecretary = user?.role === 'secretary' || user?.role === 'company_admin';
 
   const navItems = [
     { to: `/${slug}/agenda/dashboard`, label: 'Dashboard', icon: LayoutDashboard },
     { to: `/${slug}/agenda/schedule`, label: 'Agenda', icon: Calendar },
+    ...(isSecretary ? [
+      { to: `/${slug}/agenda/clients`, label: 'Clientes', icon: Users },
+      { to: `/${slug}/agenda/alerts`, label: 'Alertas', icon: Bell },
+      { to: `/${slug}/agenda/products`, label: 'Produtos', icon: Package },
+    ] : []),
     { to: `/${slug}/agenda/returns`, label: 'Retornos', icon: RotateCcw },
     { to: `/${slug}/agenda/profile`, label: 'Perfil', icon: User },
   ];
