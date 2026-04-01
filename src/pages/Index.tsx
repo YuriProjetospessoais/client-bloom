@@ -22,6 +22,7 @@ const Index = () => {
     case 'company_admin':
       return <Navigate to="/admin/dashboard" replace />;
     case 'employee':
+    case 'secretary':
       return <Navigate to="/user/dashboard" replace />;
     case 'client':
       return <Navigate to="/portal" replace />;
