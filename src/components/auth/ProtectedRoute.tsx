@@ -29,7 +29,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   if (allowedRoles && user && !allowedRoles.includes(user.role) && user.role !== 'super_admin') {
     if (user.role === 'company_admin') {
       return <Navigate to="/admin/dashboard" replace />;
-    } else if (user.role === 'employee') {
+    } else if (user.role === 'employee' || user.role === 'secretary') {
       return <Navigate to="/user/dashboard" replace />;
     } else if (user.role === 'client') {
       return <Navigate to="/portal" replace />;
