@@ -20,13 +20,14 @@ interface TenantMembership {
 
 const ROLE_META: Record<string, { label: string; icon: typeof Crown; color: string }> = {
   company_admin: { label: 'Administrador', icon: Crown, color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
-  employee: { label: 'Colaborador', icon: Briefcase, color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+  employee: { label: 'Barbeiro', icon: Briefcase, color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+  secretary: { label: 'Secretária', icon: Briefcase, color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
   client: { label: 'Cliente', icon: User, color: 'bg-green-500/20 text-green-400 border-green-500/30' },
 };
 
 function getRoleDestination(role: string, slug: string): string {
   if (role === 'company_admin') return `/${slug}/admin`;
-  if (role === 'employee') return `/${slug}/agenda`;
+  if (role === 'employee' || role === 'secretary') return `/${slug}/agenda`;
   return `/${slug}/dashboard`;
 }
 
