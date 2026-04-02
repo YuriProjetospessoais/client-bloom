@@ -194,14 +194,14 @@ const App = () => (
                     <Route path="crm" element={<CRMPage />} />
                     <Route path="leads" element={<LeadsPage />} />
                     <Route path="clients" element={<ClientsPage />} />
-                    <Route path="products" element={<ProductsPage />} />
+                    <Route path="products" element={<FeatureGate feature="products"><ProductsPage /></FeatureGate>} />
                     <Route path="schedule" element={<SchedulePage />} />
-                    <Route path="alerts" element={<AlertsPage />} />
+                    <Route path="alerts" element={<FeatureGate feature="return_alerts"><AlertsPage /></FeatureGate>} />
                     <Route path="plans" element={<AdminPlansPage />} />
                     <Route path="staff" element={<StaffPage />} />
                     <Route path="barbers" element={<StaffPage />} />
                     <Route path="blocked-slots" element={<BlockedSlotsPage />} />
-                    <Route path="relatorio" element={<MonthlyReportPage />} />
+                    <Route path="relatorio" element={<FeatureGate feature="reports"><MonthlyReportPage /></FeatureGate>} />
                     <Route path="settings" element={<SettingsPage />} />
                   </Route>
 
