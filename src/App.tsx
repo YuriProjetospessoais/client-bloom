@@ -219,10 +219,10 @@ const App = () => (
                     <Route path="clients" element={<ClientsPage />} />
                     <Route path="crm" element={<UserCRMPage />} />
                     <Route path="leads" element={<UserLeadsPage />} />
-                    <Route path="products" element={<UserProductsPage />} />
-                    <Route path="alerts" element={<UserAlertsPage />} />
+                    <Route path="products" element={<FeatureGate feature="products"><UserProductsPage /></FeatureGate>} />
+                    <Route path="alerts" element={<FeatureGate feature="return_alerts"><UserAlertsPage /></FeatureGate>} />
                     <Route path="profile" element={<UserProfilePage />} />
-                    <Route path="returns" element={<CustomerReturnReminders />} />
+                    <Route path="returns" element={<FeatureGate feature="return_alerts"><CustomerReturnReminders /></FeatureGate>} />
                   </Route>
 
                   {/* Catch-all */}
