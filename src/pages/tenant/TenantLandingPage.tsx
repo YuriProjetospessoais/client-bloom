@@ -56,7 +56,7 @@ export default function TenantLandingPage() {
       const [servicesRes, profsRes, companyRes] = await Promise.all([
         supabase.from('services').select('*').eq('company_id', tenant!.id).eq('active', true).order('name'),
         supabase.from('professionals').select('*').eq('company_id', tenant!.id).eq('active', true).order('name'),
-        supabase.from('companies').select('address, phone, email, city, state, zip_code, latitude, longitude, google_maps_url, whatsapp_number').eq('id', tenant!.id).single()
+        supabase.from('companies_public').select('address, phone, city, state, zip_code, latitude, longitude, google_maps_url, whatsapp_number').eq('id', tenant!.id).single()
       ]);
 
       if (servicesRes.data) setServices(servicesRes.data);

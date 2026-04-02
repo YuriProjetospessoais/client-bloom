@@ -739,10 +739,12 @@ export type Database = {
           max_active_appointments: number | null
           max_advance_days: number | null
           name: string | null
+          phone: string | null
           primary_color: string | null
           slug: string | null
           state: string | null
           status: Database["public"]["Enums"]["company_status"] | null
+          whatsapp_number: string | null
           zip_code: string | null
         }
         Insert: {
@@ -759,10 +761,12 @@ export type Database = {
           max_active_appointments?: number | null
           max_advance_days?: number | null
           name?: string | null
+          phone?: string | null
           primary_color?: string | null
           slug?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["company_status"] | null
+          whatsapp_number?: string | null
           zip_code?: string | null
         }
         Update: {
@@ -779,10 +783,12 @@ export type Database = {
           max_active_appointments?: number | null
           max_advance_days?: number | null
           name?: string | null
+          phone?: string | null
           primary_color?: string | null
           slug?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["company_status"] | null
+          whatsapp_number?: string | null
           zip_code?: string | null
         }
         Relationships: []
