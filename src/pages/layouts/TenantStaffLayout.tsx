@@ -1,35 +1,37 @@
 import { Outlet, NavLink, useParams } from 'react-router-dom';
 import { useTenant } from '@/lib/tenant/TenantContext';
+import { PlanProvider, usePlan } from '@/lib/plans/PlanContext';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { UserMenu } from '@/components/layout/UserMenu';
 import TenantNotFound from '@/pages/tenant/TenantNotFound';
-import { LayoutDashboard, Calendar, User, RotateCcw, Users, Bell, Package } from 'lucide-react';
+import { LayoutDashboard, Calendar, User, RotateCcw, Users, Bell, Package, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppointmentNotifications } from '@/hooks/use-appointment-notifications';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { Feature } from '@/lib/plans/features';
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger
 } from '@/components/ui/sidebar';
 
-
-export default function TenantStaffLayout() {
+function TenantStaffContent() {
   const { slug } = useParams();
   const { tenant, isLoading, error } = useTenant();
   const { user } = useAuth();
+  const { canAccess } = usePlan();
   useAppointmentNotifications();
 
   const isSecretary = user?.role === 'secretary' || user?.role === 'company_admin';
 
-  const navItems = [
+  const navItems: { to: string; label: string; icon: any; feature?: Feature }[] = [
     { to: `/${slug}/agenda/dashboard`, label: 'Dashboard', icon: LayoutDashboard },
     { to: `/${slug}/agenda/schedule`, label: 'Agenda', icon: Calendar },
     ...(isSecretary ? [
       { to: `/${slug}/agenda/clients`, label: 'Clientes', icon: Users },
-      { to: `/${slug}/agenda/alerts`, label: 'Alertas', icon: Bell },
-      { to: `/${slug}/agenda/products`, label: 'Produtos', icon: Package },
+      { to: `/${slug}/agenda/alerts`, label: 'Alertas', icon: Bell, feature: 'return_alerts' as Feature },
+      { to: `/${slug}/agenda/products`, label: 'Produtos', icon: Package, feature: 'products' as Feature },
     ] : []),
-    { to: `/${slug}/agenda/returns`, label: 'Retornos', icon: RotateCcw },
+    { to: `/${slug}/agenda/returns`, label: 'Retornos', icon: RotateCcw, feature: 'return_alerts' as Feature },
     { to: `/${slug}/agenda/profile`, label: 'Perfil', icon: User },
   ];
 
@@ -64,21 +66,28 @@ export default function TenantStaffLayout() {
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {navItems.map((item) => (
-                    <SidebarMenuItem key={item.to}>
-                      <SidebarMenuButton asChild>
-                        <NavLink
-                          to={item.to}
-                          className={({ isActive }) =>
-                            cn(isActive && 'bg-accent text-accent-foreground')
-                          }
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.label}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                  {navItems.map((item) => {
+                    const locked = item.feature && !canAccess(item.feature);
+                    return (
+                      <SidebarMenuItem key={item.to}>
+                        <SidebarMenuButton asChild>
+                          <NavLink
+                            to={item.to}
+                            className={({ isActive }) =>
+                              cn(
+                                isActive && 'bg-accent text-accent-foreground',
+                                locked && 'opacity-50'
+                              )
+                            }
+                          >
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.label}</span>
+                            {locked && <Lock className="h-3 w-3 ml-auto text-muted-foreground" />}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -105,5 +114,13 @@ export default function TenantStaffLayout() {
         </div>
       </div>
     </SidebarProvider>
+  );
+}
+
+export default function TenantStaffLayout() {
+  return (
+    <PlanProvider>
+      <TenantStaffContent />
+    </PlanProvider>
   );
 }
