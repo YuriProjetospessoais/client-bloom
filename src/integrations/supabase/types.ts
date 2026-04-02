@@ -259,6 +259,9 @@ export type Database = {
           max_advance_days: number
           name: string
           phone: string | null
+          plan: Database["public"]["Enums"]["company_plan"]
+          plan_active: boolean
+          plan_updated_at: string
           primary_color: string | null
           slug: string | null
           state: string | null
@@ -284,6 +287,9 @@ export type Database = {
           max_advance_days?: number
           name: string
           phone?: string | null
+          plan?: Database["public"]["Enums"]["company_plan"]
+          plan_active?: boolean
+          plan_updated_at?: string
           primary_color?: string | null
           slug?: string | null
           state?: string | null
@@ -309,6 +315,9 @@ export type Database = {
           max_advance_days?: number
           name?: string
           phone?: string | null
+          plan?: Database["public"]["Enums"]["company_plan"]
+          plan_active?: boolean
+          plan_updated_at?: string
           primary_color?: string | null
           slug?: string | null
           state?: string | null
@@ -740,6 +749,7 @@ export type Database = {
           max_advance_days: number | null
           name: string | null
           phone: string | null
+          plan: Database["public"]["Enums"]["company_plan"] | null
           primary_color: string | null
           slug: string | null
           state: string | null
@@ -762,6 +772,7 @@ export type Database = {
           max_advance_days?: number | null
           name?: string | null
           phone?: string | null
+          plan?: Database["public"]["Enums"]["company_plan"] | null
           primary_color?: string | null
           slug?: string | null
           state?: string | null
@@ -784,6 +795,7 @@ export type Database = {
           max_advance_days?: number | null
           name?: string | null
           phone?: string | null
+          plan?: Database["public"]["Enums"]["company_plan"] | null
           primary_color?: string | null
           slug?: string | null
           state?: string | null
@@ -795,6 +807,10 @@ export type Database = {
       }
     }
     Functions: {
+      get_company_plan: {
+        Args: { _company_id: string }
+        Returns: Database["public"]["Enums"]["company_plan"]
+      }
       get_public_company_id: { Args: never; Returns: string }
       get_request_header: { Args: { _name: string }; Returns: string }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
@@ -820,6 +836,7 @@ export type Database = {
         | "completed"
         | "cancelled"
         | "no_show"
+      company_plan: "start" | "pro" | "enterprise"
       company_status: "active" | "suspended" | "trial"
       product_sale_status: "pending" | "completed" | "cancelled"
     }
@@ -963,6 +980,7 @@ export const Constants = {
         "cancelled",
         "no_show",
       ],
+      company_plan: ["start", "pro", "enterprise"],
       company_status: ["active", "suspended", "trial"],
       product_sale_status: ["pending", "completed", "cancelled"],
     },
