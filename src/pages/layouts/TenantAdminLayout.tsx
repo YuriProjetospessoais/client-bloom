@@ -1,14 +1,16 @@
 import { Outlet, NavLink, useParams } from 'react-router-dom';
 import { useTenant } from '@/lib/tenant/TenantContext';
+import { PlanProvider, usePlan } from '@/lib/plans/PlanContext';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { UserMenu } from '@/components/layout/UserMenu';
 import { LanguageSelector } from '@/components/layout/LanguageSelector';
 import TenantNotFound from '@/pages/tenant/TenantNotFound';
 import {
-  LayoutDashboard, Users, UserPlus, Package, Calendar, Bell, Settings, CreditCard, Scissors, Ban, FileBarChart
+  LayoutDashboard, Users, UserPlus, Package, Calendar, Bell, Settings, CreditCard, Scissors, Ban, FileBarChart, Lock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppointmentNotifications } from '@/hooks/use-appointment-notifications';
+import { Feature } from '@/lib/plans/features';
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger
