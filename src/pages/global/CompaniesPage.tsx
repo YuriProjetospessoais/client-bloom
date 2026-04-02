@@ -295,6 +295,7 @@ export default function CompaniesPage() {
                         </Select>
                       </TableCell>
                       <TableCell>{getStatusBadge(company.status)}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
                         {new Date(company.created_at).toLocaleDateString('pt-BR')}
                       </TableCell>
                       <TableCell>
