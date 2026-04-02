@@ -10,6 +10,7 @@ export interface Tenant {
   coverUrl: string | null;
   primaryColor: string;
   status: string;
+  plan: 'start' | 'pro' | 'enterprise';
 }
 
 interface TenantContextType {
