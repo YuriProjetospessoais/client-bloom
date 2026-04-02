@@ -19,6 +19,7 @@ import { ConfirmDialog } from '@/components/modals/ConfirmDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from 'sonner';
+import { PLAN_LABELS, PLAN_COLORS, CompanyPlan } from '@/lib/plans/features';
 
 interface CompanyRow {
   id: string;
