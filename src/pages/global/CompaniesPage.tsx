@@ -8,10 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from '@/components/ui/table';
-import { Building2, Search, Plus, MoreHorizontal, Users, Edit, ExternalLink, Power } from 'lucide-react';
+import { Building2, Search, Plus, MoreHorizontal, Users, Edit, ExternalLink, Power, CreditCard } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CompanyModal } from '@/components/modals/CompanyModal';
 import { ConfirmDialog } from '@/components/modals/ConfirmDialog';
