@@ -231,6 +231,7 @@ export default function CompaniesPage() {
                   <TableRow className="bg-muted/50">
                     <TableHead>Empresa</TableHead>
                     <TableHead>Slug</TableHead>
+                    <TableHead>Plano</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Criado em</TableHead>
                     <TableHead className="w-[60px]"></TableHead>
