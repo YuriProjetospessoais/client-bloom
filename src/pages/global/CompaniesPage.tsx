@@ -268,8 +268,33 @@ export default function CompaniesPage() {
                           <span className="text-xs text-muted-foreground italic">sem slug</span>
                         )}
                       </TableCell>
+                      <TableCell>
+                        <Select
+                          value={company.plan}
+                          onValueChange={async (val: CompanyPlan) => {
+                            const { error } = await supabase
+                              .from('companies')
+                              .update({ plan: val } as any)
+                              .eq('id', company.id);
+                            if (error) {
+                              toast.error('Erro ao alterar plano');
+                            } else {
+                              toast.success(`Plano alterado para ${PLAN_LABELS[val]}`);
+                              fetchCompanies();
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="w-[120px] h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="start">Start</SelectItem>
+                            <SelectItem value="pro">Pro</SelectItem>
+                            <SelectItem value="enterprise">Enterprise</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
                       <TableCell>{getStatusBadge(company.status)}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
                         {new Date(company.created_at).toLocaleDateString('pt-BR')}
                       </TableCell>
                       <TableCell>
