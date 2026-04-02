@@ -65,7 +65,9 @@ Deno.serve(async (req) => {
       });
 
       if (createError) {
-        return new Response(JSON.stringify({ error: createError.message }), {
+        console.error('Create user error:', createError);
+        const msg = createError.message?.includes('already') ? 'Email já está em uso' : 'Erro ao criar usuário';
+        return new Response(JSON.stringify({ error: msg }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -77,7 +79,8 @@ Deno.serve(async (req) => {
 
       if (roleError) {
         await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
-        return new Response(JSON.stringify({ error: roleError.message }), {
+        console.error('Role assign error:', roleError);
+        return new Response(JSON.stringify({ error: 'Erro ao atribuir papel' }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -98,7 +101,8 @@ Deno.serve(async (req) => {
           // Rollback
           await supabaseAdmin.from("user_roles").delete().eq("user_id", newUser.user.id);
           await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
-          return new Response(JSON.stringify({ error: profError.message }), {
+          console.error('Professional create error:', profError);
+          return new Response(JSON.stringify({ error: 'Erro ao criar profissional' }), {
             status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
@@ -141,7 +145,8 @@ Deno.serve(async (req) => {
       if (Object.keys(updates).length > 0) {
         const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, updates);
         if (error) {
-          return new Response(JSON.stringify({ error: error.message }), {
+          console.error('Update user error:', error);
+          return new Response(JSON.stringify({ error: 'Erro ao atualizar usuário' }), {
             status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
@@ -159,7 +164,8 @@ Deno.serve(async (req) => {
       if (password) {
         const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, { password });
         if (error) {
-          return new Response(JSON.stringify({ error: error.message }), {
+          console.error('Update password error:', error);
+          return new Response(JSON.stringify({ error: 'Erro ao atualizar senha' }), {
             status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
@@ -212,7 +218,8 @@ Deno.serve(async (req) => {
       });
 
       if (error) {
-        return new Response(JSON.stringify({ error: error.message }), {
+        console.error('Toggle user error:', error);
+        return new Response(JSON.stringify({ error: 'Erro ao alterar status do usuário' }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -287,7 +294,8 @@ Deno.serve(async (req) => {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
+    console.error('Internal error:', err);
+    return new Response(JSON.stringify({ error: 'Erro interno do servidor' }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
