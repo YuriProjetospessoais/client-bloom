@@ -10,6 +10,7 @@ import { AuthProvider } from "@/lib/auth/AuthContext";
 
 // Only LoginPage is eagerly loaded — everything else is lazy
 import LoginPage from "./pages/auth/LoginPage";
+import { FeatureGate } from "./components/plans/FeatureGate";
 
 // Lightweight loading fallback
 const PageLoader = () => (
