@@ -1,36 +1,39 @@
 import { Outlet, NavLink, useParams } from 'react-router-dom';
 import { useTenant } from '@/lib/tenant/TenantContext';
+import { PlanProvider, usePlan } from '@/lib/plans/PlanContext';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { UserMenu } from '@/components/layout/UserMenu';
 import { LanguageSelector } from '@/components/layout/LanguageSelector';
 import TenantNotFound from '@/pages/tenant/TenantNotFound';
 import {
-  LayoutDashboard, Users, UserPlus, Package, Calendar, Bell, Settings, CreditCard, Scissors, Ban, FileBarChart
+  LayoutDashboard, Users, UserPlus, Package, Calendar, Bell, Settings, CreditCard, Scissors, Ban, FileBarChart, Lock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppointmentNotifications } from '@/hooks/use-appointment-notifications';
+import { Feature } from '@/lib/plans/features';
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger
 } from '@/components/ui/sidebar';
 
-export default function TenantAdminLayout() {
+function TenantAdminContent() {
   const { slug } = useParams();
   const { tenant, isLoading, error } = useTenant();
+  const { canAccess } = usePlan();
   useAppointmentNotifications();
 
-  const navItems = [
+  const navItems: { to: string; label: string; icon: any; feature?: Feature }[] = [
     { to: `/${slug}/admin/dashboard`, label: 'Dashboard', icon: LayoutDashboard },
     { to: `/${slug}/admin/crm`, label: 'CRM', icon: Users },
     { to: `/${slug}/admin/leads`, label: 'Leads', icon: UserPlus },
     { to: `/${slug}/admin/clients`, label: 'Clientes', icon: Users },
-    { to: `/${slug}/admin/products`, label: 'Produtos', icon: Package },
+    { to: `/${slug}/admin/products`, label: 'Produtos', icon: Package, feature: 'products' },
     { to: `/${slug}/admin/schedule`, label: 'Agenda', icon: Calendar },
-    { to: `/${slug}/admin/alerts`, label: 'Alertas', icon: Bell },
-    { to: `/${slug}/admin/plans`, label: 'Planos', icon: CreditCard },
+    { to: `/${slug}/admin/alerts`, label: 'Alertas', icon: Bell, feature: 'return_alerts' },
+    { to: `/${slug}/admin/plans`, label: 'Meu Plano', icon: CreditCard },
     { to: `/${slug}/admin/staff`, label: 'Gestão de Equipe', icon: Users },
     { to: `/${slug}/admin/blocked-slots`, label: 'Bloqueios', icon: Ban },
-    { to: `/${slug}/admin/relatorio`, label: 'Relatório Mensal', icon: FileBarChart },
+    { to: `/${slug}/admin/relatorio`, label: 'Relatório Mensal', icon: FileBarChart, feature: 'reports' },
     { to: `/${slug}/admin/settings`, label: 'Configurações', icon: Settings },
   ];
 
@@ -65,21 +68,28 @@ export default function TenantAdminLayout() {
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {navItems.map((item) => (
-                    <SidebarMenuItem key={item.to}>
-                      <SidebarMenuButton asChild>
-                        <NavLink
-                          to={item.to}
-                          className={({ isActive }) =>
-                            cn(isActive && 'bg-accent text-accent-foreground')
-                          }
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.label}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                  {navItems.map((item) => {
+                    const locked = item.feature && !canAccess(item.feature);
+                    return (
+                      <SidebarMenuItem key={item.to}>
+                        <SidebarMenuButton asChild>
+                          <NavLink
+                            to={item.to}
+                            className={({ isActive }) =>
+                              cn(
+                                isActive && 'bg-accent text-accent-foreground',
+                                locked && 'opacity-50'
+                              )
+                            }
+                          >
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.label}</span>
+                            {locked && <Lock className="h-3 w-3 ml-auto text-muted-foreground" />}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -108,5 +118,13 @@ export default function TenantAdminLayout() {
         </div>
       </div>
     </SidebarProvider>
+  );
+}
+
+export default function TenantAdminLayout() {
+  return (
+    <PlanProvider>
+      <TenantAdminContent />
+    </PlanProvider>
   );
 }

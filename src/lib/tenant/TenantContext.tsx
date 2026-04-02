@@ -10,6 +10,7 @@ export interface Tenant {
   coverUrl: string | null;
   primaryColor: string;
   status: string;
+  plan: 'start' | 'pro' | 'enterprise';
 }
 
 interface TenantContextType {
@@ -45,7 +46,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
       const { data, error: fetchError } = await supabase
         .from('companies_public')
-        .select('id, name, slug, logo_url, cover_url, primary_color, status')
+        .select('id, name, slug, logo_url, cover_url, primary_color, status, plan')
         .eq('slug', slug)
         .maybeSingle();
 
@@ -71,6 +72,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         coverUrl: data.cover_url,
         primaryColor: data.primary_color || '#C6973F',
         status: data.status,
+        plan: (data as any).plan || 'start',
       });
       setIsLoading(false);
     }

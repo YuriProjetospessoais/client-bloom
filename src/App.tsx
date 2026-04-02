@@ -10,6 +10,7 @@ import { AuthProvider } from "@/lib/auth/AuthContext";
 
 // Only LoginPage is eagerly loaded — everything else is lazy
 import LoginPage from "./pages/auth/LoginPage";
+import { FeatureGate } from "./components/plans/FeatureGate";
 
 // Lightweight loading fallback
 const PageLoader = () => (
@@ -193,14 +194,14 @@ const App = () => (
                     <Route path="crm" element={<CRMPage />} />
                     <Route path="leads" element={<LeadsPage />} />
                     <Route path="clients" element={<ClientsPage />} />
-                    <Route path="products" element={<ProductsPage />} />
+                    <Route path="products" element={<FeatureGate feature="products"><ProductsPage /></FeatureGate>} />
                     <Route path="schedule" element={<SchedulePage />} />
-                    <Route path="alerts" element={<AlertsPage />} />
+                    <Route path="alerts" element={<FeatureGate feature="return_alerts"><AlertsPage /></FeatureGate>} />
                     <Route path="plans" element={<AdminPlansPage />} />
                     <Route path="staff" element={<StaffPage />} />
                     <Route path="barbers" element={<StaffPage />} />
                     <Route path="blocked-slots" element={<BlockedSlotsPage />} />
-                    <Route path="relatorio" element={<MonthlyReportPage />} />
+                    <Route path="relatorio" element={<FeatureGate feature="reports"><MonthlyReportPage /></FeatureGate>} />
                     <Route path="settings" element={<SettingsPage />} />
                   </Route>
 
@@ -218,10 +219,10 @@ const App = () => (
                     <Route path="clients" element={<ClientsPage />} />
                     <Route path="crm" element={<UserCRMPage />} />
                     <Route path="leads" element={<UserLeadsPage />} />
-                    <Route path="products" element={<UserProductsPage />} />
-                    <Route path="alerts" element={<UserAlertsPage />} />
+                    <Route path="products" element={<FeatureGate feature="products"><UserProductsPage /></FeatureGate>} />
+                    <Route path="alerts" element={<FeatureGate feature="return_alerts"><UserAlertsPage /></FeatureGate>} />
                     <Route path="profile" element={<UserProfilePage />} />
-                    <Route path="returns" element={<CustomerReturnReminders />} />
+                    <Route path="returns" element={<FeatureGate feature="return_alerts"><CustomerReturnReminders /></FeatureGate>} />
                   </Route>
 
                   {/* Catch-all */}

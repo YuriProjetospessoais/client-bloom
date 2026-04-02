@@ -8,16 +8,18 @@ import { Badge } from '@/components/ui/badge';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from '@/components/ui/table';
-import { Building2, Search, Plus, MoreHorizontal, Users, Edit, ExternalLink, Power } from 'lucide-react';
+import { Building2, Search, Plus, MoreHorizontal, Users, Edit, ExternalLink, Power, CreditCard } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CompanyModal } from '@/components/modals/CompanyModal';
 import { ConfirmDialog } from '@/components/modals/ConfirmDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from 'sonner';
+import { PLAN_LABELS, PLAN_COLORS, CompanyPlan } from '@/lib/plans/features';
 
 interface CompanyRow {
   id: string;
@@ -31,6 +33,8 @@ interface CompanyRow {
   phone: string | null;
   address: string | null;
   created_at: string;
+  plan: CompanyPlan;
+  plan_active: boolean;
 }
 
 export default function CompaniesPage() {
@@ -227,6 +231,7 @@ export default function CompaniesPage() {
                   <TableRow className="bg-muted/50">
                     <TableHead>Empresa</TableHead>
                     <TableHead>Slug</TableHead>
+                    <TableHead>Plano</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Criado em</TableHead>
                     <TableHead className="w-[60px]"></TableHead>
@@ -235,7 +240,7 @@ export default function CompaniesPage() {
                 <TableBody>
                   {filteredCompanies.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                         Nenhuma empresa encontrada
                       </TableCell>
                     </TableRow>
@@ -262,6 +267,32 @@ export default function CompaniesPage() {
                         ) : (
                           <span className="text-xs text-muted-foreground italic">sem slug</span>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={company.plan}
+                          onValueChange={async (val: CompanyPlan) => {
+                            const { error } = await supabase
+                              .from('companies')
+                              .update({ plan: val } as any)
+                              .eq('id', company.id);
+                            if (error) {
+                              toast.error('Erro ao alterar plano');
+                            } else {
+                              toast.success(`Plano alterado para ${PLAN_LABELS[val]}`);
+                              fetchCompanies();
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="w-[120px] h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="start">Start</SelectItem>
+                            <SelectItem value="pro">Pro</SelectItem>
+                            <SelectItem value="enterprise">Enterprise</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell>{getStatusBadge(company.status)}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">
