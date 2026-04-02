@@ -72,6 +72,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         coverUrl: data.cover_url,
         primaryColor: data.primary_color || '#C6973F',
         status: data.status,
+        plan: (data as any).plan || 'start',
       });
       setIsLoading(false);
     }
