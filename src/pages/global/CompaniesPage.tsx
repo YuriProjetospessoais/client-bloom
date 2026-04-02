@@ -33,6 +33,8 @@ interface CompanyRow {
   phone: string | null;
   address: string | null;
   created_at: string;
+  plan: CompanyPlan;
+  plan_active: boolean;
 }
 
 export default function CompaniesPage() {
