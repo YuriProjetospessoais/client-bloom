@@ -88,6 +88,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "appointments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "appointments_professional_id_fkey"
             columns: ["professional_id"]
             isOneToOne: false
@@ -143,6 +150,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blocked_slots_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
           {
@@ -209,6 +223,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clients_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
           {
@@ -354,6 +375,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "product_sales_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "product_sales_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
@@ -407,6 +435,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       professionals: {
@@ -449,6 +484,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "professionals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
         ]
@@ -528,6 +570,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "services_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_roles: {
@@ -558,6 +607,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_user_roles_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
         ]
@@ -596,6 +652,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "working_hours_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
           {
@@ -646,6 +709,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "blocked_slots_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "blocked_slots_professional_id_fkey"
             columns: ["professional_id"]
             isOneToOne: false
@@ -653,6 +723,69 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      companies_public: {
+        Row: {
+          address: string | null
+          cancel_limit_hours: number | null
+          city: string | null
+          cover_url: string | null
+          description: string | null
+          google_maps_url: string | null
+          id: string | null
+          latitude: number | null
+          logo_url: string | null
+          longitude: number | null
+          max_active_appointments: number | null
+          max_advance_days: number | null
+          name: string | null
+          primary_color: string | null
+          slug: string | null
+          state: string | null
+          status: Database["public"]["Enums"]["company_status"] | null
+          zip_code: string | null
+        }
+        Insert: {
+          address?: string | null
+          cancel_limit_hours?: number | null
+          city?: string | null
+          cover_url?: string | null
+          description?: string | null
+          google_maps_url?: string | null
+          id?: string | null
+          latitude?: number | null
+          logo_url?: string | null
+          longitude?: number | null
+          max_active_appointments?: number | null
+          max_advance_days?: number | null
+          name?: string | null
+          primary_color?: string | null
+          slug?: string | null
+          state?: string | null
+          status?: Database["public"]["Enums"]["company_status"] | null
+          zip_code?: string | null
+        }
+        Update: {
+          address?: string | null
+          cancel_limit_hours?: number | null
+          city?: string | null
+          cover_url?: string | null
+          description?: string | null
+          google_maps_url?: string | null
+          id?: string | null
+          latitude?: number | null
+          logo_url?: string | null
+          longitude?: number | null
+          max_active_appointments?: number | null
+          max_advance_days?: number | null
+          name?: string | null
+          primary_color?: string | null
+          slug?: string | null
+          state?: string | null
+          status?: Database["public"]["Enums"]["company_status"] | null
+          zip_code?: string | null
+        }
+        Relationships: []
       }
     }
     Functions: {
