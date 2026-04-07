@@ -807,6 +807,10 @@ export type Database = {
       }
     }
     Functions: {
+      company_has_feature: {
+        Args: { _company_id: string; _feature: string }
+        Returns: boolean
+      }
       get_company_plan: {
         Args: { _company_id: string }
         Returns: Database["public"]["Enums"]["company_plan"]
