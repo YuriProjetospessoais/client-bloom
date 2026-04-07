@@ -1,5 +1,5 @@
 import { LogOut, User, Settings } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,10 +17,11 @@ export function UserMenu() {
   const { user, logout } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const { slug } = useParams();
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    navigate(slug ? `/${slug}` : '/login');
   };
 
   const getInitials = (name: string) => {
@@ -30,6 +31,17 @@ export function UserMenu() {
       .slice(0, 2)
       .join('')
       .toUpperCase();
+  };
+
+  // Build tenant-aware paths so navigation stays within the current tenant context
+  const getProfilePath = () => {
+    if (!slug) return '/profile';
+    
+    // Detect current context from URL
+    const path = window.location.pathname;
+    if (path.includes(`/${slug}/admin`)) return `/${slug}/admin/settings`;
+    if (path.includes(`/${slug}/agenda`)) return `/${slug}/agenda/profile`;
+    return `/${slug}`;
   };
 
   return (
@@ -52,13 +64,9 @@ export function UserMenu() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => navigate('/profile')}>
+        <DropdownMenuItem onClick={() => navigate(getProfilePath())}>
           <User className="mr-2 h-4 w-4" />
           <span>{t.nav.profile}</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/settings')}>
-          <Settings className="mr-2 h-4 w-4" />
-          <span>{t.nav.settings}</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout} className="text-destructive">

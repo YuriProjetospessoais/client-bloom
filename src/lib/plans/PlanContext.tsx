@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useMemo, useRef } from 'react';
 import { useTenant } from '@/lib/tenant/TenantContext';
 import { CompanyPlan, Feature, hasFeatureAccess, getUpgradeMessage } from './features';
 
@@ -15,16 +15,30 @@ const PlanContext = createContext<PlanContextType>({
 });
 
 export function PlanProvider({ children }: { children: React.ReactNode }) {
-  const { tenant } = useTenant();
+  const { tenant, isLoading } = useTenant();
+
+  // Keep a stable reference to the last known plan so re-renders
+  // during transient loading states don't flash permissions open/closed
+  const lastKnownPlan = useRef<CompanyPlan | null>(null);
 
   const value = useMemo(() => {
-    const plan = (tenant as any)?.plan as CompanyPlan | null ?? null;
+    const currentPlan = tenant?.plan as CompanyPlan | null ?? null;
+
+    // Update the ref only when we have a real value
+    if (currentPlan) {
+      lastKnownPlan.current = currentPlan;
+    }
+
+    // Use the current plan if available, otherwise fall back to last known
+    // During loading, keep the previous plan to avoid unlocking features
+    const effectivePlan = currentPlan ?? (isLoading ? lastKnownPlan.current : null);
+
     return {
-      plan,
-      canAccess: (feature: Feature) => hasFeatureAccess(plan, feature),
+      plan: effectivePlan,
+      canAccess: (feature: Feature) => hasFeatureAccess(effectivePlan, feature),
       upgradeMessage: (feature: Feature) => getUpgradeMessage(feature),
     };
-  }, [tenant]);
+  }, [tenant, isLoading]);
 
   return (
     <PlanContext.Provider value={value}>
