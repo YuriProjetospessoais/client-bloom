@@ -2,9 +2,10 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { User, UserRole, AuthState } from './types';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
+import { checkLoginAllowed, registerFailedLogin, resetLoginAttempts } from './rateLimiter';
 
 interface AuthContextType extends AuthState {
-  login: (email: string, password: string) => Promise<{ success: boolean; requiresMfa?: boolean; user?: User }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; requiresMfa?: boolean; user?: User; rateLimited?: boolean; minutesRemaining?: number }>;
   signup: (email: string, password: string, fullName: string) => Promise<{ success: boolean; message: string }>;
   logout: () => Promise<void>;
   hasPermission: (requiredRole: UserRole | UserRole[]) => boolean;
@@ -100,28 +101,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
+    // 1) Rate limit pré-check (defesa em profundidade: localStorage + backend)
+    const gate = await checkLoginAllowed(email);
+    if (!gate.allowed) {
+      return { success: false, rateLimited: true, minutesRemaining: gate.minutesRemaining };
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    
-    if (error) return { success: false };
-    
+
+    if (error) {
+      // Registra falha em ambas as camadas
+      const r = await registerFailedLogin(email);
+      if (r.blocked) {
+        return { success: false, rateLimited: true, minutesRemaining: r.minutesRemaining };
+      }
+      return { success: false };
+    }
+
+    // Sucesso: limpa tentativas
+    await resetLoginAttempts(email);
+
     // Check if user has MFA enabled and requires it
     if (data?.session && data.user) {
       const { data: mfaData, error: mfaError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      
+
       if (!mfaError && mfaData) {
         if (mfaData.nextLevel === 'aal2' && mfaData.currentLevel !== 'aal2') {
           return { success: true, requiresMfa: true };
         }
       }
     }
-    
+
     // Build user immediately from the session we already have
     if (data?.session) {
       const user = await buildUser(data.session);
       setState({ user, isAuthenticated: true, isLoading: false });
       return { success: true, user };
     }
-    
+
     return { success: false };
   }, [state.isAuthenticated, state.user]);
 
