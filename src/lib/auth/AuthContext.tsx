@@ -121,6 +121,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Sucesso: limpa tentativas
     await resetLoginAttempts(email);
 
+    // Audit log: login bem-sucedido (não bloqueia em caso de erro)
+    try {
+      await supabase.rpc('log_audit_event', {
+        _action: 'LOGIN',
+        _resource_type: 'auth',
+        _resource_id: data.user?.id ?? null,
+        _details: { email },
+      });
+    } catch { /* silent */ }
+
     // Check if user has MFA enabled and requires it
     if (data?.session && data.user) {
       const { data: mfaData, error: mfaError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
@@ -159,9 +169,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    // Audit log: logout (antes de limpar a sessão)
+    try {
+      await supabase.rpc('log_audit_event', {
+        _action: 'LOGOUT',
+        _resource_type: 'auth',
+        _resource_id: state.user?.id ?? null,
+        _details: { email: state.user?.email },
+      });
+    } catch { /* silent */ }
     await supabase.auth.signOut();
     setState({ user: null, isAuthenticated: false, isLoading: false });
-  }, []);
+  }, [state.user]);
 
   const hasPermission = useCallback((requiredRole: UserRole | UserRole[]): boolean => {
     if (!state.user) return false;
