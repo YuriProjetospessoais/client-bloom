@@ -328,6 +328,36 @@ export type Database = {
         }
         Relationships: []
       }
+      login_attempts: {
+        Row: {
+          attempt_count: number
+          blocked_until: string | null
+          created_at: string
+          email: string
+          id: string
+          last_attempt_at: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          blocked_until?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          last_attempt_at?: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          blocked_until?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          last_attempt_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_sales: {
         Row: {
           booked_by_client: boolean
@@ -807,6 +837,7 @@ export type Database = {
       }
     }
     Functions: {
+      check_login_blocked: { Args: { _email: string }; Returns: Json }
       company_has_feature: {
         Args: { _company_id: string; _feature: string }
         Returns: boolean
@@ -826,6 +857,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      record_failed_login: { Args: { _email: string }; Returns: Json }
+      reset_login_attempts: { Args: { _email: string }; Returns: undefined }
     }
     Enums: {
       app_role:
