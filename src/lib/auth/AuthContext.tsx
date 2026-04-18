@@ -121,6 +121,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Sucesso: limpa tentativas
     await resetLoginAttempts(email);
 
+    // Audit log: login bem-sucedido (não bloqueia em caso de erro)
+    try {
+      await supabase.rpc('log_audit_event', {
+        _action: 'LOGIN',
+        _resource_type: 'auth',
+        _resource_id: data.user?.id ?? null,
+        _details: { email },
+      });
+    } catch { /* silent */ }
+
     // Check if user has MFA enabled and requires it
     if (data?.session && data.user) {
       const { data: mfaData, error: mfaError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
