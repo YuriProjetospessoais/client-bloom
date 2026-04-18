@@ -169,9 +169,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    // Audit log: logout (antes de limpar a sessão)
+    try {
+      await supabase.rpc('log_audit_event', {
+        _action: 'LOGOUT',
+        _resource_type: 'auth',
+        _resource_id: state.user?.id ?? null,
+        _details: { email: state.user?.email },
+      });
+    } catch { /* silent */ }
     await supabase.auth.signOut();
     setState({ user: null, isAuthenticated: false, isLoading: false });
-  }, []);
+  }, [state.user]);
 
   const hasPermission = useCallback((requiredRole: UserRole | UserRole[]): boolean => {
     if (!state.user) return false;
