@@ -1,9 +1,35 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://esm.sh/zod@3.23.8";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Validação backend (Zod) - inputs nunca confiáveis vindos do cliente
+const CreateSchema = z.object({
+  action: z.literal("create"),
+  name: z.string().trim().min(2).max(100),
+  email: z.string().trim().email().max(255),
+  password: z.string().min(6).max(72),
+  role: z.enum(["employee", "secretary"]).optional(),
+  specialties: z.array(z.string().max(50)).max(20).optional(),
+});
+const UpdateSchema = z.object({
+  action: z.literal("update"),
+  userId: z.string().uuid(),
+  name: z.string().trim().min(2).max(100).optional(),
+  email: z.string().trim().email().max(255).optional(),
+  password: z.string().min(6).max(72).optional(),
+  role: z.enum(["employee", "secretary"]).optional(),
+  specialties: z.array(z.string().max(50)).max(20).optional(),
+});
+const ToggleSchema = z.object({
+  action: z.enum(["activate", "deactivate"]),
+  userId: z.string().uuid(),
+});
+const ListSchema = z.object({ action: z.literal("list") });
+const BodySchema = z.union([CreateSchema, UpdateSchema, ToggleSchema, ListSchema]);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -43,8 +69,16 @@ Deno.serve(async (req) => {
     }
 
     const companyId = callerRole.company_id;
-    const body = await req.json();
-    const { action } = body;
+    const rawBody = await req.json().catch(() => null);
+    const parsed = BodySchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return new Response(
+        JSON.stringify({ error: "Dados inválidos", issues: parsed.error.issues }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const body = parsed.data as Record<string, unknown>;
+    const { action } = body as { action: string };
 
     if (action === "create") {
       const { name, email, password, role, specialties } = body;

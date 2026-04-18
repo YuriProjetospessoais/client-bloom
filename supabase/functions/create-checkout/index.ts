@@ -1,12 +1,18 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { z } from "https://esm.sh/zod@3.23.8";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+const BodySchema = z.object({
+  paymentMethod: z.enum(["pix", "card"]),
+  appointmentId: z.string().uuid(),
+});
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -30,11 +36,15 @@ serve(async (req) => {
     const user = data.user;
     if (!user?.email) throw new Error("User not authenticated");
 
-    const { paymentMethod, appointmentId } = await req.json();
-
-    if (!paymentMethod || !appointmentId) {
-      throw new Error("Missing required fields");
+    const rawBody = await req.json().catch(() => null);
+    const parsed = BodySchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return new Response(
+        JSON.stringify({ error: "Dados inválidos", issues: parsed.error.issues }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
+    const { paymentMethod, appointmentId } = parsed.data;
 
     // Server-side lookup: fetch appointment + service price from DB
     const { data: appointment, error: aptError } = await supabaseAdmin

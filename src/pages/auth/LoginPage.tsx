@@ -53,8 +53,14 @@ export default function LoginPage() {
     try {
       if (mode === 'login') {
         const result = await login(email, password);
-        
-        if (result.success) {
+
+        if (result.rateLimited) {
+          toast({
+            title: 'Muitas tentativas',
+            description: `Conta temporariamente bloqueada. Tente novamente em ${result.minutesRemaining ?? 30} minuto(s).`,
+            variant: 'destructive',
+          });
+        } else if (result.success) {
           if (result.requiresMfa) {
             setMfaRequired(true);
             toast({ title: 'Autenticação em duas etapas', description: 'Por favor, insira seu código 2FA.' });
