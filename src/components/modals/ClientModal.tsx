@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { Client, ClientPreferences } from '@/lib/store';
+import { sanitizeText, sanitizeObjectStrings } from '@/lib/security/sanitize';
 
 const clientSchema = z.object({
   name: z.string().trim().min(2, 'Nome deve ter pelo menos 2 caracteres').max(100),
