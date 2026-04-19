@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { sanitizeText } from '@/lib/security/sanitize';
 import {
   Dialog,
   DialogContent,

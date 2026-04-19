@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from 'sonner';
 import { User, Save } from 'lucide-react';
+import { sanitizeText } from '@/lib/security/sanitize';
 
 export default function PortalProfilePage() {
   const { user } = useAuth();
@@ -59,10 +60,15 @@ export default function PortalProfilePage() {
   async function handleSave() {
     setSaving(true);
 
+    // XSS hardening: sanitiza nome, telefone e preferências antes de persistir.
+    const safeName = sanitizeText(fullName);
+    const safePhone = sanitizeText(phone);
+    const safePreferences = sanitizeText(preferences);
+
     // Update profile
     const { error: profileError } = await supabase
       .from('profiles')
-      .update({ full_name: fullName, phone })
+      .update({ full_name: safeName, phone: safePhone })
       .eq('user_id', user!.id);
 
     if (profileError) {
@@ -76,9 +82,9 @@ export default function PortalProfilePage() {
       await supabase
         .from('clients')
         .update({
-          name: fullName,
-          phone,
-          preferences: { notes: preferences },
+          name: safeName,
+          phone: safePhone,
+          preferences: { notes: safePreferences },
         })
         .eq('id', clientId);
     }
