@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { Client, ClientPreferences } from '@/lib/store';
+import { sanitizeText, sanitizeObjectStrings } from '@/lib/security/sanitize';
 
 const clientSchema = z.object({
   name: z.string().trim().min(2, 'Nome deve ter pelo menos 2 caracteres').max(100),
@@ -88,9 +89,13 @@ export function ClientModal({ open, onOpenChange, client, onSave }: ClientModalP
     setIsLoading(true);
     await new Promise(resolve => setTimeout(resolve, 500));
 
+    // XSS hardening: sanitiza campos de texto livre antes de persistir.
+    const safeData = { ...formData, notes: sanitizeText(formData.notes) };
+    const safePreferences = sanitizeObjectStrings(preferences);
+
     onSave({
-      ...formData,
-      preferences,
+      ...safeData,
+      preferences: safePreferences,
       id: client?.id,
       lastVisit: client?.lastVisit,
       totalSpent: client?.totalSpent ?? 0,

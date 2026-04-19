@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { sanitizeText } from '@/lib/security/sanitize';
 import {
   Dialog,
   DialogContent,
@@ -104,7 +105,7 @@ export function BlockTimeModal({
         date: format(date, 'yyyy-MM-dd'),
         start_time: startTime,
         end_time: endTime,
-        reason: reason.trim() || null,
+        reason: sanitizeText(reason) || null,
         created_by: session.session.user.id,
       });
 
