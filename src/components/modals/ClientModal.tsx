@@ -88,9 +88,13 @@ export function ClientModal({ open, onOpenChange, client, onSave }: ClientModalP
     setIsLoading(true);
     await new Promise(resolve => setTimeout(resolve, 500));
 
+    // XSS hardening: sanitiza campos de texto livre antes de persistir.
+    const safeData = { ...formData, notes: sanitizeText(formData.notes) };
+    const safePreferences = sanitizeObjectStrings(preferences);
+
     onSave({
-      ...formData,
-      preferences,
+      ...safeData,
+      preferences: safePreferences,
       id: client?.id,
       lastVisit: client?.lastVisit,
       totalSpent: client?.totalSpent ?? 0,
