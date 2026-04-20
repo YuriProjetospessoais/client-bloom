@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { sanitizeText } from '@/lib/security/sanitize';
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -275,16 +276,17 @@ export default function BarberDashboardPage() {
     if (!notesTarget) return;
     setSavingNotes(true);
     try {
+      const safeNotes = sanitizeText(notesValue);
       const { error } = await supabase
         .from('clients')
-        .update({ notes: notesValue })
+        .update({ notes: safeNotes })
         .eq('id', notesTarget.clientId);
 
       if (error) throw error;
 
       setBookings((prev) =>
         prev.map((b) =>
-          b.clientId === notesTarget.clientId ? { ...b, clientNotes: notesValue } : b
+          b.clientId === notesTarget.clientId ? { ...b, clientNotes: safeNotes } : b
         )
       );
       toast.success('Notas do cliente salvas!');
