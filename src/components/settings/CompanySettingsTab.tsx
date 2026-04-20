@@ -128,10 +128,10 @@ export default function CompanySettingsTab() {
         .upload(path, file, { upsert: true });
       if (uploadErr) throw uploadErr;
 
-      const { data } = supabase.storage.from('company_assets').getPublicUrl(path);
-      const logoUrl = `${data.publicUrl}?t=${Date.now()}`;
-
-      setCompany(prev => prev ? { ...prev, logo_url: logoUrl } : null);
+      // Bucket is private — store the storage path; SignedImg resolves to a signed URL.
+      // Append a cache-buster so the SignedImg cache key changes after re-upload.
+      const storedValue = `${path}?v=${Date.now()}`;
+      setCompany(prev => prev ? { ...prev, logo_url: storedValue } : null);
       toast.success('Logo enviada!');
     } catch (err) {
       console.error(err);
@@ -228,11 +228,12 @@ export default function CompanySettingsTab() {
             <Label>Logo</Label>
             <div className="flex items-center gap-4">
               <div className="h-16 w-16 shrink-0 rounded-lg border bg-muted overflow-hidden flex items-center justify-center">
-                {company?.logo_url ? (
-                  <img src={company.logo_url} alt="Logo" className="w-full h-full object-cover" />
-                ) : (
-                  <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                )}
+                <SignedImg
+                  src={company?.logo_url}
+                  alt="Logo"
+                  className="w-full h-full object-cover"
+                  fallback={<ImageIcon className="h-6 w-6 text-muted-foreground" />}
+                />
               </div>
               <div className="relative">
                 <Input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" onChange={handleLogoUpload} disabled={uploading} />
