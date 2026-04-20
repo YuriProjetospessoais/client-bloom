@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { SignedImg } from '@/components/storage/SignedImg';
 import barbershopBg from '@/assets/barbershop-bg.jpg';
 
 interface TenantMembership {
@@ -203,7 +204,7 @@ export default function TenantSelectionPage() {
                           style={{ backgroundColor: m.primaryColor }}
                         >
                           {m.logoUrl ? (
-                            <img src={m.logoUrl} alt={m.companyName} className="w-full h-full object-cover rounded-xl" />
+                            <SignedImg src={m.logoUrl} alt={m.companyName} className="w-full h-full object-cover rounded-xl" />
                           ) : (
                             m.companyName.charAt(0)
                           )}

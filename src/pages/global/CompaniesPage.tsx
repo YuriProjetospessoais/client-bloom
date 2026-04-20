@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { CompanyModal } from '@/components/modals/CompanyModal';
 import { ConfirmDialog } from '@/components/modals/ConfirmDialog';
 import { supabase } from '@/integrations/supabase/client';
+import { SignedImg } from '@/components/storage/SignedImg';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from 'sonner';
 import { PLAN_LABELS, PLAN_COLORS, CompanyPlan } from '@/lib/plans/features';
@@ -253,7 +254,7 @@ export default function CompaniesPage() {
                             style={{ backgroundColor: company.primary_color || '#8B5CF6' }}
                           >
                             {company.logo_url ? (
-                              <img src={company.logo_url} alt="" className="w-full h-full object-cover rounded-lg" />
+                              <SignedImg src={company.logo_url} alt="" className="w-full h-full object-cover rounded-lg" fallback={<>{company.name.charAt(0)}</>} />
                             ) : (
                               company.name.charAt(0)
                             )}

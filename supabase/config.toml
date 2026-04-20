@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.check-login-attempts]
 verify_jwt = false
+
+[functions.get-company-asset]
+verify_jwt = false

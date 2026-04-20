@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { ImageIcon, Loader2 } from 'lucide-react';
+import { SignedImg } from '@/components/storage/SignedImg';
 
 const companySchema = z.object({
   name: z.string().trim().min(2, 'Nome deve ter pelo menos 2 caracteres').max(100),
@@ -275,7 +276,7 @@ export function CompanyModal({ open, onOpenChange, company, onSave }: CompanyMod
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 shrink-0 rounded border bg-muted overflow-hidden flex items-center justify-center">
                   {formData.logo_url ? (
-                    <img src={formData.logo_url} alt="Logo" className="w-full h-full object-cover" />
+                    <SignedImg src={formData.logo_url} alt="Logo" className="w-full h-full object-cover" fallback={<ImageIcon className="h-4 w-4 text-muted-foreground" />} />
                   ) : (
                     <ImageIcon className="h-4 w-4 text-muted-foreground" />
                   )}

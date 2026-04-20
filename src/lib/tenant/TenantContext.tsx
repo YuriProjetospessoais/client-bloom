@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { resolveAssetUrl } from '@/lib/storage/signedAssets';
 
 export interface Tenant {
   id: string;
@@ -64,12 +65,20 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // Resolve storage URLs into short-lived signed URLs in parallel
+      const [signedLogo, signedCover] = await Promise.all([
+        resolveAssetUrl(data.logo_url),
+        resolveAssetUrl(data.cover_url),
+      ]);
+
+      if (cancelled) return;
+
       setTenant({
         id: data.id,
         name: data.name,
         slug: data.slug!,
-        logoUrl: data.logo_url,
-        coverUrl: data.cover_url,
+        logoUrl: signedLogo,
+        coverUrl: signedCover,
         primaryColor: data.primary_color || '#C6973F',
         status: data.status,
         plan: (data as any).plan || 'start',
