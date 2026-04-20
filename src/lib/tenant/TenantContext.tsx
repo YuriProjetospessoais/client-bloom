@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { resolveAssetUrl } from '@/lib/storage/signedAssets';
 
 export interface Tenant {
   id: string;
