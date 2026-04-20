@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { ImageIcon, Loader2 } from 'lucide-react';
+import { SignedImg } from '@/components/storage/SignedImg';
 
 const companySchema = z.object({
   name: z.string().trim().min(2, 'Nome deve ter pelo menos 2 caracteres').max(100),

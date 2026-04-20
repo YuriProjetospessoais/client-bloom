@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { CompanyModal } from '@/components/modals/CompanyModal';
 import { ConfirmDialog } from '@/components/modals/ConfirmDialog';
 import { supabase } from '@/integrations/supabase/client';
+import { SignedImg } from '@/components/storage/SignedImg';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from 'sonner';
 import { PLAN_LABELS, PLAN_COLORS, CompanyPlan } from '@/lib/plans/features';
