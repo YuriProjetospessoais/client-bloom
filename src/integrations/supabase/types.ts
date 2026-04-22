@@ -400,6 +400,88 @@ export type Database = {
         }
         Relationships: []
       }
+      opportunities: {
+        Row: {
+          assigned_to: string | null
+          client_id: string | null
+          company_id: string
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          estimated_value: number
+          id: string
+          next_action_at: string | null
+          notes: string | null
+          source: string | null
+          status: Database["public"]["Enums"]["opportunity_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          client_id?: string | null
+          company_id: string
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          estimated_value?: number
+          id?: string
+          next_action_at?: string | null
+          notes?: string | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["opportunity_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          client_id?: string | null
+          company_id?: string
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          estimated_value?: number
+          id?: string
+          next_action_at?: string | null
+          notes?: string | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["opportunity_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunities_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunities_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunities_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_sales: {
         Row: {
           booked_by_client: boolean
@@ -926,6 +1008,7 @@ export type Database = {
         | "no_show"
       company_plan: "start" | "pro" | "enterprise"
       company_status: "active" | "suspended" | "trial"
+      opportunity_status: "lead" | "contacted" | "qualified" | "won" | "lost"
       product_sale_status: "pending" | "completed" | "cancelled"
     }
     CompositeTypes: {
@@ -1070,6 +1153,7 @@ export const Constants = {
       ],
       company_plan: ["start", "pro", "enterprise"],
       company_status: ["active", "suspended", "trial"],
+      opportunity_status: ["lead", "contacted", "qualified", "won", "lost"],
       product_sale_status: ["pending", "completed", "cancelled"],
     },
   },
