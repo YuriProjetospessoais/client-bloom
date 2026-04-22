@@ -81,7 +81,19 @@ const TenantBookingPage = lazy(() => import("./pages/tenant/TenantBookingPage"))
 const TenantBookingConfirmationPage = lazy(() => import("./pages/tenant/TenantBookingConfirmationPage"));
 const CustomerReturnReminders = lazy(() => import("./pages/staff/CustomerReturnReminders"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 30, // 30s — bom equilíbrio para dados de agenda
+      gcTime: 1000 * 60 * 5, // 5min em cache
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+    mutations: {
+      retry: 0,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
