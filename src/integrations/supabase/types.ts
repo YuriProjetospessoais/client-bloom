@@ -292,6 +292,7 @@ export type Database = {
           created_at: string
           description: string | null
           email: string | null
+          first_payment_at: string | null
           google_maps_url: string | null
           id: string
           latitude: number | null
@@ -305,6 +306,8 @@ export type Database = {
           plan_active: boolean
           plan_updated_at: string
           primary_color: string | null
+          referral_code: string
+          referred_by_company_id: string | null
           slug: string | null
           state: string | null
           status: Database["public"]["Enums"]["company_status"]
@@ -321,6 +324,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           email?: string | null
+          first_payment_at?: string | null
           google_maps_url?: string | null
           id?: string
           latitude?: number | null
@@ -334,6 +338,8 @@ export type Database = {
           plan_active?: boolean
           plan_updated_at?: string
           primary_color?: string | null
+          referral_code: string
+          referred_by_company_id?: string | null
           slug?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["company_status"]
@@ -350,6 +356,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           email?: string | null
+          first_payment_at?: string | null
           google_maps_url?: string | null
           id?: string
           latitude?: number | null
@@ -363,6 +370,8 @@ export type Database = {
           plan_active?: boolean
           plan_updated_at?: string
           primary_color?: string | null
+          referral_code?: string
+          referred_by_company_id?: string | null
           slug?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["company_status"]
@@ -371,7 +380,22 @@ export type Database = {
           whatsapp_number?: string | null
           zip_code?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "companies_referred_by_company_id_fkey"
+            columns: ["referred_by_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "companies_referred_by_company_id_fkey"
+            columns: ["referred_by_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       login_attempts: {
         Row: {
@@ -694,6 +718,77 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_credits: {
+        Row: {
+          amount_cents: number
+          applied_at: string | null
+          applied_invoice_id: string | null
+          available_at: string | null
+          company_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          referred_company_id: string
+          status: Database["public"]["Enums"]["referral_credit_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount_cents?: number
+          applied_at?: string | null
+          applied_invoice_id?: string | null
+          available_at?: string | null
+          company_id: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          referred_company_id: string
+          status?: Database["public"]["Enums"]["referral_credit_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          applied_at?: string | null
+          applied_invoice_id?: string | null
+          available_at?: string | null
+          company_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          referred_company_id?: string
+          status?: Database["public"]["Enums"]["referral_credit_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_credits_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_credits_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_credits_referred_company_id_fkey"
+            columns: ["referred_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_credits_referred_company_id_fkey"
+            columns: ["referred_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       services: {
         Row: {
           active: boolean
@@ -964,11 +1059,16 @@ export type Database = {
       }
     }
     Functions: {
+      apply_referral_on_signup: {
+        Args: { _code: string; _new_company_id: string }
+        Returns: Json
+      }
       check_login_blocked: { Args: { _email: string }; Returns: Json }
       company_has_feature: {
         Args: { _company_id: string; _feature: string }
         Returns: boolean
       }
+      generate_referral_code: { Args: never; Returns: string }
       get_company_plan: {
         Args: { _company_id: string }
         Returns: Database["public"]["Enums"]["company_plan"]
@@ -983,6 +1083,7 @@ export type Database = {
         }[]
       }
       get_public_company_id: { Args: never; Returns: string }
+      get_referral_balance: { Args: { _company_id: string }; Returns: number }
       get_request_header: { Args: { _name: string }; Returns: string }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_professional_id: { Args: { _user_id: string }; Returns: string }
@@ -1001,6 +1102,10 @@ export type Database = {
           _resource_type?: string
         }
         Returns: string
+      }
+      mark_first_payment_and_release_credits: {
+        Args: { _company_id: string }
+        Returns: Json
       }
       record_failed_login: { Args: { _email: string }; Returns: Json }
       reset_login_attempts: { Args: { _email: string }; Returns: undefined }
@@ -1022,6 +1127,7 @@ export type Database = {
       company_status: "active" | "suspended" | "trial"
       opportunity_status: "lead" | "contacted" | "qualified" | "won" | "lost"
       product_sale_status: "pending" | "completed" | "cancelled"
+      referral_credit_status: "pending" | "available" | "applied" | "expired"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1167,6 +1273,7 @@ export const Constants = {
       company_status: ["active", "suspended", "trial"],
       opportunity_status: ["lead", "contacted", "qualified", "won", "lost"],
       product_sale_status: ["pending", "completed", "cancelled"],
+      referral_credit_status: ["pending", "available", "applied", "expired"],
     },
   },
 } as const

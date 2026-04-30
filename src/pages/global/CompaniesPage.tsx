@@ -161,9 +161,10 @@ export default function CompaniesPage() {
       }
       toast.success('Empresa atualizada!');
     } else {
+      const insertPayload = { name: data.name, slug: data.slug, email: data.email, phone: data.phone, address: data.address, primary_color: data.primary_color || '#8B5CF6', logo_url: data.logo_url, cover_url: data.cover_url };
       const { data: newCompany, error } = await supabase
         .from('companies')
-        .insert({ name: data.name, slug: data.slug, email: data.email, phone: data.phone, address: data.address, primary_color: data.primary_color || '#8B5CF6', logo_url: data.logo_url, cover_url: data.cover_url })
+        .insert(insertPayload)
         .select()
         .single();
 
