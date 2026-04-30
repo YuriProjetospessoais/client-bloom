@@ -58,6 +58,7 @@ const AdminPlansPage = lazy(() => import("./pages/admin/PlansPage"));
 const StaffPage = lazy(() => import("./pages/admin/StaffPage"));
 const BlockedSlotsPage = lazy(() => import("./pages/admin/BlockedSlotsPage"));
 const MonthlyReportPage = lazy(() => import("./pages/admin/MonthlyReportPage"));
+const ReferralPage = lazy(() => import("./pages/admin/ReferralPage"));
 
 // User Pages
 const BarberDashboardPage = lazy(() => import("./pages/barber/BarberDashboardPage"));
@@ -150,6 +151,7 @@ const App = () => (
                     <Route path="barbers" element={<StaffPage />} />
                     <Route path="blocked-slots" element={<BlockedSlotsPage />} />
                     <Route path="relatorio" element={<MonthlyReportPage />} />
+                    <Route path="indicacoes" element={<ReferralPage />} />
                   </Route>
 
                   {/* User routes - /user */}
@@ -216,6 +218,7 @@ const App = () => (
                     <Route path="barbers" element={<StaffPage />} />
                     <Route path="blocked-slots" element={<BlockedSlotsPage />} />
                     <Route path="relatorio" element={<FeatureGate feature="reports"><MonthlyReportPage /></FeatureGate>} />
+                    <Route path="indicacoes" element={<ReferralPage />} />
                     <Route path="settings" element={<SettingsPage />} />
                   </Route>
 
