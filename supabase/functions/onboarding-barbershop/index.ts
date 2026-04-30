@@ -75,18 +75,7 @@ serve(async (req) => {
     return json({ error: "Este link já está em uso." }, 409);
   }
 
-  // 2) Optional referral lookup (does not block registration if invalid)
-  let referrerCompanyId: string | null = null;
-  if (referral_code) {
-    const { data: ref } = await supabaseAdmin
-      .from("referrals")
-      .select("referrer_company_id")
-      .eq("referral_code", referral_code)
-      .maybeSingle();
-    if (ref) referrerCompanyId = ref.referrer_company_id as string;
-  }
-
-  // 3) Create company (PRO trial for 14 days)
+  // 2) Create company (PRO trial for 14 days). Referral is applied after creation via RPC.
   const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
   const companyInsert: Record<string, unknown> = {
     name: company.name,
@@ -97,9 +86,6 @@ serve(async (req) => {
     plan_active: true,
     trial_ends_at: trialEndsAt,
   };
-  // referred_by_* columns may not exist yet (Phase 2). Only add if known to exist.
-  // We attempt a soft attach later if columns exist.
-
   const { data: createdCompany, error: companyErr } = await supabaseAdmin
     .from("companies")
     .insert(companyInsert)
@@ -111,7 +97,7 @@ serve(async (req) => {
   }
   const companyId = createdCompany.id as string;
 
-  // 4) Create auth user
+  // 3) Create auth user
   const { data: createdUser, error: userErr } = await supabaseAdmin.auth.admin.createUser({
     email: admin.email,
     password: admin.password,
@@ -129,7 +115,7 @@ serve(async (req) => {
 
   const userId = createdUser.user.id;
 
-  // 5) Create user_role: company_admin
+  // 4) Create user_role: company_admin
   const { error: roleErr } = await supabaseAdmin
     .from("user_roles")
     .insert({ user_id: userId, role: "company_admin", company_id: companyId });
@@ -141,21 +127,14 @@ serve(async (req) => {
     return json({ error: roleErr.message }, 500);
   }
 
-  // 6) Soft-attach referral if Phase 2 columns/tables exist (ignore errors)
-  if (referral_code && referrerCompanyId) {
-    try {
-      await supabaseAdmin
-        .from("companies")
-        .update({ referred_by_code: referral_code, referred_by_company_id: referrerCompanyId })
-        .eq("id", companyId);
-
-      await supabaseAdmin
-        .from("referrals")
-        .update({ referred_company_id: companyId, status: "registered", updated_at: new Date().toISOString() })
-        .eq("referral_code", referral_code);
-    } catch {
-      // Phase 2 not deployed yet — safe to ignore.
-    }
+  // 5) Apply referral code if provided (creates pending credit for referrer)
+  let referralApplied = false;
+  if (referral_code) {
+    const { data: refResult } = await supabaseAdmin.rpc("apply_referral_on_signup", {
+      _code: referral_code.toUpperCase(),
+      _new_company_id: companyId,
+    });
+    referralApplied = (refResult as { applied?: boolean } | null)?.applied === true;
   }
 
   return json({
@@ -164,5 +143,6 @@ serve(async (req) => {
     user_id: userId,
     slug: company.slug,
     trial_ends_at: trialEndsAt,
+    referral_applied: referralApplied,
   }, 200);
 });
