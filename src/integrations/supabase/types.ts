@@ -789,6 +789,63 @@ export type Database = {
           },
         ]
       }
+      referral_payouts: {
+        Row: {
+          admin_notes: string | null
+          amount_cents: number
+          company_id: string
+          created_at: string
+          credit_ids: string[]
+          id: string
+          notes: string | null
+          paid_at: string | null
+          paid_by: string | null
+          payment_method: string
+          pix_key: string | null
+          pix_key_type: string | null
+          receipt_url: string | null
+          requested_at: string
+          status: Database["public"]["Enums"]["payout_status"]
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          amount_cents: number
+          company_id: string
+          created_at?: string
+          credit_ids?: string[]
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          payment_method?: string
+          pix_key?: string | null
+          pix_key_type?: string | null
+          receipt_url?: string | null
+          requested_at?: string
+          status?: Database["public"]["Enums"]["payout_status"]
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          amount_cents?: number
+          company_id?: string
+          created_at?: string
+          credit_ids?: string[]
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          payment_method?: string
+          pix_key?: string | null
+          pix_key_type?: string | null
+          receipt_url?: string | null
+          requested_at?: string
+          status?: Database["public"]["Enums"]["payout_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       services: {
         Row: {
           active: boolean
@@ -1068,6 +1125,7 @@ export type Database = {
         Args: { _company_id: string; _feature: string }
         Returns: boolean
       }
+      find_company_by_admin_email: { Args: { _email: string }; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
       get_company_plan: {
         Args: { _company_id: string }
@@ -1107,7 +1165,23 @@ export type Database = {
         Args: { _company_id: string }
         Returns: Json
       }
+      mark_payout_paid: {
+        Args: {
+          _admin_notes?: string
+          _payout_id: string
+          _receipt_url?: string
+        }
+        Returns: Json
+      }
       record_failed_login: { Args: { _email: string }; Returns: Json }
+      reject_payout: {
+        Args: { _payout_id: string; _reason: string }
+        Returns: Json
+      }
+      request_referral_payout: {
+        Args: { _notes?: string; _pix_key: string; _pix_key_type: string }
+        Returns: Json
+      }
       reset_login_attempts: { Args: { _email: string }; Returns: undefined }
     }
     Enums: {
@@ -1126,8 +1200,14 @@ export type Database = {
       company_plan: "start" | "pro" | "enterprise"
       company_status: "active" | "suspended" | "trial"
       opportunity_status: "lead" | "contacted" | "qualified" | "won" | "lost"
+      payout_status: "pending" | "paid" | "rejected"
       product_sale_status: "pending" | "completed" | "cancelled"
-      referral_credit_status: "pending" | "available" | "applied" | "expired"
+      referral_credit_status:
+        | "pending"
+        | "available"
+        | "applied"
+        | "expired"
+        | "requested"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1272,8 +1352,15 @@ export const Constants = {
       company_plan: ["start", "pro", "enterprise"],
       company_status: ["active", "suspended", "trial"],
       opportunity_status: ["lead", "contacted", "qualified", "won", "lost"],
+      payout_status: ["pending", "paid", "rejected"],
       product_sale_status: ["pending", "completed", "cancelled"],
-      referral_credit_status: ["pending", "available", "applied", "expired"],
+      referral_credit_status: [
+        "pending",
+        "available",
+        "applied",
+        "expired",
+        "requested",
+      ],
     },
   },
 } as const
