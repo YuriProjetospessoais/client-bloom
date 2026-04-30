@@ -281,6 +281,13 @@ export type Database = {
             referencedRelation: "professionals"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "clients_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "orphan_users"
+            referencedColumns: ["id"]
+          },
         ]
       }
       companies: {
@@ -308,6 +315,7 @@ export type Database = {
           slug: string | null
           state: string | null
           status: Database["public"]["Enums"]["company_status"]
+          trial_ends_at: string | null
           updated_at: string
           whatsapp_number: string | null
           zip_code: string | null
@@ -336,6 +344,7 @@ export type Database = {
           slug?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["company_status"]
+          trial_ends_at?: string | null
           updated_at?: string
           whatsapp_number?: string | null
           zip_code?: string | null
@@ -364,6 +373,7 @@ export type Database = {
           slug?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["company_status"]
+          trial_ends_at?: string | null
           updated_at?: string
           whatsapp_number?: string | null
           zip_code?: string | null
@@ -656,6 +666,13 @@ export type Database = {
             referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "professionals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "orphan_users"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profiles: {
@@ -689,7 +706,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "orphan_users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       services: {
         Row: {
@@ -777,6 +802,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "orphan_users"
             referencedColumns: ["id"]
           },
         ]
@@ -956,6 +988,15 @@ export type Database = {
           status?: Database["public"]["Enums"]["company_status"] | null
           whatsapp_number?: string | null
           zip_code?: string | null
+        }
+        Relationships: []
+      }
+      orphan_users: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          email_confirmed_at: string | null
+          id: string | null
         }
         Relationships: []
       }
