@@ -74,6 +74,7 @@ export const translations = {
       blockedSlots: 'Bloqueios',
       monthlyReport: 'Relatório Mensal',
       referrals: 'Indicações',
+      payouts: 'Resgates',
     },
 
     // Dashboard
@@ -327,6 +328,7 @@ export const translations = {
       blockedSlots: 'Block Time',
       monthlyReport: 'Monthly Report',
       referrals: 'Referrals',
+      payouts: 'Payouts',
     },
 
     // Dashboard
@@ -580,6 +582,7 @@ export const translations = {
       blockedSlots: 'Bloqueos',
       monthlyReport: 'Informe Mensual',
       referrals: 'Referidos',
+      payouts: 'Retiros',
     },
 
     // Dashboard

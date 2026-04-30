@@ -44,6 +44,7 @@ const GlobalDashboardPage = lazy(() => import("./pages/global/GlobalDashboardPag
 const CompaniesPage = lazy(() => import("./pages/global/CompaniesPage"));
 const GlobalUsersPage = lazy(() => import("./pages/global/GlobalUsersPage"));
 const PlansPage = lazy(() => import("./pages/global/PlansPage"));
+const PayoutsPage = lazy(() => import("./pages/global/PayoutsPage"));
 
 // Company Admin Pages
 const AdminDashboardPage = lazy(() => import("./pages/admin/AdminDashboardPage"));
@@ -129,6 +130,7 @@ const App = () => (
                     <Route path="companies" element={<CompaniesPage />} />
                     <Route path="users" element={<GlobalUsersPage />} />
                     <Route path="plans" element={<PlansPage />} />
+                    <Route path="payouts" element={<PayoutsPage />} />
                   </Route>
 
                   {/* Company Admin routes - /admin */}
