@@ -1,17 +1,25 @@
 import { useEffect, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Gift, Copy, Check, Share2, Users, Wallet, Clock, AlertCircle, Loader2, ExternalLink,
+  Gift, Copy, Check, Share2, Users, Wallet, Clock, AlertCircle, Loader2, ExternalLink, Banknote,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth/AuthContext';
 
-type CreditStatus = 'pending' | 'available' | 'applied' | 'expired';
+type CreditStatus = 'pending' | 'available' | 'requested' | 'applied' | 'expired';
 
 interface CreditRow {
   id: string;
@@ -37,6 +45,7 @@ function formatDate(d: string | null) {
 const STATUS_LABEL: Record<CreditStatus, { label: string; className: string }> = {
   pending: { label: 'Pendente', className: 'bg-amber-500/10 text-amber-400 border-amber-500/30' },
   available: { label: 'Disponível', className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' },
+  requested: { label: 'Em resgate', className: 'bg-purple-500/10 text-purple-400 border-purple-500/30' },
   applied: { label: 'Aplicado', className: 'bg-blue-500/10 text-blue-400 border-blue-500/30' },
   expired: { label: 'Expirado', className: 'bg-neutral-500/10 text-neutral-400 border-neutral-500/30' },
 };
@@ -51,6 +60,11 @@ export default function ReferralPage() {
   const [slug, setSlug] = useState<string>('');
   const [credits, setCredits] = useState<CreditRow[]>([]);
   const [copied, setCopied] = useState<'code' | 'link' | null>(null);
+  const [payoutOpen, setPayoutOpen] = useState(false);
+  const [pixKey, setPixKey] = useState('');
+  const [pixKeyType, setPixKeyType] = useState('cpf');
+  const [payoutNotes, setPayoutNotes] = useState('');
+  const [submittingPayout, setSubmittingPayout] = useState(false);
 
   useEffect(() => {
     if (!companyId) return;
@@ -95,9 +109,10 @@ export default function ReferralPage() {
   const stats = useMemo(() => {
     const available = credits.filter((c) => c.status === 'available').reduce((s, c) => s + c.amount_cents, 0);
     const pending = credits.filter((c) => c.status === 'pending').reduce((s, c) => s + c.amount_cents, 0);
+    const requested = credits.filter((c) => c.status === 'requested').reduce((s, c) => s + c.amount_cents, 0);
     const applied = credits.filter((c) => c.status === 'applied').reduce((s, c) => s + c.amount_cents, 0);
     const totalReferrals = credits.length;
-    return { available, pending, applied, totalReferrals };
+    return { available, pending, requested, applied, totalReferrals };
   }, [credits]);
 
   const copy = async (text: string, kind: 'code' | 'link') => {
@@ -117,6 +132,49 @@ export default function ReferralPage() {
       `Cadastra a sua usando meu código e ganha 14 dias grátis no plano Pro: ${referralLink}`,
     );
     window.open(`https://wa.me/?text=${msg}`, '_blank');
+  };
+
+  const reload = async () => {
+    if (!companyId) return;
+    const { data: creditRows } = await supabase
+      .from('referral_credits')
+      .select('id, amount_cents, status, created_at, available_at, expires_at, applied_at, referred_company_id')
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false });
+    const ids = (creditRows ?? []).map((r) => r.referred_company_id);
+    let names: Record<string, string> = {};
+    if (ids.length) {
+      const { data: companies } = await supabase.from('companies').select('id, name').in('id', ids);
+      names = Object.fromEntries((companies ?? []).map((c) => [c.id, c.name]));
+    }
+    setCredits((creditRows ?? []).map((r) => ({ ...r, referred_company_name: names[r.referred_company_id] })) as CreditRow[]);
+  };
+
+  const submitPayout = async () => {
+    if (!pixKey.trim()) {
+      toast({ title: 'Informe a chave Pix', variant: 'destructive' });
+      return;
+    }
+    setSubmittingPayout(true);
+    const { data, error } = await supabase.rpc('request_referral_payout', {
+      _pix_key: pixKey.trim(),
+      _pix_key_type: pixKeyType,
+      _notes: payoutNotes || null,
+    });
+    setSubmittingPayout(false);
+    if (error) {
+      toast({ title: 'Erro ao solicitar resgate', description: error.message, variant: 'destructive' });
+      return;
+    }
+    const result = data as { amount_cents: number };
+    toast({
+      title: 'Resgate solicitado!',
+      description: `R$ ${(result.amount_cents / 100).toFixed(2)} em análise. Você receberá o Pix em até 7 dias úteis.`,
+    });
+    setPayoutOpen(false);
+    setPixKey('');
+    setPayoutNotes('');
+    await reload();
   };
 
   if (loading) {
@@ -157,6 +215,73 @@ export default function ReferralPage() {
         <StatCard icon={Check} label="Já aplicado" value={formatBRL(stats.applied)} color="text-blue-400" />
         <StatCard icon={Users} label="Indicações" value={String(stats.totalReferrals)} color="text-foreground" />
       </div>
+
+      {/* Resgate */}
+      <Card className="p-4 md:p-6 flex flex-col md:flex-row md:items-center gap-4 justify-between border-emerald-500/20 bg-emerald-500/5">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0">
+            <Banknote className="w-5 h-5 text-emerald-400" />
+          </div>
+          <div>
+            <h3 className="font-semibold">Resgatar saldo via Pix</h3>
+            <p className="text-sm text-muted-foreground">
+              {stats.available > 0
+                ? `Você tem ${formatBRL(stats.available)} disponível para resgate.`
+                : stats.requested > 0
+                ? `${formatBRL(stats.requested)} em análise — aguarde o pagamento.`
+                : 'Quando alguma indicação pagar a 1ª fatura, o saldo aparece aqui.'}
+            </p>
+          </div>
+        </div>
+        <Dialog open={payoutOpen} onOpenChange={setPayoutOpen}>
+          <DialogTrigger asChild>
+            <Button
+              disabled={stats.available <= 0}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white shrink-0"
+            >
+              <Banknote className="w-4 h-4 mr-2" />
+              Solicitar resgate
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Solicitar resgate de {formatBRL(stats.available)}</DialogTitle>
+              <DialogDescription>
+                O pagamento é feito via Pix em até 7 dias úteis após a aprovação.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label>Tipo de chave Pix</Label>
+                <Select value={pixKeyType} onValueChange={setPixKeyType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cpf">CPF</SelectItem>
+                    <SelectItem value="cnpj">CNPJ</SelectItem>
+                    <SelectItem value="email">E-mail</SelectItem>
+                    <SelectItem value="phone">Telefone</SelectItem>
+                    <SelectItem value="random">Chave aleatória</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Chave Pix</Label>
+                <Input value={pixKey} onChange={(e) => setPixKey(e.target.value)} placeholder="Digite sua chave" />
+              </div>
+              <div className="space-y-2">
+                <Label>Observações (opcional)</Label>
+                <Textarea value={payoutNotes} onChange={(e) => setPayoutNotes(e.target.value)} rows={2} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPayoutOpen(false)}>Cancelar</Button>
+              <Button onClick={submitPayout} disabled={submittingPayout} className="bg-emerald-600 hover:bg-emerald-500 text-white">
+                {submittingPayout ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirmar solicitação'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </Card>
 
       {/* Code & Link */}
       <Card className="p-4 md:p-6 space-y-5">
