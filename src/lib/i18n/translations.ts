@@ -74,6 +74,7 @@ export const translations = {
       blockedSlots: 'Bloqueios',
       monthlyReport: 'Relatório Mensal',
       referrals: 'Indicações',
+      payouts: 'Resgates',
     },
 
     // Dashboard
