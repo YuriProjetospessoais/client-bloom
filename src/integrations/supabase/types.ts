@@ -288,6 +288,7 @@ export type Database = {
           address: string | null
           cancel_limit_hours: number
           city: string | null
+          commission_percent: number
           cover_url: string | null
           created_at: string
           description: string | null
@@ -320,6 +321,7 @@ export type Database = {
           address?: string | null
           cancel_limit_hours?: number
           city?: string | null
+          commission_percent?: number
           cover_url?: string | null
           created_at?: string
           description?: string | null
@@ -352,6 +354,7 @@ export type Database = {
           address?: string | null
           cancel_limit_hours?: number
           city?: string | null
+          commission_percent?: number
           cover_url?: string | null
           created_at?: string
           description?: string | null
@@ -1127,9 +1130,35 @@ export type Database = {
       }
       find_company_by_admin_email: { Args: { _email: string }; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
+      get_at_risk_clients: {
+        Args: { _company_id: string; _days_threshold?: number }
+        Returns: {
+          client_id: string
+          days_since: number
+          last_visit: string
+          name: string
+          phone: string
+        }[]
+      }
+      get_client_retention_metrics: {
+        Args: { _company_id: string }
+        Returns: Json
+      }
       get_company_plan: {
         Args: { _company_id: string }
         Returns: Database["public"]["Enums"]["company_plan"]
+      }
+      get_dashboard_kpis: {
+        Args: { _company_id: string; _user_id?: string; _user_role?: string }
+        Returns: Json
+      }
+      get_heatmap_data: {
+        Args: { _company_id: string }
+        Returns: {
+          count: number
+          dow: number
+          hour: number
+        }[]
       }
       get_orphan_users: {
         Args: never
@@ -1140,9 +1169,37 @@ export type Database = {
           id: string
         }[]
       }
+      get_professional_ranking: {
+        Args: { _company_id: string }
+        Returns: {
+          appointments_count: number
+          avg_ticket: number
+          name: string
+          no_show_rate: number
+          professional_id: string
+          revenue: number
+        }[]
+      }
       get_public_company_id: { Args: never; Returns: string }
       get_referral_balance: { Args: { _company_id: string }; Returns: number }
       get_request_header: { Args: { _name: string }; Returns: string }
+      get_revenue_chart_data: {
+        Args: { _company_id: string; _days?: number; _user_id?: string }
+        Returns: {
+          appointments_count: number
+          d: string
+          revenue: number
+        }[]
+      }
+      get_top_services: {
+        Args: { _company_id: string; _limit?: number }
+        Returns: {
+          count: number
+          name: string
+          revenue: number
+          service_id: string
+        }[]
+      }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_professional_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
@@ -1183,6 +1240,7 @@ export type Database = {
         Returns: Json
       }
       reset_login_attempts: { Args: { _email: string }; Returns: undefined }
+      user_in_company: { Args: { _company_id: string }; Returns: boolean }
     }
     Enums: {
       app_role:
