@@ -1,5 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth/AuthContext';
+import LandingPage from './LandingPage';
+import { LimboScreen } from '@/components/auth/LimboScreen';
 
 const Index = () => {
   const { isAuthenticated, user, isLoading } = useAuth();
@@ -13,7 +15,7 @@ const Index = () => {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <LandingPage />;
   }
 
   switch (user?.role) {
@@ -27,7 +29,8 @@ const Index = () => {
     case 'client':
       return <Navigate to="/portal" replace />;
     default:
-      return <Navigate to="/login" replace />;
+      // Logged-in user with no role assigned (limbo)
+      return <LimboScreen />;
   }
 };
 
