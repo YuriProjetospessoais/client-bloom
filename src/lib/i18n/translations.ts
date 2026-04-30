@@ -73,6 +73,7 @@ export const translations = {
       barbers: 'Barbeiros',
       blockedSlots: 'Bloqueios',
       monthlyReport: 'Relatório Mensal',
+      referrals: 'Indicações',
     },
 
     // Dashboard
@@ -325,6 +326,7 @@ export const translations = {
       barbers: 'Barbers',
       blockedSlots: 'Block Time',
       monthlyReport: 'Monthly Report',
+      referrals: 'Referrals',
     },
 
     // Dashboard
@@ -577,6 +579,7 @@ export const translations = {
       barbers: 'Barberos',
       blockedSlots: 'Bloqueos',
       monthlyReport: 'Informe Mensual',
+      referrals: 'Referidos',
     },
 
     // Dashboard
