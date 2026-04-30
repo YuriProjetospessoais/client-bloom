@@ -4,7 +4,8 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: UserRole;
+  /** undefined means the user has no role assigned (limbo state) */
+  role?: UserRole;
   companyId?: string;
   companyName?: string;
   avatar?: string;

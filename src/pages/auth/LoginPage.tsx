@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Loader2, Mail, Lock, User as UserIcon, Scissors } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Mail, Lock, Scissors } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -10,18 +10,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { MfaVerify } from '@/components/auth/MfaVerify';
 import barbershopBg from '@/assets/barbershop-bg.jpg';
 
-type AuthMode = 'login' | 'signup';
-
 export default function LoginPage() {
-  const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [mfaRequired, setMfaRequired] = useState(false);
-  
-  const { login, signup } = useAuth();
+
+  const { login } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,47 +43,32 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLoading) return; // Prevent double submission
+    if (isLoading) return;
     setIsLoading(true);
 
     try {
-      if (mode === 'login') {
-        const result = await login(email, password);
+      const result = await login(email, password);
 
-        if (result.rateLimited) {
-          toast({
-            title: 'Muitas tentativas',
-            description: `Conta temporariamente bloqueada. Tente novamente em ${result.minutesRemaining ?? 30} minuto(s).`,
-            variant: 'destructive',
-          });
-        } else if (result.success) {
-          if (result.requiresMfa) {
-            setMfaRequired(true);
-            toast({ title: 'Autenticação em duas etapas', description: 'Por favor, insira seu código 2FA.' });
-            setIsLoading(false);
-            return;
-          }
-
-          toast({ title: 'Bem-vindo de volta!', description: 'Login realizado com sucesso.' });
-          if (result.user) {
-            await handleSuccessfulLogin(result.user);
-          }
-        } else {
-          toast({ title: 'Erro no login', description: 'Email ou senha inválidos.', variant: 'destructive' });
-        }
-      } else {
-        if (!fullName.trim()) {
-          toast({ title: 'Nome obrigatório', description: 'Informe seu nome completo.', variant: 'destructive' });
+      if (result.rateLimited) {
+        toast({
+          title: 'Muitas tentativas',
+          description: `Conta temporariamente bloqueada. Tente novamente em ${result.minutesRemaining ?? 30} minuto(s).`,
+          variant: 'destructive',
+        });
+      } else if (result.success) {
+        if (result.requiresMfa) {
+          setMfaRequired(true);
+          toast({ title: 'Autenticação em duas etapas', description: 'Por favor, insira seu código 2FA.' });
           setIsLoading(false);
           return;
         }
-        const result = await signup(email, password, fullName);
-        if (result.success) {
-          toast({ title: 'Conta criada!', description: result.message });
-          setMode('login');
-        } else {
-          toast({ title: 'Erro no cadastro', description: result.message, variant: 'destructive' });
+
+        toast({ title: 'Bem-vindo de volta!', description: 'Login realizado com sucesso.' });
+        if (result.user) {
+          await handleSuccessfulLogin(result.user);
         }
+      } else {
+        toast({ title: 'Erro no login', description: 'Email ou senha inválidos.', variant: 'destructive' });
       }
     } catch {
       toast({ title: 'Erro', description: 'Ocorreu um erro inesperado.', variant: 'destructive' });
@@ -147,24 +128,10 @@ export default function LoginPage() {
           ) : (
             <>
               <h2 className="text-2xl font-display font-semibold text-foreground text-center mb-6">
-                {mode === 'login' ? 'Bem-vindo de volta' : 'Criar sua conta'}
+                Bem-vindo de volta
               </h2>
 
               <form onSubmit={handleSubmit} className="space-y-5">
-                {mode === 'signup' && (
-                  <div className="relative">
-                    <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                    <Input
-                      type="text"
-                      placeholder="Nome completo"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      required
-                      className="h-14 pl-12 bg-secondary/50 border-border/50 rounded-xl text-base focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-                )}
-
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <Input
@@ -204,22 +171,17 @@ export default function LoginPage() {
                 >
                   {isLoading ? (
                     <span className="flex items-center gap-2"><Loader2 className="w-5 h-5 animate-spin" /> Entrando...</span>
-                  ) : mode === 'login' ? (
-                    'Entrar no sistema'
                   ) : (
-                    'Criar conta'
+                    'Entrar no sistema'
                   )}
                 </Button>
               </form>
 
-              <div className="mt-6 text-center">
-                <button
-                  type="button"
-                  onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                >
-                  {mode === 'login' ? 'Não tem conta? Cadastre-se' : 'Já tem conta? Faça login'}
-                </button>
+              <div className="mt-6 text-center text-sm text-muted-foreground">
+                Quer cadastrar sua barbearia?{' '}
+                <Link to="/onboarding" className="text-primary hover:underline font-medium">
+                  Clique aqui
+                </Link>
               </div>
             </>
           )}

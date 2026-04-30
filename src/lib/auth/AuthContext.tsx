@@ -13,7 +13,7 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-async function fetchUserRoleWithCompany(userId: string): Promise<{ role: UserRole; companyId?: string; companyName?: string }> {
+async function fetchUserRoleWithCompany(userId: string): Promise<{ role?: UserRole; companyId?: string; companyName?: string }> {
   const { data } = await supabase
     .from('user_roles')
     .select('role, company_id, companies(name)')
@@ -29,7 +29,8 @@ async function fetchUserRoleWithCompany(userId: string): Promise<{ role: UserRol
       companyName: companyData?.name ?? undefined
     };
   }
-  return { role: 'client' };
+  // No role assigned — limbo state
+  return { role: undefined };
 }
 
 async function buildUser(session: Session): Promise<User> {
@@ -183,7 +184,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [state.user]);
 
   const hasPermission = useCallback((requiredRole: UserRole | UserRole[]): boolean => {
-    if (!state.user) return false;
+    if (!state.user || !state.user.role) return false;
     const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
     if (state.user.role === 'super_admin') return true;
     return roles.includes(state.user.role);
