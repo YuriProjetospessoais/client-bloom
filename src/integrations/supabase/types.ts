@@ -338,7 +338,7 @@ export type Database = {
           plan_active?: boolean
           plan_updated_at?: string
           primary_color?: string | null
-          referral_code: string
+          referral_code?: string
           referred_by_company_id?: string | null
           slug?: string | null
           state?: string | null
