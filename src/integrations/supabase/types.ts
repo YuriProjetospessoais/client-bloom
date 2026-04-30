@@ -281,13 +281,6 @@ export type Database = {
             referencedRelation: "professionals"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "clients_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "orphan_users"
-            referencedColumns: ["id"]
-          },
         ]
       }
       companies: {
@@ -666,13 +659,6 @@ export type Database = {
             referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "professionals_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "orphan_users"
-            referencedColumns: ["id"]
-          },
         ]
       }
       profiles: {
@@ -706,15 +692,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "orphan_users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       services: {
         Row: {
@@ -802,13 +780,6 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies_public"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_roles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "orphan_users"
             referencedColumns: ["id"]
           },
         ]
@@ -991,15 +962,6 @@ export type Database = {
         }
         Relationships: []
       }
-      orphan_users: {
-        Row: {
-          created_at: string | null
-          email: string | null
-          email_confirmed_at: string | null
-          id: string | null
-        }
-        Relationships: []
-      }
     }
     Functions: {
       check_login_blocked: { Args: { _email: string }; Returns: Json }
@@ -1010,6 +972,15 @@ export type Database = {
       get_company_plan: {
         Args: { _company_id: string }
         Returns: Database["public"]["Enums"]["company_plan"]
+      }
+      get_orphan_users: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          email_confirmed_at: string
+          id: string
+        }[]
       }
       get_public_company_id: { Args: never; Returns: string }
       get_request_header: { Args: { _name: string }; Returns: string }
