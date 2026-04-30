@@ -1,10 +1,11 @@
 import { useLocation } from 'react-router-dom';
-import { 
-  Building2, 
-  LayoutDashboard, 
-  Users, 
+import {
+  Building2,
+  LayoutDashboard,
+  Users,
   CreditCard,
-  Settings
+  Settings,
+  Banknote,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { BarberFlowLogo } from './BarberFlowLogo';
@@ -27,6 +28,7 @@ const menuItems = [
   { key: 'companies', url: '/global/companies', icon: Building2, translationKey: 'companies' as const },
   { key: 'users', url: '/global/users', icon: Users, translationKey: 'users' as const },
   { key: 'plans', url: '/global/plans', icon: CreditCard, translationKey: 'plans' as const },
+  { key: 'payouts', url: '/global/payouts', icon: Banknote, translationKey: 'payouts' as const },
 ];
 
 export function SuperAdminSidebar() {
