@@ -130,7 +130,7 @@ export default function LoginPage() {
               if (session?.user) {
                 await handleSuccessfulLogin({ id: session.user.id });
               } else {
-                navigate(from, { replace: true });
+                navigate(target, { replace: true });
               }
             }} />
           ) : (
