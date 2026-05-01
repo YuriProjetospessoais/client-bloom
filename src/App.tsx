@@ -29,6 +29,7 @@ const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const TenantSelectionPage = lazy(() => import("./pages/auth/TenantSelectionPage"));
 const OnboardingPage = lazy(() => import("./pages/onboarding/OnboardingPage"));
+const SignupPage = lazy(() => import("./pages/auth/SignupPage"));
 
 // Layouts
 const SuperAdminLayout = lazy(() => import("./pages/layouts/SuperAdminLayout"));
@@ -112,6 +113,7 @@ const App = () => (
                   {/* Public routes */}
                   <Route path="/" element={<Index />} />
                   <Route path="/login" element={<LoginPage />} />
+                  <Route path="/signup" element={<SignupPage />} />
                   <Route path="/onboarding" element={<OnboardingPage />} />
                   <Route path="/select-tenant" element={
                     <ProtectedRoute allowedRoles={['super_admin', 'company_admin', 'employee', 'secretary', 'client']}>
