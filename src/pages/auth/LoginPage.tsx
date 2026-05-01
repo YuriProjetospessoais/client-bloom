@@ -185,11 +185,22 @@ export default function LoginPage() {
                 </Button>
               </form>
 
-              <div className="mt-6 text-center text-sm text-muted-foreground">
-                Quer cadastrar sua barbearia?{' '}
-                <Link to="/onboarding" className="text-primary hover:underline font-medium">
-                  Clique aqui
-                </Link>
+              <div className="mt-6 space-y-2 text-center">
+                <div className="text-sm text-muted-foreground">
+                  Ainda não tem conta?{' '}
+                  <Link
+                    to={redirectParam ? `/signup?redirect=${encodeURIComponent(redirectParam)}` : '/signup'}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    Cadastre-se aqui
+                  </Link>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  É dono de barbearia?{' '}
+                  <Link to="/onboarding" className="text-primary hover:underline font-medium">
+                    Cadastre sua barbearia
+                  </Link>
+                </div>
               </div>
             </>
           )}
