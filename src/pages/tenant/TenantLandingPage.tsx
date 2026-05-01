@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTenant } from '@/lib/tenant/TenantContext';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { Button } from '@/components/ui/button';
 import { CalendarPlus, Scissors, MapPin, Phone, Clock, Instagram, Facebook, ArrowRight, MessageCircle, X } from 'lucide-react';
 import TenantNotFound from './TenantNotFound';
@@ -40,6 +41,7 @@ interface CompanyDetails {
 export default function TenantLandingPage() {
   const { slug } = useParams();
   const { tenant, isLoading: isTenantLoading, error } = useTenant();
+  const { user } = useAuth();
   
   const [services, setServices] = useState<Service[]>([]);
   const [professionals, setProfessionals] = useState<Professional[]>([]);
@@ -104,6 +106,10 @@ export default function TenantLandingPage() {
     ? `https://wa.me/${companyDetails.whatsapp_number.replace(/\D/g, '')}`
     : null;
 
+  const bookingPath = `/${slug}/agendar`;
+  const bookHref = user ? bookingPath : `/login?redirect=${encodeURIComponent(bookingPath)}`;
+  const signupHref = `/signup?redirect=${encodeURIComponent(bookingPath)}`;
+
   return (
     <div className="min-h-screen bg-background font-sans text-foreground flex flex-col">
       {/* Navbar */}
@@ -120,7 +126,7 @@ export default function TenantLandingPage() {
             <span className="font-bold text-lg truncate max-w-[200px] sm:max-w-none">{tenant.name}</span>
           </div>
           <Button asChild size="sm" style={primaryStyle} className="hover:opacity-90">
-            <Link to={`/${slug}/agendar`}>Agendar</Link>
+            <Link to={bookHref}>Agendar</Link>
           </Button>
         </div>
       </header>
@@ -160,7 +166,7 @@ export default function TenantLandingPage() {
 
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button asChild size="lg" className="w-full sm:w-auto text-lg h-14 px-8 shadow-lg hover:shadow-xl transition-all hover:-translate-y-1" style={primaryStyle}>
-              <Link to={`/${slug}/agendar`}>
+              <Link to={bookHref}>
                 <CalendarPlus className="mr-2 h-5 w-5" />
                 Agendar Horário
               </Link>
@@ -169,6 +175,14 @@ export default function TenantLandingPage() {
               <a href="#servicos">Ver Serviços</a>
             </Button>
           </div>
+          {!user && (
+            <p className="pt-3 text-sm text-muted-foreground">
+              Primeira vez aqui?{' '}
+              <Link to={signupHref} className="font-semibold hover:underline" style={primaryText}>
+                Cadastre-se
+              </Link>
+            </p>
+          )}
         </div>
       </section>
 
@@ -263,7 +277,7 @@ export default function TenantLandingPage() {
             Não perca tempo na fila. Agende seu horário agora mesmo e garanta sua vaga com seu profissional favorito.
           </p>
           <Button asChild size="lg" variant="secondary" className="text-lg h-14 px-8 mt-4 hover:scale-105 transition-transform">
-            <Link to={`/${slug}/agendar`} className="text-foreground">
+            <Link to={bookHref} className="text-foreground">
               Agendar Meu Horário <ArrowRight className="ml-2 w-5 h-5" />
             </Link>
           </Button>

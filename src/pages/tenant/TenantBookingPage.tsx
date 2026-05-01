@@ -37,7 +37,7 @@ type Step = 'phone' | 'service' | 'professional' | 'datetime' | 'customer' | 'co
 export default function TenantBookingPage() {
   const { slug } = useParams();
   const { tenant } = useTenant();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const [step, setStep] = useState<Step>('phone');
@@ -68,6 +68,13 @@ export default function TenantBookingPage() {
   const [calendarSlots, setCalendarSlots] = useState<string[]>([]);
 
   const companyId = tenant?.id;
+
+  // Require login BEFORE the user starts the booking flow.
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate(`/login?redirect=/${slug}/agendar`, { replace: true });
+    }
+  }, [authLoading, user, slug, navigate]);
 
   // Load services & professionals
   useEffect(() => {
@@ -294,13 +301,7 @@ export default function TenantBookingPage() {
   }
 
   async function handleConfirm() {
-    if (!user) {
-      toast.error('Você precisa estar logado para agendar.');
-      navigate(`/${slug}`);
-      return;
-    }
-
-    if (!companyId || !selectedService || !selectedProfessional || !selectedDate || !selectedTime || !customerName || !customerPhone) return;
+    if (!user || !companyId || !selectedService || !selectedProfessional || !selectedDate || !selectedTime || !customerName || !customerPhone) return;
 
     setSubmitting(true);
 

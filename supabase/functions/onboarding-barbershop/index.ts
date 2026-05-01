@@ -56,6 +56,7 @@ serve(async (req) => {
   const { company, admin, referral_code } = parsed.data;
 
   if (RESERVED_SLUGS.has(company.slug)) {
+    console.error("[onboarding] error:", { stage: "reserved_slug", slug: company.slug, email: admin.email });
     return json({ error: "Este link é reservado, escolha outro." }, 400);
   }
 
@@ -72,10 +73,34 @@ serve(async (req) => {
     .eq("slug", company.slug)
     .maybeSingle();
   if (existingSlug) {
+    console.error("[onboarding] error:", { stage: "slug_taken", slug: company.slug, email: admin.email });
     return json({ error: "Este link já está em uso." }, 409);
   }
 
-  // 2) Create company (PRO trial for 14 days). Referral is applied after creation via RPC.
+  // 2) Pre-check email so we don't create an orphan company if it already exists.
+  // listUsers paginates; for typical sizes the first page suffices, but we scan all pages defensively.
+  try {
+    const emailLower = admin.email.toLowerCase();
+    let page = 1;
+    let emailTaken = false;
+    while (page <= 10 && !emailTaken) {
+      const { data: list, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
+      if (listErr) break;
+      const users = list?.users ?? [];
+      emailTaken = users.some((u) => u.email?.toLowerCase() === emailLower);
+      if (users.length < 1000) break;
+      page++;
+    }
+    if (emailTaken) {
+      console.error("[onboarding] error:", { stage: "email_taken", email: admin.email });
+      return json({ error: "Esse email já está cadastrado. Use outro ou faça login." }, 409);
+    }
+  } catch (e) {
+    // If the lookup itself fails, fall through — createUser will still error if email is taken.
+    console.error("[onboarding] warn:", { stage: "email_precheck_failed", message: (e as Error).message });
+  }
+
+  // 3) Create company (PRO trial for 14 days). Referral is applied after creation via RPC.
   const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
   const companyInsert: Record<string, unknown> = {
     name: company.name,
@@ -93,11 +118,12 @@ serve(async (req) => {
     .single();
 
   if (companyErr || !createdCompany) {
+    console.error("[onboarding] error:", { stage: "create_company", message: companyErr?.message, email: admin.email });
     return json({ error: companyErr?.message ?? "Falha ao criar barbearia" }, 500);
   }
   const companyId = createdCompany.id as string;
 
-  // 3) Create auth user
+  // 4) Create auth user
   const { data: createdUser, error: userErr } = await supabaseAdmin.auth.admin.createUser({
     email: admin.email,
     password: admin.password,
@@ -110,12 +136,13 @@ serve(async (req) => {
     await supabaseAdmin.from("companies").delete().eq("id", companyId);
     const msg = userErr?.message ?? "Falha ao criar usuário";
     const status = msg.toLowerCase().includes("registered") ? 409 : 500;
+    console.error("[onboarding] error:", { stage: "create_user", message: msg, email: admin.email });
     return json({ error: msg }, status);
   }
 
   const userId = createdUser.user.id;
 
-  // 4) Create user_role: company_admin
+  // 5) Create user_role: company_admin
   const { error: roleErr } = await supabaseAdmin
     .from("user_roles")
     .insert({ user_id: userId, role: "company_admin", company_id: companyId });
@@ -124,10 +151,11 @@ serve(async (req) => {
     // rollback user + company
     await supabaseAdmin.auth.admin.deleteUser(userId);
     await supabaseAdmin.from("companies").delete().eq("id", companyId);
+    console.error("[onboarding] error:", { stage: "assign_role", message: roleErr.message, email: admin.email });
     return json({ error: roleErr.message }, 500);
   }
 
-  // 5) Apply referral code if provided (creates pending credit for referrer)
+  // 6) Apply referral code if provided (creates pending credit for referrer)
   let referralApplied = false;
   if (referral_code) {
     const { data: refResult } = await supabaseAdmin.rpc("apply_referral_on_signup", {

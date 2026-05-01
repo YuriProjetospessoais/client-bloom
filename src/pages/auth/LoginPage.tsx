@@ -23,6 +23,8 @@ export default function LoginPage() {
   const location = useLocation();
 
   const from = location.state?.from?.pathname || '/';
+  const redirectParam = new URLSearchParams(location.search).get('redirect');
+  const target = redirectParam || from;
 
   const handleSuccessfulLogin = async (user: { id: string; companyId?: string }) => {
     // Check if user has memberships to show tenant selection
@@ -31,6 +33,12 @@ export default function LoginPage() {
       .select('role, company_id')
       .eq('user_id', user.id);
     
+    // Honor explicit redirect (e.g. from /:slug/agendar)
+    if (redirectParam) {
+      navigate(redirectParam, { replace: true });
+      return;
+    }
+
     // If user has memberships (excluding super_admin global access), show selection
     const hasMemberships = roles && roles.some(r => r.company_id !== null);
     if (hasMemberships) {
@@ -38,7 +46,7 @@ export default function LoginPage() {
       return;
     }
     
-    navigate(from, { replace: true });
+    navigate(target, { replace: true });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -122,7 +130,7 @@ export default function LoginPage() {
               if (session?.user) {
                 await handleSuccessfulLogin({ id: session.user.id });
               } else {
-                navigate(from, { replace: true });
+                navigate(target, { replace: true });
               }
             }} />
           ) : (
@@ -177,11 +185,22 @@ export default function LoginPage() {
                 </Button>
               </form>
 
-              <div className="mt-6 text-center text-sm text-muted-foreground">
-                Quer cadastrar sua barbearia?{' '}
-                <Link to="/onboarding" className="text-primary hover:underline font-medium">
-                  Clique aqui
-                </Link>
+              <div className="mt-6 space-y-2 text-center">
+                <div className="text-sm text-muted-foreground">
+                  Ainda não tem conta?{' '}
+                  <Link
+                    to={redirectParam ? `/signup?redirect=${encodeURIComponent(redirectParam)}` : '/signup'}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    Cadastre-se aqui
+                  </Link>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  É dono de barbearia?{' '}
+                  <Link to="/onboarding" className="text-primary hover:underline font-medium">
+                    Cadastre sua barbearia
+                  </Link>
+                </div>
               </div>
             </>
           )}

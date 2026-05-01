@@ -1,3 +1,8 @@
+// TODO: reativar fluxo de confirmação de email quando
+// Resend/SMTP estiver configurado (ver PROMPT-2 PARTE D).
+// Hoje o "Confirm email" está desativado no dashboard do Supabase,
+// então o admin pode logar imediatamente após criar a barbearia.
+
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -127,10 +132,41 @@ export default function OnboardingPage() {
       });
 
       if (error || (data && data.error)) {
-        const msg = (data?.error as string) || error?.message || 'Erro ao criar conta';
-        toast({ title: 'Não foi possível criar sua barbearia', description: msg, variant: 'destructive' });
+        // `data` contém o JSON da resposta (mesmo em status >= 400)
+        // `error` contém erros de rede / runtime
+        let msg = (data?.error as string) || error?.message || 'Erro ao criar conta';
+        const lower = msg.toLowerCase();
+        if (lower.includes('already registered') || lower.includes('duplicate') || lower.includes('already exists')) {
+          msg = 'Esse email já está cadastrado. Faça login ou use outro email.';
+        } else if (lower.includes('password') && (lower.includes('weak') || lower.includes('compromised') || lower.includes('leaked') || lower.includes('pwned'))) {
+          msg = 'Senha bloqueada por segurança (consta em listas de vazamentos). Use uma senha diferente, com letras, números e símbolos.';
+        } else if (lower.includes('rate') || lower.includes('429') || lower.includes('too many')) {
+          msg = 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
+        } else if (lower.includes('reservado')) {
+          msg = 'Este link já está sendo usado. Escolha outro.';
+        } else if (lower.includes('link já está em uso') || lower.includes('slug')) {
+          msg = 'Este link já está sendo usado por outra barbearia. Escolha outro.';
+        }
+
+        toast({
+          title: 'Não foi possível criar sua barbearia',
+          description: msg,
+          variant: 'destructive',
+        });
         setSubmitting(false);
         return;
+      }
+
+      // Best-effort terms acceptance log. Won't block on failure.
+      // Note: only succeeds if the user has a session — if email confirmation
+      // is ON, the admin must log in first; logging will not happen here.
+      try {
+        await supabase.rpc('record_terms_acceptance', {
+          _email: email.trim().toLowerCase(),
+          _terms_version: 'v1',
+        });
+      } catch {
+        // ignore
       }
 
       setDone(true);

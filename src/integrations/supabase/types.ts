@@ -900,6 +900,36 @@ export type Database = {
           },
         ]
       }
+      terms_acceptance: {
+        Row: {
+          accepted_at: string
+          email: string
+          id: string
+          ip_address: unknown
+          terms_version: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          accepted_at?: string
+          email: string
+          id?: string
+          ip_address?: unknown
+          terms_version?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          accepted_at?: string
+          email?: string
+          id?: string
+          ip_address?: unknown
+          terms_version?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           company_id: string | null
@@ -1231,6 +1261,10 @@ export type Database = {
         Returns: Json
       }
       record_failed_login: { Args: { _email: string }; Returns: Json }
+      record_terms_acceptance: {
+        Args: { _email: string; _terms_version?: string }
+        Returns: string
+      }
       reject_payout: {
         Args: { _payout_id: string; _reason: string }
         Returns: Json
