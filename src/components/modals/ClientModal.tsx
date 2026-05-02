@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { z } from 'zod';
 import { sanitizeText, sanitizeObjectStrings } from '@/lib/security/sanitize';
 import type { Client } from '@/hooks/queries/useClients';
+import type { Json } from '@/integrations/supabase/types';
 import { useCreateClient, useUpdateClient } from '@/hooks/mutations/useClientMutations';
 
 interface ClientPreferences {
@@ -99,7 +100,7 @@ export function ClientModal({ open, onOpenChange, client }: ClientModalProps) {
     }
 
     const safeNotes = formData.notes ? sanitizeText(formData.notes) : null;
-    const safePrefs = sanitizeObjectStrings(preferences) as Record<string, unknown>;
+    const safePrefs = sanitizeObjectStrings(preferences) as unknown as Json;
 
     const payload = {
       name: formData.name.trim(),
