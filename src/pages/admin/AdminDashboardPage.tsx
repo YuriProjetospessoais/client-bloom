@@ -477,10 +477,6 @@ export default function AdminDashboardPage() {
         open={clientModalOpen}
         onOpenChange={setClientModalOpen}
         client={null}
-        onSave={(data) => {
-          clientsStore.create(data);
-          setClientModalOpen(false);
-        }}
       />
       <LeadModal
         open={leadModalOpen}
@@ -516,7 +512,8 @@ export default function AdminDashboardPage() {
       <ClientHistoryModal
         open={historyModalOpen}
         onOpenChange={setHistoryModalOpen}
-        client={selectedClient}
+        clientId={selectedClient?.id ?? null}
+        clientName={selectedClient?.name ?? null}
       />
     </div>
   );

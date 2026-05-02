@@ -1,38 +1,61 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { Search, Plus, MoreHorizontal, Phone, Calendar, Eye, Edit, Mail, Trash2 } from 'lucide-react';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
+import {
+  Search, Plus, MoreHorizontal, Phone, Calendar, Eye, Edit, Mail, Trash2,
+} from 'lucide-react';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ClientModal } from '@/components/modals/ClientModal';
 import { AppointmentModal } from '@/components/modals/AppointmentModal';
 import { ClientHistoryModal } from '@/components/modals/ClientHistoryModal';
 import { ConfirmDialog } from '@/components/modals/ConfirmDialog';
 import { handleCall, handleEmail } from '@/lib/actions';
-import { clientsStore, Client } from '@/lib/store';
-import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useClients, type Client } from '@/hooks/queries/useClients';
+import { useDeleteClient } from '@/hooks/mutations/useClientMutations';
+import { useTenantId } from '@/hooks/queries/useTenantId';
+
+type ClientStat = {
+  client_id: string;
+  last_visit: string | null;
+  total_spent: number;
+  visit_count: number;
+};
 
 export default function ClientsPage() {
   const { t } = useLanguage();
+  const companyId = useTenantId();
+  const { data: clients = [], isLoading } = useClients();
+  const deleteClient = useDeleteClient();
+
+  const { data: statsList } = useQuery({
+    queryKey: ['client-stats', companyId],
+    enabled: !!companyId,
+    queryFn: async (): Promise<ClientStat[]> => {
+      const { data, error } = await supabase.rpc('get_client_stats', { _company_id: companyId! });
+      if (error) throw error;
+      return (data ?? []) as ClientStat[];
+    },
+  });
+
+  const statsByClient = useMemo(() => {
+    const map = new Map<string, ClientStat>();
+    (statsList ?? []).forEach((s) => map.set(s.client_id, s));
+    return map;
+  }, [statsList]);
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [clients, setClients] = useState<Client[]>([]);
   const [clientModalOpen, setClientModalOpen] = useState(false);
   const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
@@ -40,34 +63,28 @@ export default function ClientsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
 
-  useEffect(() => {
-    setClients(clientsStore.getAll());
-  }, []);
+  const visibleClients = clients.filter((c) => c.active !== false);
 
-  const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.phone.includes(searchTerm)
-  );
-
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-  };
-
-  const getStatusBadge = (lastVisit?: string) => {
-    if (!lastVisit) return <Badge variant="outline">Novo</Badge>;
-    
-    const daysSinceVisit = Math.floor(
-      (new Date().getTime() - new Date(lastVisit).getTime()) / (1000 * 60 * 60 * 24)
+  const filteredClients = visibleClients.filter((client) => {
+    const term = searchTerm.toLowerCase();
+    return (
+      client.name.toLowerCase().includes(term) ||
+      (client.email ?? '').toLowerCase().includes(term) ||
+      (client.phone ?? '').includes(searchTerm)
     );
-    
-    if (daysSinceVisit <= 30) {
-      return <Badge className="bg-green-500/20 text-green-500">Ativo</Badge>;
-    } else if (daysSinceVisit <= 90) {
-      return <Badge className="bg-yellow-500/20 text-yellow-600">Em risco</Badge>;
-    } else {
-      return <Badge className="bg-gray-500/20 text-gray-500">Inativo</Badge>;
-    }
+  });
+
+  const getInitials = (name: string) =>
+    name.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase();
+
+  const getStatusBadge = (lastVisit?: string | null) => {
+    if (!lastVisit) return <Badge variant="outline">Novo</Badge>;
+    const daysSinceVisit = Math.floor(
+      (new Date().getTime() - new Date(lastVisit).getTime()) / (1000 * 60 * 60 * 24),
+    );
+    if (daysSinceVisit <= 30) return <Badge className="bg-green-500/20 text-green-500">Ativo</Badge>;
+    if (daysSinceVisit <= 90) return <Badge className="bg-yellow-500/20 text-yellow-600">Em risco</Badge>;
+    return <Badge className="bg-gray-500/20 text-gray-500">Inativo</Badge>;
   };
 
   const handleNewClient = () => {
@@ -78,17 +95,6 @@ export default function ClientsPage() {
   const handleEditClient = (client: Client) => {
     setSelectedClient(client);
     setClientModalOpen(true);
-  };
-
-  const handleSaveClient = (clientData: any) => {
-    if (clientData.id) {
-      clientsStore.update(clientData.id, clientData);
-      toast.success('Cliente atualizado com sucesso!');
-    } else {
-      clientsStore.create(clientData);
-      toast.success('Cliente criado com sucesso!');
-    }
-    setClients(clientsStore.getAll());
   };
 
   const handleSchedule = (client: Client) => {
@@ -108,9 +114,7 @@ export default function ClientsPage() {
 
   const handleConfirmDelete = () => {
     if (clientToDelete) {
-      clientsStore.delete(clientToDelete.id);
-      setClients(clientsStore.getAll());
-      toast.success('Cliente excluído com sucesso!');
+      deleteClient.mutate(clientToDelete.id);
     }
     setDeleteDialogOpen(false);
     setClientToDelete(null);
@@ -156,78 +160,113 @@ export default function ClientsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredClients.map((client) => (
-                  <TableRow key={client.id} className="hover:bg-muted/30">
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10">
-                          <AvatarFallback className="bg-primary/10 text-primary">
-                            {getInitials(client.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium text-foreground">{client.name}</p>
-                          <p className="text-sm text-muted-foreground">{client.phone}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="max-w-[200px]">
-                        {(client as any).preferences?.cutStyle && (
-                          <p className="text-xs text-foreground truncate">✂️ {(client as any).preferences.cutStyle}</p>
-                        )}
-                        {client.notes && (
-                          <p className="text-xs text-muted-foreground truncate">📝 {client.notes}</p>
-                        )}
-                        {!(client as any).preferences?.cutStyle && !client.notes && (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-foreground">{client.visitCount}</TableCell>
-                    <TableCell className="text-muted-foreground">{client.lastVisit || 'Nunca'}</TableCell>
-                    <TableCell className="font-medium text-foreground">
-                      R$ {client.totalSpent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell>{getStatusBadge(client.lastVisit)}</TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem className="gap-2" onClick={() => handleEditClient(client)}>
-                            <Edit className="w-4 h-4" /> Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2" onClick={() => handleViewHistory(client)}>
-                            <Eye className="w-4 h-4" /> Ver histórico
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2" onClick={() => handleCall(client.phone, client.name)}>
-                            <Phone className="w-4 h-4" /> Ligar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2" onClick={() => handleEmail(client.email, `Olá ${client.name}`, client.name)}>
-                            <Mail className="w-4 h-4" /> Email
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2" onClick={() => handleSchedule(client)}>
-                            <Calendar className="w-4 h-4" /> Agendar
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDeleteClick(client)}>
-                            <Trash2 className="w-4 h-4" /> Excluir
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {filteredClients.length === 0 && (
+                {isLoading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={`sk-${i}`}>
+                      <TableCell colSpan={7}>
+                        <Skeleton className="h-10 w-full" />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : filteredClients.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      {searchTerm ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado'}
+                      {searchTerm
+                        ? 'Nenhum cliente encontrado'
+                        : 'Nenhum cliente ainda, cadastre o primeiro!'}
                     </TableCell>
                   </TableRow>
+                ) : (
+                  filteredClients.map((client) => {
+                    const stats = statsByClient.get(client.id);
+                    const lastVisit = stats?.last_visit ?? null;
+                    const visitCount = Number(stats?.visit_count ?? 0);
+                    const totalSpent = Number(stats?.total_spent ?? 0);
+                    const prefs = (client.preferences ?? {}) as Record<string, unknown>;
+                    const cutStyle = typeof prefs.cutStyle === 'string' ? prefs.cutStyle : '';
+
+                    return (
+                      <TableRow key={client.id} className="hover:bg-muted/30">
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-10 w-10">
+                              <AvatarFallback className="bg-primary/10 text-primary">
+                                {getInitials(client.name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-foreground">{client.name}</p>
+                              <p className="text-sm text-muted-foreground">{client.phone ?? '—'}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="max-w-[200px]">
+                            {cutStyle && (
+                              <p className="text-xs text-foreground truncate">✂️ {cutStyle}</p>
+                            )}
+                            {client.notes && (
+                              <p className="text-xs text-muted-foreground truncate">📝 {client.notes}</p>
+                            )}
+                            {!cutStyle && !client.notes && (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-foreground">{visitCount}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {lastVisit ? new Date(lastVisit).toLocaleDateString('pt-BR') : 'Nunca'}
+                        </TableCell>
+                        <TableCell className="font-medium text-foreground">
+                          R$ {totalSpent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(lastVisit)}</TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem className="gap-2" onClick={() => handleEditClient(client)}>
+                                <Edit className="w-4 h-4" /> Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="gap-2" onClick={() => handleViewHistory(client)}>
+                                <Eye className="w-4 h-4" /> Ver histórico
+                              </DropdownMenuItem>
+                              {client.phone && (
+                                <DropdownMenuItem
+                                  className="gap-2"
+                                  onClick={() => handleCall(client.phone!, client.name)}
+                                >
+                                  <Phone className="w-4 h-4" /> Ligar
+                                </DropdownMenuItem>
+                              )}
+                              {client.email && (
+                                <DropdownMenuItem
+                                  className="gap-2"
+                                  onClick={() => handleEmail(client.email!, `Olá ${client.name}`, client.name)}
+                                >
+                                  <Mail className="w-4 h-4" /> Email
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem className="gap-2" onClick={() => handleSchedule(client)}>
+                                <Calendar className="w-4 h-4" /> Agendar
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="gap-2 text-destructive"
+                                onClick={() => handleDeleteClick(client)}
+                              >
+                                <Trash2 className="w-4 h-4" /> Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
@@ -239,22 +278,19 @@ export default function ClientsPage() {
         open={clientModalOpen}
         onOpenChange={setClientModalOpen}
         client={selectedClient}
-        onSave={handleSaveClient}
       />
 
       <AppointmentModal
         open={appointmentModalOpen}
         onOpenChange={setAppointmentModalOpen}
-        onSave={() => {
-          setAppointmentModalOpen(false);
-          toast.success('Agendamento criado!');
-        }}
+        onSave={() => setAppointmentModalOpen(false)}
       />
 
       <ClientHistoryModal
         open={historyModalOpen}
         onOpenChange={setHistoryModalOpen}
-        client={selectedClient}
+        clientId={selectedClient?.id ?? null}
+        clientName={selectedClient?.name ?? null}
       />
 
       <ConfirmDialog

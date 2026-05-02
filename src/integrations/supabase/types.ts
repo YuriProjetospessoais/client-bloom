@@ -1174,6 +1174,15 @@ export type Database = {
         Args: { _company_id: string }
         Returns: Json
       }
+      get_client_stats: {
+        Args: { _company_id: string }
+        Returns: {
+          client_id: string
+          last_visit: string
+          total_spent: number
+          visit_count: number
+        }[]
+      }
       get_company_plan: {
         Args: { _company_id: string }
         Returns: Database["public"]["Enums"]["company_plan"]

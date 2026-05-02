@@ -60,7 +60,8 @@ export function useDeleteClient() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('clients').delete().eq('id', id);
+      // Soft delete: marca o cliente como inativo, preservando histórico.
+      const { error } = await supabase.from('clients').update({ active: false }).eq('id', id);
       if (error) throw error;
       return id;
     },
