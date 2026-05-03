@@ -53,6 +53,7 @@ const CRMPage = lazy(() => import("./pages/admin/CRMPage"));
 const LeadsPage = lazy(() => import("./pages/admin/LeadsPage"));
 const ClientsPage = lazy(() => import("./pages/admin/ClientsPage"));
 const ProductsPage = lazy(() => import("./pages/admin/ProductsPage"));
+const ServicesPage = lazy(() => import("./pages/admin/ServicesPage"));
 const SchedulePage = lazy(() => import("./pages/admin/SchedulePage"));
 const AlertsPage = lazy(() => import("./pages/admin/AlertsPage"));
 const SettingsPage = lazy(() => import("./pages/admin/SettingsPage"));
@@ -147,6 +148,7 @@ const App = () => (
                     <Route path="leads" element={<LeadsPage />} />
                     <Route path="clients" element={<ClientsPage />} />
                     <Route path="products" element={<ProductsPage />} />
+                    <Route path="services" element={<ServicesPage />} />
                     <Route path="schedule" element={<SchedulePage />} />
                     <Route path="alerts" element={<AlertsPage />} />
                     <Route path="settings" element={<SettingsPage />} />
@@ -215,6 +217,7 @@ const App = () => (
                     <Route path="leads" element={<LeadsPage />} />
                     <Route path="clients" element={<ClientsPage />} />
                     <Route path="products" element={<FeatureGate feature="products"><ProductsPage /></FeatureGate>} />
+                    <Route path="services" element={<ServicesPage />} />
                     <Route path="schedule" element={<SchedulePage />} />
                     <Route path="alerts" element={<FeatureGate feature="return_alerts"><AlertsPage /></FeatureGate>} />
                     <Route path="plans" element={<AdminPlansPage />} />
