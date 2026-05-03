@@ -1,219 +1,208 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { z } from 'zod';
-
-const appointmentSchema = z.object({
-  client: z.string().trim().min(2, 'Nome do cliente obrigatório'),
-  procedure: z.string().min(1, 'Selecione um procedimento'),
-  date: z.string().min(1, 'Selecione uma data'),
-  time: z.string().min(1, 'Selecione um horário'),
-  professional: z.string().min(1, 'Selecione um profissional'),
-});
-
-export interface Appointment {
-  id: number;
-  time: string;
-  date?: string;
-  client: string;
-  procedure: string;
-  professional: string;
-  duration: number;
-  status: 'confirmed' | 'pending' | 'cancelled';
-}
+import { useClients } from '@/hooks/queries/useClients';
+import { useServices } from '@/hooks/queries/useServices';
+import { useProfessionals } from '@/hooks/queries/useProfessionals';
+import { useCreateAppointment } from '@/hooks/mutations/useAppointmentMutations';
 
 interface AppointmentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  appointment?: Appointment | null;
   defaultTime?: string;
   defaultDate?: string;
-  onSave: (appointment: Partial<Appointment>) => void;
+  defaultClientId?: string;
+  defaultProfessionalId?: string;
+  onSaved?: () => void;
 }
 
-const procedures = [
-  { name: 'Limpeza de pele', duration: 60 },
-  { name: 'Botox', duration: 45 },
-  { name: 'Peeling', duration: 90 },
-  { name: 'Consulta', duration: 30 },
-  { name: 'Tratamento Facial', duration: 60 },
-  { name: 'Tratamento Capilar', duration: 120 },
-];
-
-const professionals = ['Dr. João', 'Dra. Ana', 'Maria'];
-
 const timeSlots = [
-  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', 
-  '11:00', '11:30', '12:00', '13:00', '13:30', '14:00', 
-  '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00'
+  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
+  '11:00', '11:30', '12:00', '13:00', '13:30', '14:00',
+  '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00',
 ];
 
-export function AppointmentModal({ 
-  open, 
-  onOpenChange, 
-  appointment, 
-  defaultTime, 
-  defaultDate,
-  onSave 
+function addMinutes(time: string, minutes: number): string {
+  const [h, m] = time.split(':').map(Number);
+  const total = h * 60 + m + minutes;
+  const hh = Math.floor(total / 60) % 24;
+  const mm = total % 60;
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+}
+
+export function AppointmentModal({
+  open, onOpenChange, defaultTime, defaultDate, defaultClientId, defaultProfessionalId, onSaved,
 }: AppointmentModalProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    client: '',
-    procedure: '',
-    date: '',
-    time: '',
-    professional: '',
+  const { data: clients = [] } = useClients();
+  const { data: services = [] } = useServices({ onlyActive: true });
+  const { data: professionals = [] } = useProfessionals({ onlyActive: true });
+  const create = useCreateAppointment();
+
+  const [form, setForm] = useState({
+    client_id: '', service_id: '', professional_id: '',
+    date: '', start_time: '', notes: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (appointment) {
-      setFormData({
-        client: appointment.client,
-        procedure: appointment.procedure,
-        date: appointment.date || defaultDate || new Date().toISOString().split('T')[0],
-        time: appointment.time,
-        professional: appointment.professional,
+    if (open) {
+      setForm({
+        client_id: defaultClientId ?? '',
+        service_id: '',
+        professional_id: defaultProfessionalId ?? '',
+        date: defaultDate ?? new Date().toISOString().split('T')[0],
+        start_time: defaultTime ?? '',
+        notes: '',
       });
-    } else {
-      setFormData({
-        client: '',
-        procedure: '',
-        date: defaultDate || new Date().toISOString().split('T')[0],
-        time: defaultTime || '',
-        professional: '',
-      });
+      setErrors({});
     }
-    setErrors({});
-  }, [appointment, open, defaultTime, defaultDate]);
+  }, [open, defaultDate, defaultTime, defaultClientId, defaultProfessionalId]);
+
+  const selectedService = useMemo(
+    () => services.find(s => s.id === form.service_id),
+    [services, form.service_id]
+  );
+
+  const endTime = useMemo(() => {
+    if (!form.start_time || !selectedService) return '';
+    return addMinutes(form.start_time, selectedService.duration_minutes ?? 30);
+  }, [form.start_time, selectedService]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrors({});
+    const errs: Record<string, string> = {};
+    if (!form.client_id) errs.client_id = 'Selecione um cliente';
+    if (!form.service_id) errs.service_id = 'Selecione um serviço';
+    if (!form.professional_id) errs.professional_id = 'Selecione um profissional';
+    if (!form.date) errs.date = 'Selecione uma data';
+    if (!form.start_time) errs.start_time = 'Selecione um horário';
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) return;
 
-    const result = appointmentSchema.safeParse(formData);
-    if (!result.success) {
-      const fieldErrors: Record<string, string> = {};
-      result.error.errors.forEach(err => {
-        if (err.path[0]) fieldErrors[err.path[0] as string] = err.message;
+    try {
+      await create.mutateAsync({
+        client_id: form.client_id,
+        service_id: form.service_id,
+        professional_id: form.professional_id,
+        date: form.date,
+        start_time: form.start_time,
+        end_time: endTime,
+        status: 'scheduled',
+        payment_method: 'in_person',
+        payment_status: 'pending',
+        booked_by_client: false,
+        notes: form.notes || null,
       });
-      setErrors(fieldErrors);
-      return;
+      onOpenChange(false);
+      onSaved?.();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const code = (err as { code?: string })?.code;
+      if (code === '23505' || /já existe um agendamento/i.test(msg)) {
+        toast.error('Esse horário acabou de ser ocupado.');
+      }
+      // other errors handled by mutation onError
     }
-
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const selectedProcedure = procedures.find(p => p.name === formData.procedure);
-
-    onSave({
-      id: appointment?.id,
-      client: formData.client,
-      procedure: formData.procedure,
-      date: formData.date,
-      time: formData.time,
-      professional: formData.professional,
-      duration: selectedProcedure?.duration || 60,
-      status: appointment?.status || 'pending',
-    });
-
-    setIsLoading(false);
-    onOpenChange(false);
-    toast.success(appointment ? 'Agendamento atualizado!' : 'Agendamento criado com sucesso!');
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{appointment ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle>
-          <DialogDescription>
-            {appointment ? 'Atualize os dados do agendamento.' : 'Preencha os dados para agendar.'}
-          </DialogDescription>
+          <DialogTitle>Novo Agendamento</DialogTitle>
+          <DialogDescription>Preencha os dados para agendar.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="client">Cliente *</Label>
-            <Input
-              id="client"
-              value={formData.client}
-              onChange={(e) => setFormData({ ...formData, client: e.target.value })}
-              placeholder="Nome do cliente"
-              className={errors.client ? 'border-destructive' : ''}
-            />
-            {errors.client && <p className="text-sm text-destructive">{errors.client}</p>}
+            <Label>Cliente *</Label>
+            <Select value={form.client_id} onValueChange={(v) => setForm({ ...form, client_id: v })}>
+              <SelectTrigger className={errors.client_id ? 'border-destructive' : ''}>
+                <SelectValue placeholder="Selecione o cliente" />
+              </SelectTrigger>
+              <SelectContent>
+                {clients.filter(c => c.active).map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.client_id && <p className="text-sm text-destructive">{errors.client_id}</p>}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="procedure">Procedimento *</Label>
-            <Select value={formData.procedure} onValueChange={(v) => setFormData({ ...formData, procedure: v })}>
-              <SelectTrigger className={errors.procedure ? 'border-destructive' : ''}>
-                <SelectValue placeholder="Selecione o procedimento" />
+            <Label>Serviço *</Label>
+            <Select value={form.service_id} onValueChange={(v) => setForm({ ...form, service_id: v })}>
+              <SelectTrigger className={errors.service_id ? 'border-destructive' : ''}>
+                <SelectValue placeholder="Selecione o serviço" />
               </SelectTrigger>
               <SelectContent>
-                {procedures.map((p) => (
-                  <SelectItem key={p.name} value={p.name}>
-                    {p.name} ({p.duration}min)
+                {services.map(s => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name} ({s.duration_minutes}min)
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {errors.procedure && <p className="text-sm text-destructive">{errors.procedure}</p>}
+            {errors.service_id && <p className="text-sm text-destructive">{errors.service_id}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Profissional *</Label>
+            <Select value={form.professional_id} onValueChange={(v) => setForm({ ...form, professional_id: v })}>
+              <SelectTrigger className={errors.professional_id ? 'border-destructive' : ''}>
+                <SelectValue placeholder="Selecione o profissional" />
+              </SelectTrigger>
+              <SelectContent>
+                {professionals.map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.professional_id && <p className="text-sm text-destructive">{errors.professional_id}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="date">Data *</Label>
-              <Input
-                id="date"
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                className={errors.date ? 'border-destructive' : ''}
-              />
+              <Label>Data *</Label>
+              <Input type="date" value={form.date}
+                onChange={(e) => setForm({ ...form, date: e.target.value })}
+                className={errors.date ? 'border-destructive' : ''} />
               {errors.date && <p className="text-sm text-destructive">{errors.date}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="time">Horário *</Label>
-              <Select value={formData.time} onValueChange={(v) => setFormData({ ...formData, time: v })}>
-                <SelectTrigger className={errors.time ? 'border-destructive' : ''}>
+              <Label>Horário *</Label>
+              <Select value={form.start_time} onValueChange={(v) => setForm({ ...form, start_time: v })}>
+                <SelectTrigger className={errors.start_time ? 'border-destructive' : ''}>
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
-                  {timeSlots.map((t) => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
-                  ))}
+                  {timeSlots.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
               </Select>
-              {errors.time && <p className="text-sm text-destructive">{errors.time}</p>}
+              {errors.start_time && <p className="text-sm text-destructive">{errors.start_time}</p>}
             </div>
           </div>
 
+          {endTime && (
+            <p className="text-xs text-muted-foreground">Término previsto: {endTime}</p>
+          )}
+
           <div className="space-y-2">
-            <Label htmlFor="professional">Profissional *</Label>
-            <Select value={formData.professional} onValueChange={(v) => setFormData({ ...formData, professional: v })}>
-              <SelectTrigger className={errors.professional ? 'border-destructive' : ''}>
-                <SelectValue placeholder="Selecione o profissional" />
-              </SelectTrigger>
-              <SelectContent>
-                {professionals.map((p) => (
-                  <SelectItem key={p} value={p}>{p}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.professional && <p className="text-sm text-destructive">{errors.professional}</p>}
+            <Label>Observações</Label>
+            <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              placeholder="Anotações opcionais" rows={2} />
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={create.isPending}>
               Cancelar
             </Button>
-            <Button type="submit" className="gradient-primary text-white" disabled={isLoading}>
-              {isLoading ? 'Salvando...' : appointment ? 'Salvar' : 'Agendar'}
+            <Button type="submit" className="gradient-primary text-white" disabled={create.isPending}>
+              {create.isPending ? 'Salvando...' : 'Agendar'}
             </Button>
           </DialogFooter>
         </form>
