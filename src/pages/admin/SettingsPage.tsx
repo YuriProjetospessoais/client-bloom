@@ -1,312 +1,243 @@
-import { useState, useEffect } from 'react';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { useAuth } from '@/lib/auth/AuthContext';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Building2, Users, Scissors, Plus, Edit, Trash2 } from 'lucide-react';
+import { Building2, ShieldCheck, Clock, Loader2, Save } from 'lucide-react';
 import CompanySettingsTab from '@/components/settings/CompanySettingsTab';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useTenantId } from '@/hooks/queries/useTenantId';
 import { toast } from 'sonner';
-import { UserModal } from '@/components/modals/UserModal';
-import { ProcedureModal } from '@/components/modals/ProcedureModal';
-import { ConfirmDialog } from '@/components/modals/ConfirmDialog';
-import { 
-  usersStore, 
-  proceduresStore, 
-  companySettingsStore,
-  User,
-  Procedure,
-  CompanySettings,
-} from '@/lib/store';
+
+const DAY_NAMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
+interface PolicyForm {
+  cancel_limit_hours: number;
+  max_advance_days: number;
+  max_active_appointments: number;
+  commission_percent: number;
+}
+
+interface WorkingHourRow {
+  id?: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  is_available: boolean;
+}
+
+const DEFAULT_HOURS: WorkingHourRow[] = Array.from({ length: 7 }, (_, i) => ({
+  day_of_week: i,
+  start_time: '09:00',
+  end_time: '19:00',
+  is_available: i >= 1 && i <= 6,
+}));
+
+function PolicyTab() {
+  const companyId = useTenantId();
+  const [form, setForm] = useState<PolicyForm>({
+    cancel_limit_hours: 12,
+    max_advance_days: 30,
+    max_active_appointments: 3,
+    commission_percent: 50,
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!companyId) return;
+    (async () => {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('cancel_limit_hours, max_advance_days, max_active_appointments, commission_percent')
+        .eq('id', companyId)
+        .maybeSingle();
+      if (!error && data) {
+        setForm({
+          cancel_limit_hours: data.cancel_limit_hours,
+          max_advance_days: data.max_advance_days,
+          max_active_appointments: data.max_active_appointments,
+          commission_percent: Number(data.commission_percent),
+        });
+      }
+      setLoading(false);
+    })();
+  }, [companyId]);
+
+  const save = async () => {
+    if (!companyId) return;
+    setSaving(true);
+    const { error } = await supabase.from('companies').update(form).eq('id', companyId);
+    setSaving(false);
+    if (error) {
+      toast.error('Erro ao salvar política');
+    } else {
+      toast.success('Política salva.');
+    }
+  };
+
+  if (loading) {
+    return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+  }
+
+  return (
+    <Card className="glass-card">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><ShieldCheck className="w-5 h-5" />Política de Agendamento</CardTitle>
+        <CardDescription>Regras gerais para clientes e equipe.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Cancelamento — limite (horas)</Label>
+            <Input type="number" min={0} value={form.cancel_limit_hours}
+              onChange={(e) => setForm({ ...form, cancel_limit_hours: parseInt(e.target.value) || 0 })} />
+            <p className="text-xs text-muted-foreground">Cliente pode cancelar até X horas antes.</p>
+          </div>
+          <div className="space-y-2">
+            <Label>Antecedência máxima (dias)</Label>
+            <Input type="number" min={1} value={form.max_advance_days}
+              onChange={(e) => setForm({ ...form, max_advance_days: parseInt(e.target.value) || 1 })} />
+          </div>
+          <div className="space-y-2">
+            <Label>Agendamentos ativos por cliente</Label>
+            <Input type="number" min={1} value={form.max_active_appointments}
+              onChange={(e) => setForm({ ...form, max_active_appointments: parseInt(e.target.value) || 1 })} />
+          </div>
+          <div className="space-y-2">
+            <Label>Comissão padrão (%)</Label>
+            <Input type="number" min={0} max={100} step="0.01" value={form.commission_percent}
+              onChange={(e) => setForm({ ...form, commission_percent: parseFloat(e.target.value) || 0 })} />
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <Button className="gradient-primary text-white gap-2" onClick={save} disabled={saving}>
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Salvar
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function HoursTab() {
+  const companyId = useTenantId();
+  const [hours, setHours] = useState<WorkingHourRow[]>(DEFAULT_HOURS);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!companyId) return;
+    (async () => {
+      const { data } = await supabase
+        .from('working_hours')
+        .select('id, day_of_week, start_time, end_time, is_available')
+        .eq('company_id', companyId)
+        .is('professional_id', null)
+        .order('day_of_week');
+      if (data && data.length > 0) {
+        setHours(DEFAULT_HOURS.map((d) => {
+          const f = data.find((h) => h.day_of_week === d.day_of_week);
+          return f ? { ...d, ...f, start_time: f.start_time.slice(0, 5), end_time: f.end_time.slice(0, 5) } : d;
+        }));
+      }
+      setLoading(false);
+    })();
+  }, [companyId]);
+
+  const update = (day: number, field: keyof WorkingHourRow, value: any) => {
+    setHours((prev) => prev.map((h) => h.day_of_week === day ? { ...h, [field]: value } : h));
+  };
+
+  const save = async () => {
+    if (!companyId) return;
+    setSaving(true);
+    try {
+      for (const h of hours) {
+        if (h.id) {
+          await supabase.from('working_hours')
+            .update({ start_time: h.start_time, end_time: h.end_time, is_available: h.is_available })
+            .eq('id', h.id);
+        } else {
+          const { data } = await supabase.from('working_hours').insert({
+            company_id: companyId,
+            day_of_week: h.day_of_week,
+            start_time: h.start_time,
+            end_time: h.end_time,
+            is_available: h.is_available,
+          }).select('id').single();
+          if (data) h.id = data.id;
+        }
+      }
+      toast.success('Horários salvos.');
+    } catch {
+      toast.error('Erro ao salvar horários.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+  }
+
+  return (
+    <Card className="glass-card">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Clock className="w-5 h-5" />Horários de Funcionamento</CardTitle>
+        <CardDescription>Define dias e horários disponíveis para agendamento.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {hours.map((h) => (
+          <div key={h.day_of_week} className="flex items-center gap-4 p-3 rounded-lg bg-muted/50">
+            <div className="w-24 shrink-0 font-medium text-sm">{DAY_NAMES[h.day_of_week]}</div>
+            <Switch checked={h.is_available} onCheckedChange={(v) => update(h.day_of_week, 'is_available', v)} />
+            {h.is_available ? (
+              <div className="flex items-center gap-2">
+                <Input type="time" value={h.start_time} onChange={(e) => update(h.day_of_week, 'start_time', e.target.value)} className="w-28" />
+                <span className="text-muted-foreground text-sm">até</span>
+                <Input type="time" value={h.end_time} onChange={(e) => update(h.day_of_week, 'end_time', e.target.value)} className="w-28" />
+              </div>
+            ) : (
+              <span className="text-sm text-muted-foreground">Fechado</span>
+            )}
+          </div>
+        ))}
+        <div className="flex justify-end pt-2">
+          <Button className="gradient-primary text-white gap-2" onClick={save} disabled={saving}>
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Salvar
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function SettingsPage() {
   const { t } = useLanguage();
-  const { user } = useAuth();
-  
-  // Data state
-  const [users, setUsers] = useState<User[]>([]);
-  const [procedures, setProcedures] = useState<Procedure[]>([]);
-  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
-  
-  // Modal state
-  const [userModalOpen, setUserModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [procedureModalOpen, setProcedureModalOpen] = useState(false);
-  const [selectedProcedure, setSelectedProcedure] = useState<Procedure | null>(null);
-  
-  // Delete confirmation state
-  const [deleteUserOpen, setDeleteUserOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<User | null>(null);
-  const [deleteProcedureOpen, setDeleteProcedureOpen] = useState(false);
-  const [procedureToDelete, setProcedureToDelete] = useState<Procedure | null>(null);
-  
-
-  // Load data on mount
-  useEffect(() => {
-    setUsers(usersStore.getAll());
-    setProcedures(proceduresStore.getAll());
-    setCompanySettings(companySettingsStore.get());
-  }, []);
-
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-  };
-
-  // User handlers
-  const handleNewUser = () => {
-    setSelectedUser(null);
-    setUserModalOpen(true);
-  };
-
-  const handleEditUser = (usr: User) => {
-    setSelectedUser(usr);
-    setUserModalOpen(true);
-  };
-
-  const handleSaveUser = (userData: Omit<User, 'id' | 'createdAt'> & { id?: string }) => {
-    if (userData.id) {
-      usersStore.update(userData.id, userData);
-      toast.success('Usuário atualizado com sucesso!');
-    } else {
-      usersStore.create(userData);
-      toast.success('Usuário criado com sucesso!');
-    }
-    setUsers(usersStore.getAll());
-  };
-
-  const handleDeleteUserClick = (usr: User) => {
-    setUserToDelete(usr);
-    setDeleteUserOpen(true);
-  };
-
-  const handleConfirmDeleteUser = () => {
-    if (userToDelete) {
-      usersStore.delete(userToDelete.id);
-      setUsers(usersStore.getAll());
-      toast.success('Usuário excluído com sucesso!');
-    }
-    setDeleteUserOpen(false);
-    setUserToDelete(null);
-  };
-
-  // Procedure handlers
-  const handleNewProcedure = () => {
-    setSelectedProcedure(null);
-    setProcedureModalOpen(true);
-  };
-
-  const handleEditProcedure = (proc: Procedure) => {
-    setSelectedProcedure(proc);
-    setProcedureModalOpen(true);
-  };
-
-  const handleSaveProcedure = (procData: Omit<Procedure, 'id'> & { id?: string }) => {
-    if (procData.id) {
-      proceduresStore.update(procData.id, procData);
-      toast.success('Procedimento atualizado com sucesso!');
-    } else {
-      proceduresStore.create(procData);
-      toast.success('Procedimento criado com sucesso!');
-    }
-    setProcedures(proceduresStore.getAll());
-  };
-
-  const handleDeleteProcedureClick = (proc: Procedure) => {
-    setProcedureToDelete(proc);
-    setDeleteProcedureOpen(true);
-  };
-
-  const handleConfirmDeleteProcedure = () => {
-    if (procedureToDelete) {
-      proceduresStore.delete(procedureToDelete.id);
-      setProcedures(proceduresStore.getAll());
-      toast.success('Procedimento excluído com sucesso!');
-    }
-    setDeleteProcedureOpen(false);
-    setProcedureToDelete(null);
-  };
-
-
-  const userLimit = companySettings?.userLimit || 15;
-
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">{t.nav.settings}</h1>
-        <p className="text-muted-foreground mt-1">Configurações da empresa e sistema</p>
+        <p className="text-muted-foreground mt-1">Configurações da empresa e do agendamento</p>
       </div>
 
       <Tabs defaultValue="company" className="w-full">
-        <TabsList className="grid w-full max-w-lg grid-cols-3">
-          <TabsTrigger value="company" className="gap-2">
-            <Building2 className="w-4 h-4" />
-            Empresa
-          </TabsTrigger>
-          <TabsTrigger value="users" className="gap-2">
-            <Users className="w-4 h-4" />
-            Usuários
-          </TabsTrigger>
-          <TabsTrigger value="procedures" className="gap-2">
-            <Scissors className="w-4 h-4" />
-            Procedimentos
-          </TabsTrigger>
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
+          <TabsTrigger value="company" className="gap-2"><Building2 className="w-4 h-4" />Empresa</TabsTrigger>
+          <TabsTrigger value="policy" className="gap-2"><ShieldCheck className="w-4 h-4" />Política</TabsTrigger>
+          <TabsTrigger value="hours" className="gap-2"><Clock className="w-4 h-4" />Horários</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="company" className="mt-6">
-          <CompanySettingsTab />
-        </TabsContent>
-
-        <TabsContent value="users" className="mt-6">
-          <Card className="glass-card">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Usuários da Empresa</CardTitle>
-                <CardDescription>
-                  Gerencie os funcionários e seus acessos ({users.length}/{userLimit} usuários)
-                </CardDescription>
-              </div>
-              <Button className="gradient-primary text-white gap-2" onClick={handleNewUser}>
-                <Plus className="w-4 h-4" />
-                Novo Usuário
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {users.map((usr) => (
-                  <div key={usr.id} className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback className="bg-primary/10 text-primary">
-                          {getInitials(usr.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium text-foreground">{usr.name}</p>
-                        <p className="text-sm text-muted-foreground">{usr.email}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge className={usr.role === 'admin' ? 'bg-purple-500/20 text-purple-500' : 'bg-blue-500/20 text-blue-500'}>
-                        {usr.role === 'admin' ? 'Admin' : 'Usuário'}
-                      </Badge>
-                      <Badge className={usr.status === 'active' ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'}>
-                        {usr.status === 'active' ? 'Ativo' : 'Inativo'}
-                      </Badge>
-                      <Button variant="ghost" size="icon" onClick={() => handleEditUser(usr)}>
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteUserClick(usr)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                {users.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Nenhum usuário cadastrado
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="procedures" className="mt-6">
-          <Card className="glass-card">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Procedimentos</CardTitle>
-                <CardDescription>Configure os serviços oferecidos e regras de retorno</CardDescription>
-              </div>
-              <Button className="gradient-primary text-white gap-2" onClick={handleNewProcedure}>
-                <Plus className="w-4 h-4" />
-                Novo Procedimento
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {procedures.map((proc) => (
-                  <div key={proc.id} className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-foreground">{proc.name}</p>
-                        {!proc.active && (
-                          <Badge variant="outline" className="text-xs">Inativo</Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                        <span>{proc.duration} min</span>
-                        <span>•</span>
-                        <span>Retorno: {proc.returnDays} dias</span>
-                        {proc.category && (
-                          <>
-                            <span>•</span>
-                            <span>{proc.category}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-semibold text-foreground">
-                        R$ {proc.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </span>
-                      <Button variant="ghost" size="icon" onClick={() => handleEditProcedure(proc)}>
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteProcedureClick(proc)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                {procedures.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Nenhum procedimento cadastrado
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        <TabsContent value="company" className="mt-6"><CompanySettingsTab /></TabsContent>
+        <TabsContent value="policy" className="mt-6"><PolicyTab /></TabsContent>
+        <TabsContent value="hours" className="mt-6"><HoursTab /></TabsContent>
       </Tabs>
-
-      {/* Modals */}
-      <UserModal
-        open={userModalOpen}
-        onOpenChange={setUserModalOpen}
-        user={selectedUser}
-        onSave={handleSaveUser}
-        userLimit={userLimit}
-        currentUserCount={users.length}
-      />
-
-      <ProcedureModal
-        open={procedureModalOpen}
-        onOpenChange={setProcedureModalOpen}
-        procedure={selectedProcedure}
-        onSave={handleSaveProcedure}
-      />
-
-      <ConfirmDialog
-        open={deleteUserOpen}
-        onOpenChange={setDeleteUserOpen}
-        title="Excluir Usuário"
-        description={`Tem certeza que deseja excluir o usuário "${userToDelete?.name}"? Esta ação não pode ser desfeita.`}
-        onConfirm={handleConfirmDeleteUser}
-      />
-
-      <ConfirmDialog
-        open={deleteProcedureOpen}
-        onOpenChange={setDeleteProcedureOpen}
-        title="Excluir Procedimento"
-        description={`Tem certeza que deseja excluir o procedimento "${procedureToDelete?.name}"? Esta ação não pode ser desfeita.`}
-        onConfirm={handleConfirmDeleteProcedure}
-      />
     </div>
   );
 }
