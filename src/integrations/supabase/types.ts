@@ -1191,6 +1191,7 @@ export type Database = {
         Args: { _company_id: string; _user_id?: string; _user_role?: string }
         Returns: Json
       }
+      get_global_kpis: { Args: never; Returns: Json }
       get_heatmap_data: {
         Args: { _company_id: string }
         Returns: {
