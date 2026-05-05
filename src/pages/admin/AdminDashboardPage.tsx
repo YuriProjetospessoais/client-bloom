@@ -1,520 +1,304 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Users, 
-  Clock, 
-  RotateCcw, 
-  DollarSign,
-  UserPlus,
-  Calendar,
-  Plus,
-  Phone,
-  MessageSquare,
-  History,
-  Gift,
-  UserX,
-  Package,
-  TrendingUp,
-  ArrowUp,
-  ArrowDown
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useTenantId } from '@/hooks/queries/useTenantId';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { useToast } from '@/hooks/use-toast';
-import { 
-  clientsStore, 
-  appointmentsStore, 
-  opportunitiesStore,
-  productSalesStore,
-  productsStore 
-} from '@/lib/store';
-import { ClientModal } from '@/components/modals/ClientModal';
-import { LeadModal } from '@/components/modals/LeadModal';
-import { AppointmentModal } from '@/components/modals/AppointmentModal';
-import { ClientHistoryModal } from '@/components/modals/ClientHistoryModal';
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
+} from 'recharts';
+import {
+  Calendar, DollarSign, Users, TrendingUp, AlertTriangle, MessageCircle, Loader2,
+  ArrowUpRight, ArrowDownRight,
+} from 'lucide-react';
+import { handleWhatsApp } from '@/lib/actions';
+
+type Kpis = Record<string, number | boolean | null>;
+
+function formatBRL(v: number) {
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
 
 export default function AdminDashboardPage() {
+  const { t } = useLanguage();
+  const companyId = useTenantId();
   const { user } = useAuth();
-  const { toast } = useToast();
-  const [periodFilter, setPeriodFilter] = useState<'today' | 'week' | 'month'>('today');
-  
-  // Modals
-  const [clientModalOpen, setClientModalOpen] = useState(false);
-  const [leadModalOpen, setLeadModalOpen] = useState(false);
-  const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
-  const [historyModalOpen, setHistoryModalOpen] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<any>(null);
 
-  // Data
-  const clients = clientsStore.getAll();
-  const appointments = appointmentsStore.getAll();
-  const opportunities = opportunitiesStore.getAll();
-  const products = productsStore.getAll();
-
-  // Generate opportunities on mount
-  useEffect(() => {
-    opportunitiesStore.generateOpportunities();
-  }, []);
-
-  // Get greeting based on time
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Bom dia';
-    if (hour < 18) return 'Boa tarde';
-    return 'Boa noite';
-  };
-
-  // Date range based on period filter
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
-  
-  const getDateRange = (): { start: string; end: string } => {
-    const startDate = new Date(today);
-    const endDate = new Date(today);
-    if (periodFilter === 'week') {
-      const day = startDate.getDay();
-      startDate.setDate(startDate.getDate() - (day === 0 ? 6 : day - 1)); // Monday
-      endDate.setDate(startDate.getDate() + 6); // Sunday
-    } else if (periodFilter === 'month') {
-      startDate.setDate(1);
-      endDate.setMonth(endDate.getMonth() + 1);
-      endDate.setDate(0); // last day of month
-    }
-    return {
-      start: startDate.toISOString().split('T')[0],
-      end: endDate.toISOString().split('T')[0],
-    };
-  };
-
-  const { start, end } = getDateRange();
-  
-  const filteredAppointments = appointments
-    .filter(a => a.date >= start && a.date <= end)
-    .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
-
-  // Today's appointments (always for the schedule card)
-  const todayAppointments = appointments
-    .filter(a => a.date === todayStr)
-    .sort((a, b) => a.time.localeCompare(b.time));
-
-  // Stats calculation based on period
-  const periodLabel = periodFilter === 'today' ? 'Hoje' : periodFilter === 'week' ? 'Semana' : 'Mês';
-  const clientsPeriod = filteredAppointments.length;
-  const freeSlots = periodFilter === 'today' ? Math.max(0, 8 - todayAppointments.length) : null;
-  const pendingReturns = opportunities.filter(o => o.type === 'repurchase' && o.status === 'pending').length;
-  const periodRevenue = filteredAppointments.reduce((acc) => acc + 50, 0);
-
-  // Birthday opportunities
-  const birthdayOpportunities = opportunities.filter(o => o.type === 'birthday' && o.status === 'pending');
-
-  // Inactive clients (no appointment in 30 days)
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const inactiveClients = clients.filter(client => {
-    const lastAppointment = appointments
-      .filter(a => a.clientId === client.id)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-    if (!lastAppointment) return true;
-    return new Date(lastAppointment.date) < thirtyDaysAgo;
+  const { data: kpis, isLoading: kpisLoading } = useQuery({
+    queryKey: ['kpis', companyId, user?.role, user?.id],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_dashboard_kpis', {
+        _company_id: companyId!,
+        _user_role: user?.role ?? null,
+        _user_id: user?.id ?? null,
+      });
+      if (error) throw error;
+      return data as Kpis;
+    },
   });
 
-  // Products running low
-  const repurchaseOpportunities = opportunities.filter(o => o.type === 'repurchase' && o.status === 'pending');
+  const { data: revenueChart = [] } = useQuery({
+    queryKey: ['revenue-chart', companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_revenue_chart_data', {
+        _company_id: companyId!, _days: 30, _user_id: null,
+      });
+      if (error) throw error;
+      return (data ?? []) as Array<{ d: string; revenue: number; appointments_count: number }>;
+    },
+  });
 
-  // Chart data
-  const chartData = [
-    { name: 'Seg', value: 4200 },
-    { name: 'Ter', value: 3800 },
-    { name: 'Qua', value: 5100 },
-    { name: 'Qui', value: 4600 },
-    { name: 'Sex', value: 6200 },
-    { name: 'Sáb', value: 7800 },
+  const { data: topServices = [] } = useQuery({
+    queryKey: ['top-services', companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_top_services', {
+        _company_id: companyId!, _limit: 5,
+      });
+      if (error) throw error;
+      return (data ?? []) as Array<{ service_id: string; name: string; count: number; revenue: number }>;
+    },
+  });
+
+  const { data: ranking = [] } = useQuery({
+    queryKey: ['prof-ranking', companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_professional_ranking', {
+        _company_id: companyId!,
+      });
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        professional_id: string; name: string; appointments_count: number;
+        revenue: number; no_show_rate: number; avg_ticket: number;
+      }>;
+    },
+  });
+
+  const { data: atRisk = [] } = useQuery({
+    queryKey: ['at-risk', companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_at_risk_clients', {
+        _company_id: companyId!, _days_threshold: 60,
+      });
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        client_id: string; name: string; phone: string | null;
+        last_visit: string; days_since: number;
+      }>;
+    },
+  });
+
+  const revenueDelta = useMemo(() => {
+    if (!kpis) return { up: true, pct: 0 };
+    const cur = Number(kpis.revenue_month ?? 0);
+    const prev = Number(kpis.revenue_last_month ?? 0);
+    if (prev === 0) return { up: cur >= 0, pct: cur > 0 ? 100 : 0 };
+    const pct = ((cur - prev) / prev) * 100;
+    return { up: pct >= 0, pct: Math.abs(pct) };
+  }, [kpis]);
+
+  const isEmpty = !kpisLoading && kpis && Number(kpis.appointments_today) === 0
+    && Number(kpis.new_clients_this_month) === 0 && revenueChart.every(r => r.appointments_count === 0);
+
+  if (kpisLoading) {
+    return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>;
+  }
+
+  const cards = [
+    {
+      title: 'Receita do mês', value: formatBRL(Number(kpis?.revenue_month ?? 0)),
+      icon: DollarSign, color: 'text-success', bg: 'bg-success/10',
+      delta: `${revenueDelta.up ? '+' : '-'}${revenueDelta.pct.toFixed(1)}%`, up: revenueDelta.up,
+    },
+    {
+      title: 'Ticket médio', value: formatBRL(Number(kpis?.avg_ticket_month ?? 0)),
+      icon: TrendingUp, color: 'text-primary', bg: 'bg-primary/10',
+    },
+    {
+      title: 'Agendamentos hoje',
+      value: `${Number(kpis?.appointments_today ?? 0)}/${Number(kpis?.appointments_total_slots ?? 0)}`,
+      icon: Calendar, color: 'text-accent', bg: 'bg-accent/10',
+    },
+    {
+      title: 'Novos clientes (mês)', value: String(kpis?.new_clients_this_month ?? 0),
+      icon: Users, color: 'text-warning', bg: 'bg-warning/10',
+    },
+    {
+      title: 'Taxa de no-show', value: `${Number(kpis?.no_show_rate_month ?? 0).toFixed(1)}%`,
+      icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10',
+    },
   ];
 
-  const handleCall = (phone: string | undefined) => {
-    if (phone) {
-      window.open(`tel:${phone}`, '_self');
-      toast({ title: 'Ligando...', description: `Iniciando chamada` });
-    }
-  };
-
-  const handleWhatsApp = (phone: string | undefined) => {
-    if (phone) {
-      window.open(`https://wa.me/55${phone.replace(/\D/g, '')}`, '_blank');
-    }
-  };
-
-  const handleViewHistory = (client: any) => {
-    setSelectedClient(client);
-    setHistoryModalOpen(true);
-  };
-
   return (
-    <div className="space-y-6">
-      {/* Header with greeting and quick actions */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-1"
-        >
-          <h1 className="text-2xl lg:text-3xl font-display font-bold text-foreground">
-            {getGreeting()}, {user?.name?.split(' ')[0]}!
-          </h1>
-          <p className="text-muted-foreground">
-            Mais do que cortes. Relacionamentos.
-          </p>
-        </motion.div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <Button 
-            variant="outline" 
-            className="gap-2 rounded-xl border-border hover:bg-primary/10 hover:text-primary hover:border-primary/30"
-            onClick={() => setClientModalOpen(true)}
-          >
-            <UserPlus className="w-4 h-4" />
-            Novo Cliente
-          </Button>
-          <Button 
-            variant="outline" 
-            className="gap-2 rounded-xl border-border hover:bg-primary/10 hover:text-primary hover:border-primary/30"
-            onClick={() => setLeadModalOpen(true)}
-          >
-            <Plus className="w-4 h-4" />
-            Novo Lead
-          </Button>
-          <Button 
-            className="gap-2 rounded-xl gradient-gold text-primary-foreground hover:opacity-90"
-            onClick={() => setAppointmentModalOpen(true)}
-          >
-            <Calendar className="w-4 h-4" />
-            Novo Agendamento
-          </Button>
-        </div>
+    <motion.div className="space-y-6 pb-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      <div>
+        <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Painel da barbearia</h1>
+        <p className="text-muted-foreground mt-1">Visão geral em tempo real</p>
       </div>
 
-      {/* Period Filter */}
-      <div className="flex items-center gap-2">
-        {(['today', 'week', 'month'] as const).map((period) => (
-          <Button
-            key={period}
-            variant={periodFilter === period ? 'default' : 'outline'}
-            size="sm"
-            className={`rounded-xl ${periodFilter === period ? 'gradient-gold text-primary-foreground' : ''}`}
-            onClick={() => setPeriodFilter(period)}
-          >
-            {period === 'today' ? 'Hoje' : period === 'week' ? 'Semana' : 'Mês'}
-          </Button>
-        ))}
-      </div>
+      {isEmpty && (
+        <Card className="border-dashed">
+          <CardContent className="py-10 text-center text-muted-foreground">
+            Sem dados ainda. Cadastre seu primeiro cliente e agendamento para começar.
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {[
-          { label: `Clientes ${periodLabel}`, value: clientsPeriod, change: '+2', icon: Users, positive: true },
-          ...(freeSlots !== null ? [{ label: 'Horários Livres', value: freeSlots, change: '+1', icon: Clock, positive: true }] : []),
-          { label: 'Retornos Pendentes', value: pendingReturns, change: '+7', icon: RotateCcw, positive: false },
-          { label: `Faturamento ${periodLabel}`, value: `R$${periodRevenue}`, change: '+R$115', icon: DollarSign, positive: true, highlight: true },
-        ].map((stat, index) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <Card className={`barber-card ${stat.highlight ? 'ring-2 ring-primary/20' : ''}`}>
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm text-muted-foreground">{stat.label}</span>
-                  <stat.icon className="w-5 h-5 text-primary/60" />
-                </div>
-                <div className="flex items-end justify-between">
-                  <span className="text-3xl font-bold text-foreground">{stat.value}</span>
-                  <Badge 
-                    variant="secondary" 
-                    className={`rounded-full ${stat.positive ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}
-                  >
-                    {stat.positive ? <ArrowUp className="w-3 h-3 mr-1" /> : <ArrowDown className="w-3 h-3 mr-1" />}
-                    {stat.change}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Today's Schedule - Takes 2 columns */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="lg:col-span-2"
-        >
-          <Card className="barber-card">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-xl font-display">
-                Agenda de Hoje
-                <Badge variant="secondary" className="ml-2 rounded-full">{todayAppointments.length}</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {todayAppointments.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Calendar className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p>Nenhum agendamento para hoje</p>
-                  <Button 
-                    variant="outline" 
-                    className="mt-4 rounded-xl"
-                    onClick={() => setAppointmentModalOpen(true)}
-                  >
-                    Agendar cliente
-                  </Button>
-                </div>
-              ) : (
-                todayAppointments.map((apt) => {
-                  const client = clients.find(c => c.id === apt.clientId);
-                  return (
-                    <div 
-                      key={apt.id} 
-                      className="flex items-center justify-between p-4 bg-secondary/30 rounded-xl hover:bg-secondary/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="text-center min-w-[60px]">
-                          <div className="text-lg font-bold text-foreground">{apt.time}</div>
-                          <div className="text-xs text-muted-foreground">+ {Math.floor(Math.random() * 2000)}pts</div>
-                        </div>
-                        <Avatar className="w-12 h-12 border-2 border-primary/20">
-                          <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${client?.name}`} />
-                          <AvatarFallback className="bg-primary/10 text-primary">
-                            {client?.name?.substring(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-semibold text-foreground">{client?.name || 'Cliente'}</p>
-                          <p className="text-sm text-muted-foreground">{apt.procedureName || 'Corte e Barba'}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button 
-                          size="icon" 
-                          variant="ghost" 
-                          className="rounded-full hover:bg-primary/10 hover:text-primary"
-                          onClick={() => handleWhatsApp(client?.phone)}
-                        >
-                          <MessageSquare className="w-4 h-4" />
-                        </Button>
-                        <Button 
-                          size="icon" 
-                          variant="ghost" 
-                          className="rounded-full hover:bg-primary/10 hover:text-primary"
-                          onClick={() => handleCall(client?.phone)}
-                        >
-                          <Phone className="w-4 h-4" />
-                        </Button>
-                        <Button 
-                          size="icon" 
-                          variant="ghost" 
-                          className="rounded-full hover:bg-primary/10 hover:text-primary"
-                          onClick={() => client && handleViewHistory(client)}
-                        >
-                          <History className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Right Column - Alerts */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="space-y-4"
-        >
-          {/* Birthdays */}
-          <Card className="barber-card overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary/10 to-transparent rounded-bl-full" />
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Gift className="w-5 h-5 text-primary" />
-                Aniversários Próximos
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {birthdayOpportunities.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum aniversário próximo</p>
-              ) : (
-                birthdayOpportunities.slice(0, 2).map((opp) => {
-                  const client = clients.find(c => c.id === opp.clientId);
-                  return (
-                    <div key={opp.id} className="flex items-center gap-3 py-2">
-                      <Avatar className="w-10 h-10">
-                        <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${client?.name}`} />
-                        <AvatarFallback>{client?.name?.substring(0, 2)}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-foreground truncate">{client?.name}</p>
-                        <p className="text-xs text-muted-foreground">🎂 {opp.description}</p>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Inactive Clients */}
-          <Card className="barber-card overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-warning/10 to-transparent rounded-bl-full" />
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <UserX className="w-5 h-5 text-warning" />
-                Clientes Inativos
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {inactiveClients.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Todos os clientes estão ativos!</p>
-              ) : (
-                inactiveClients.slice(0, 2).map((client) => (
-                  <div key={client.id} className="flex items-center gap-3 py-2">
-                    <Avatar className="w-10 h-10">
-                      <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${client.name}`} />
-                      <AvatarFallback>{client.name?.substring(0, 2)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-foreground truncate">{client.name}</p>
-                      <p className="text-xs text-muted-foreground">Sem retornar há 30 dias</p>
-                    </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {cards.map((c, i) => (
+          <Card key={i} className="border-0 bg-card/80 backdrop-blur-sm shadow-md">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div className={`p-2.5 rounded-xl ${c.bg}`}><c.icon className={`h-5 w-5 ${c.color}`} /></div>
+                {c.delta && (
+                  <div className={`flex items-center gap-1 text-xs font-medium ${c.up ? 'text-success' : 'text-destructive'}`}>
+                    {c.up ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                    {c.delta}
                   </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Products Running Low */}
-          <Card className="barber-card overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-destructive/10 to-transparent rounded-bl-full" />
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Package className="w-5 h-5 text-destructive" />
-                Produtos em Falta
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {repurchaseOpportunities.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum produto para recompra</p>
-              ) : (
-                repurchaseOpportunities.slice(0, 2).map((opp) => {
-                  const product = products.find(p => p.id === opp.productId);
-                  return (
-                    <div key={opp.id} className="flex items-center gap-3 py-2">
-                      <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center">
-                        <Package className="w-5 h-5 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-foreground truncate">{product?.name || 'Produto'}</p>
-                        <p className="text-xs text-muted-foreground">Acabando em 03 dias</p>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Statistics Chart */}
-          <Card className="barber-card">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <TrendingUp className="w-5 h-5 text-primary" />
-                  Estatísticas
-                </CardTitle>
-                <div className="text-right">
-                  <span className="text-lg font-bold text-foreground">R$5.320</span>
-                  <Badge variant="secondary" className="ml-2 bg-success/10 text-success rounded-full">
-                    +28%
-                  </Badge>
-                </div>
+                )}
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[120px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData}>
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
-                    <YAxis hide />
-                    <Tooltip 
-                      contentStyle={{ 
-                        background: 'hsl(var(--card))', 
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px'
-                      }} 
-                    />
-                    <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              <p className="text-2xl font-bold text-foreground">{c.value}</p>
+              <p className="text-sm text-muted-foreground mt-1">{c.title}</p>
             </CardContent>
           </Card>
-        </motion.div>
+        ))}
       </div>
 
-      {/* Modals */}
-      <ClientModal
-        open={clientModalOpen}
-        onOpenChange={setClientModalOpen}
-        client={null}
-      />
-      <LeadModal
-        open={leadModalOpen}
-        onOpenChange={setLeadModalOpen}
-        lead={null}
-        onSave={(data) => {
-          import('@/lib/store').then(({ leadsStore }) => {
-            leadsStore.create(data as any);
-          });
-          setLeadModalOpen(false);
-        }}
-      />
-      <AppointmentModal
-        open={appointmentModalOpen}
-        onOpenChange={setAppointmentModalOpen}
-        appointment={null}
-        onSave={(data) => {
-          appointmentsStore.create({
-            clientId: '',
-            procedureId: '',
-            professionalId: '',
-            clientName: data.client || '',
-            procedureName: data.procedure || '',
-            professionalName: data.professional || '',
-            date: data.date || new Date().toISOString().split('T')[0],
-            time: data.time || '09:00',
-            duration: data.duration || 60,
-            status: 'pending',
-          });
-          setAppointmentModalOpen(false);
-        }}
-      />
-      <ClientHistoryModal
-        open={historyModalOpen}
-        onOpenChange={setHistoryModalOpen}
-        clientId={selectedClient?.id ?? null}
-        clientName={selectedClient?.name ?? null}
-      />
-    </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="border-0 shadow-md">
+          <CardHeader>
+            <CardTitle className="text-lg">Receita (últimos 30 dias)</CardTitle>
+            <CardDescription>Apenas atendimentos concluídos</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={revenueChart} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="d" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false}
+                    tickFormatter={(v) => v?.slice(5)} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false}
+                    tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }}
+                    formatter={(v: number) => [formatBRL(v), 'Receita']}
+                  />
+                  <Area type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#rev)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-md">
+          <CardHeader>
+            <CardTitle className="text-lg">Top serviços (mês)</CardTitle>
+            <CardDescription>Por receita gerada</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topServices} layout="vertical" margin={{ left: 80 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal />
+                  <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                  <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }}
+                    formatter={(v: number) => [formatBRL(v), 'Receita']}
+                  />
+                  <Bar dataKey="revenue" radius={[0, 4, 4, 0]}>
+                    {topServices.map((_, i) => <Cell key={i} fill="hsl(var(--primary))" />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="border-0 shadow-md">
+        <CardHeader>
+          <CardTitle className="text-lg">Ranking de profissionais (mês)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {ranking.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">Sem atendimentos este mês.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-muted-foreground">
+                  <tr className="border-b">
+                    <th className="text-left py-2">Profissional</th>
+                    <th className="text-right py-2">Atendimentos</th>
+                    <th className="text-right py-2">Receita</th>
+                    <th className="text-right py-2">Ticket médio</th>
+                    <th className="text-right py-2">No-show</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ranking.map((r) => (
+                    <tr key={r.professional_id} className="border-b last:border-0">
+                      <td className="py-3 font-medium text-foreground">{r.name}</td>
+                      <td className="text-right">{r.appointments_count}</td>
+                      <td className="text-right">{formatBRL(Number(r.revenue))}</td>
+                      <td className="text-right">{formatBRL(Number(r.avg_ticket))}</td>
+                      <td className="text-right">{Number(r.no_show_rate).toFixed(1)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="border-0 shadow-md">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-warning" />
+            Clientes em risco
+          </CardTitle>
+          <CardDescription>Sem visitas há 60+ dias</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {atRisk.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">Nenhum cliente em risco. 🎉</p>
+          ) : (
+            <div className="space-y-2">
+              {atRisk.map((c) => (
+                <div key={c.client_id} className="flex items-center justify-between p-3 rounded-lg bg-muted/40">
+                  <div>
+                    <p className="font-medium text-foreground">{c.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Última visita: {new Date(c.last_visit).toLocaleDateString('pt-BR')} · {c.days_since} dias
+                    </p>
+                  </div>
+                  {c.phone && (
+                    <Button size="sm" variant="outline" className="gap-1.5"
+                      onClick={() => handleWhatsApp(c.phone!, `Olá ${c.name}, sentimos sua falta! Que tal agendar um horário?`, c.name)}>
+                      <MessageCircle className="w-4 h-4" /> WhatsApp
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
