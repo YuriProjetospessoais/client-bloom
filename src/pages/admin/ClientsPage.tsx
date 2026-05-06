@@ -283,7 +283,7 @@ export default function ClientsPage() {
       <AppointmentModal
         open={appointmentModalOpen}
         onOpenChange={setAppointmentModalOpen}
-        onSave={() => setAppointmentModalOpen(false)}
+        onSaved={() => setAppointmentModalOpen(false)}
       />
 
       <ClientHistoryModal
