@@ -1,172 +1,208 @@
-import { useState } from 'react';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useTenantId } from '@/hooks/queries/useTenantId';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Bell, Check, X, Clock, Calendar, Phone } from 'lucide-react';
+import { Bell, Phone, Calendar, Cake, RotateCcw, ShoppingBag, Loader2 } from 'lucide-react';
 
-interface Alert {
-  id: number;
-  client: string;
-  procedure: string;
-  lastVisit: string;
-  daysAgo: number;
-  phone: string;
-  status: 'pending' | 'contacted' | 'ignored';
+type AlertKind = 'birthday' | 'return' | 'restock';
+interface AlertItem {
+  id: string; kind: AlertKind; client: string; phone: string | null;
+  detail: string; daysInfo: string; badgeClass: string;
+  professionalId: string | null;
 }
 
-const mockAlerts: Alert[] = [
-  { id: 1, client: 'Maria Silva', procedure: 'Limpeza de pele', lastVisit: '2025-11-15', daysAgo: 61, phone: '(11) 99999-1111', status: 'pending' },
-  { id: 2, client: 'Carlos Santos', procedure: 'Botox', lastVisit: '2025-10-20', daysAgo: 87, phone: '(11) 99999-2222', status: 'pending' },
-  { id: 3, client: 'Ana Costa', procedure: 'Peeling', lastVisit: '2025-12-01', daysAgo: 45, phone: '(11) 99999-3333', status: 'contacted' },
-];
+const getInitials = (n: string) =>
+  n.split(' ').map(x => x[0]).join('').substring(0, 2).toUpperCase();
 
-export default function UserAlertsPage() {
-  const { t } = useLanguage();
-  const [alerts, setAlerts] = useState(mockAlerts);
+function useUserAlerts(companyId: string | null, userId: string | null) {
+  return useQuery({
+    queryKey: ['user-alerts', companyId, userId],
+    enabled: !!companyId,
+    queryFn: async (): Promise<{ items: AlertItem[]; profId: string | null }> => {
+      const today = new Date();
+      const in7 = new Date(); in7.setDate(today.getDate() + 7);
+      const in14 = new Date(); in14.setDate(today.getDate() + 14);
 
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-  };
+      // Find professional id for the logged-in user (if employee)
+      let profId: string | null = null;
+      if (userId) {
+        const { data: prof } = await supabase
+          .from('professionals').select('id')
+          .eq('company_id', companyId!).eq('user_id', userId).maybeSingle();
+        profId = prof?.id ?? null;
+      }
 
-  const handleContact = (id: number) => {
-    setAlerts(prev => prev.map(alert => 
-      alert.id === id ? { ...alert, status: 'contacted' as const } : alert
-    ));
-  };
+      const [clientsRes, atRiskRes, salesRes] = await Promise.all([
+        supabase.from('clients')
+          .select('id, name, phone, birthday, favorite_professional_id')
+          .eq('company_id', companyId!).eq('active', true).not('birthday', 'is', null),
+        supabase.rpc('get_at_risk_clients', { _company_id: companyId!, _days_threshold: 60 }),
+        supabase.from('product_sales')
+          .select('id, estimated_end_date, products(name), clients(id, name, phone, favorite_professional_id)')
+          .eq('company_id', companyId!)
+          .gte('estimated_end_date', today.toISOString().slice(0, 10))
+          .lte('estimated_end_date', in14.toISOString().slice(0, 10)),
+      ]);
 
-  const handleIgnore = (id: number) => {
-    setAlerts(prev => prev.map(alert => 
-      alert.id === id ? { ...alert, status: 'ignored' as const } : alert
-    ));
-  };
+      const items: AlertItem[] = [];
+      const mdNow = today.getMonth() * 31 + today.getDate();
+      const mdEnd = in7.getMonth() * 31 + in7.getDate();
 
-  const pendingAlerts = alerts.filter(a => a.status === 'pending');
-  const contactedAlerts = alerts.filter(a => a.status === 'contacted');
+      (clientsRes.data ?? []).forEach((c: any) => {
+        const b = new Date(c.birthday + 'T00:00:00');
+        const md = b.getMonth() * 31 + b.getDate();
+        const inRange = mdEnd >= mdNow ? md >= mdNow && md <= mdEnd : md >= mdNow || md <= mdEnd;
+        if (!inRange) return;
+        const daysTo = Math.max(0, Math.round((new Date(today.getFullYear(), b.getMonth(), b.getDate()).getTime() - today.getTime()) / 86400000));
+        items.push({
+          id: `bday-${c.id}`, kind: 'birthday', client: c.name, phone: c.phone,
+          detail: 'Aniversário próximo',
+          daysInfo: daysTo === 0 ? 'Hoje!' : `Em ${daysTo}d`,
+          badgeClass: 'bg-pink-500/20 text-pink-500',
+          professionalId: c.favorite_professional_id ?? null,
+        });
+      });
 
-  const AlertCard = ({ alert, showActions = true }: { alert: Alert; showActions?: boolean }) => (
-    <Card className="bg-background/50 border-border/50 hover:border-primary/30 transition-all">
+      // at-risk RPC doesn't expose favorite_professional_id; fetch them once
+      const atRiskIds = (atRiskRes.data ?? []).map((c: any) => c.client_id);
+      let favMap: Record<string, string | null> = {};
+      if (atRiskIds.length) {
+        const { data: favs } = await supabase.from('clients')
+          .select('id, favorite_professional_id').in('id', atRiskIds);
+        favMap = Object.fromEntries((favs ?? []).map((r: any) => [r.id, r.favorite_professional_id]));
+      }
+      (atRiskRes.data ?? []).forEach((c: any) => {
+        items.push({
+          id: `ret-${c.client_id}`, kind: 'return', client: c.name, phone: c.phone,
+          detail: 'Cliente sem retorno',
+          daysInfo: `${c.days_since}d sem vir`,
+          badgeClass: c.days_since > 90 ? 'bg-red-500/20 text-red-500' : 'bg-orange-500/20 text-orange-500',
+          professionalId: favMap[c.client_id] ?? null,
+        });
+      });
+
+      (salesRes.data ?? []).forEach((s: any) => {
+        const end = new Date(s.estimated_end_date + 'T00:00:00');
+        const days = Math.max(0, Math.round((end.getTime() - today.getTime()) / 86400000));
+        items.push({
+          id: `restock-${s.id}`, kind: 'restock',
+          client: s.clients?.name ?? 'Cliente', phone: s.clients?.phone ?? null,
+          detail: `Recompra: ${s.products?.name ?? 'produto'}`,
+          daysInfo: days === 0 ? 'Acaba hoje' : `${days}d restantes`,
+          badgeClass: 'bg-amber-500/20 text-amber-500',
+          professionalId: s.clients?.favorite_professional_id ?? null,
+        });
+      });
+
+      return { items, profId };
+    },
+  });
+}
+
+const KIND_META: Record<AlertKind, { icon: typeof Bell }> = {
+  birthday: { icon: Cake }, return: { icon: RotateCcw }, restock: { icon: ShoppingBag },
+};
+
+function AlertCard({ a }: { a: AlertItem }) {
+  const Icon = KIND_META[a.kind].icon;
+  return (
+    <Card className="bg-background/50 border-border/50">
       <CardContent className="p-4">
         <div className="flex items-start gap-4">
           <Avatar className="h-12 w-12 flex-shrink-0">
-            <AvatarFallback className="bg-primary/10 text-primary">
-              {getInitials(alert.client)}
-            </AvatarFallback>
+            <AvatarFallback className="bg-primary/10 text-primary">{getInitials(a.client)}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2">
-              <h4 className="font-medium text-foreground truncate">{alert.client}</h4>
-              <Badge className={`flex-shrink-0 ${
-                alert.daysAgo > 90 ? 'bg-red-500/20 text-red-500' :
-                alert.daysAgo > 60 ? 'bg-orange-500/20 text-orange-500' :
-                'bg-yellow-500/20 text-yellow-500'
-              }`}>
-                {alert.daysAgo} dias
-              </Badge>
+              <h4 className="font-medium text-foreground truncate">{a.client}</h4>
+              <Badge className={`flex-shrink-0 ${a.badgeClass}`}>{a.daysInfo}</Badge>
             </div>
-            <p className="text-sm text-muted-foreground mt-1">{alert.procedure}</p>
-            <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
-                {alert.lastVisit}
-              </span>
-              <span className="flex items-center gap-1">
-                <Phone className="w-3 h-3" />
-                {alert.phone}
-              </span>
-            </div>
+            <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+              <Icon className="w-3.5 h-3.5" /> {a.detail}
+            </p>
+            {a.phone && (
+              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                <Phone className="w-3 h-3" /> {a.phone}
+              </p>
+            )}
           </div>
         </div>
-        
-        {showActions && alert.status === 'pending' && (
-          <div className="flex gap-2 mt-4">
-            <Button 
-              size="sm" 
-              className="flex-1 gradient-primary text-white gap-1"
-              onClick={() => handleContact(alert.id)}
-            >
-              <Check className="w-4 h-4" />
-              Contatado
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline"
-              className="flex-1 gap-1"
-              onClick={() => handleIgnore(alert.id)}
-            >
-              <X className="w-4 h-4" />
-              Ignorar
-            </Button>
-          </div>
-        )}
-
-        {alert.status === 'contacted' && (
-          <div className="mt-3 pt-3 border-t border-border">
-            <Badge className="bg-green-500/20 text-green-500">
-              <Check className="w-3 h-3 mr-1" />
-              Contatado
-            </Badge>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
+}
+
+function EmptyState() {
+  return (
+    <div className="col-span-full text-center py-12 text-muted-foreground">
+      <Bell className="w-12 h-12 mx-auto mb-4 opacity-20" />
+      <p>Nenhum alerta no momento. Volte mais tarde.</p>
+    </div>
+  );
+}
+
+export default function UserAlertsPage() {
+  const { t } = useLanguage();
+  const { user } = useAuth();
+  const companyId = useTenantId();
+  const { data, isLoading } = useUserAlerts(companyId, user?.id ?? null);
+
+  const items = data?.items ?? [];
+  const profId = data?.profId ?? null;
+
+  // If employee, filter to clients linked to them (favorite professional). Otherwise show all.
+  const visible = useMemo(() => {
+    if (user?.role === 'employee' && profId) {
+      return items.filter(a => a.professionalId === profId);
+    }
+    return items;
+  }, [items, user?.role, profId]);
+
+  const groups = useMemo(() => ({
+    all: visible,
+    birthday: visible.filter(a => a.kind === 'birthday'),
+    return:   visible.filter(a => a.kind === 'return'),
+    restock:  visible.filter(a => a.kind === 'restock'),
+  }), [visible]);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">{t.nav.alerts}</h1>
-          <p className="text-muted-foreground mt-1">Clientes para contatar</p>
+          <p className="text-muted-foreground mt-1">Aniversários, retornos e recompras (somente leitura)</p>
         </div>
         <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500/10 border border-orange-500/20">
           <Bell className="w-5 h-5 text-orange-500" />
-          <span className="font-medium text-orange-500">{pendingAlerts.length} pendentes</span>
+          <span className="font-medium text-orange-500">{groups.all.length} alertas</span>
         </div>
       </div>
 
-      <Tabs defaultValue="pending" className="w-full">
-        <TabsList className="grid w-full max-w-sm grid-cols-2">
-          <TabsTrigger value="pending" className="gap-2">
-            <Clock className="w-4 h-4" />
-            Pendentes ({pendingAlerts.length})
-          </TabsTrigger>
-          <TabsTrigger value="contacted" className="gap-2">
-            <Check className="w-4 h-4" />
-            Contatados ({contactedAlerts.length})
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="pending" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {pendingAlerts.map((alert) => (
-              <AlertCard key={alert.id} alert={alert} />
-            ))}
-            {pendingAlerts.length === 0 && (
-              <div className="col-span-full text-center py-12 text-muted-foreground">
-                <Bell className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                <p>Nenhum alerta pendente</p>
+      {isLoading ? (
+        <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>
+      ) : (
+        <Tabs defaultValue="all" className="w-full">
+          <TabsList className="grid w-full max-w-2xl grid-cols-4">
+            <TabsTrigger value="all" className="gap-2"><Calendar className="w-4 h-4" />Todos ({groups.all.length})</TabsTrigger>
+            <TabsTrigger value="birthday" className="gap-2"><Cake className="w-4 h-4" />Aniv. ({groups.birthday.length})</TabsTrigger>
+            <TabsTrigger value="return" className="gap-2"><RotateCcw className="w-4 h-4" />Retorno ({groups.return.length})</TabsTrigger>
+            <TabsTrigger value="restock" className="gap-2"><ShoppingBag className="w-4 h-4" />Recompra ({groups.restock.length})</TabsTrigger>
+          </TabsList>
+          {(['all', 'birthday', 'return', 'restock'] as const).map(k => (
+            <TabsContent key={k} value={k} className="mt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {groups[k].length === 0 ? <EmptyState /> : groups[k].map(a => <AlertCard key={a.id} a={a} />)}
               </div>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="contacted" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {contactedAlerts.map((alert) => (
-              <AlertCard key={alert.id} alert={alert} showActions={false} />
-            ))}
-            {contactedAlerts.length === 0 && (
-              <div className="col-span-full text-center py-12 text-muted-foreground">
-                <Check className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                <p>Nenhum cliente contatado ainda</p>
-              </div>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
+            </TabsContent>
+          ))}
+        </Tabs>
+      )}
     </div>
   );
 }
