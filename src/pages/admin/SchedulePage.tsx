@@ -16,7 +16,15 @@ import { useServices } from '@/hooks/queries/useServices';
 import { useProfessionals } from '@/hooks/queries/useProfessionals';
 import { useClients } from '@/hooks/queries/useClients';
 
-const timeSlots = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
+// Grade de 30 em 30 min para alinhar com AppointmentModal (08:00 → 18:00).
+const timeSlots = (() => {
+  const slots: string[] = [];
+  for (let h = 8; h <= 18; h++) {
+    slots.push(`${String(h).padStart(2, '0')}:00`);
+    if (h < 18) slots.push(`${String(h).padStart(2, '0')}:30`);
+  }
+  return slots;
+})();
 type ViewMode = 'daily' | 'weekly';
 
 function addMinutes(time: string, minutes: number): string {
@@ -47,6 +55,7 @@ export default function SchedulePage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTime, setSelectedTime] = useState<string | undefined>();
   const [selectedDate, setSelectedDate] = useState<string | undefined>();
+  const [editAppt, setEditAppt] = useState<Appointment | null>(null);
   const [delOpen, setDelOpen] = useState(false);
   const [delAppt, setDelAppt] = useState<Appointment | null>(null);
 
@@ -73,6 +82,14 @@ export default function SchedulePage() {
   const handleNew = (time?: string, date?: string) => {
     setSelectedTime(time);
     setSelectedDate(date);
+    setEditAppt(null);
+    setModalOpen(true);
+  };
+
+  const handleEdit = (appt: Appointment) => {
+    setEditAppt(appt);
+    setSelectedTime(undefined);
+    setSelectedDate(undefined);
     setModalOpen(true);
   };
 
@@ -224,6 +241,10 @@ export default function SchedulePage() {
                                       onClick={() => { setDelAppt(appt); setDelOpen(true); }}>
                                       <Trash2 className="w-4 h-4" />
                                     </Button>
+                                    <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                                      onClick={() => handleEdit(appt)}>
+                                      Editar
+                                    </Button>
                                   </div>
                                 </div>
                               )}
@@ -248,8 +269,13 @@ export default function SchedulePage() {
         </Card>
       )}
 
-      <AppointmentModal open={modalOpen} onOpenChange={setModalOpen}
-        defaultTime={selectedTime} defaultDate={selectedDate || dateStr} />
+      <AppointmentModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        defaultTime={selectedTime}
+        defaultDate={selectedDate || dateStr}
+        appointment={editAppt}
+      />
 
       <ConfirmDialog open={delOpen} onOpenChange={setDelOpen}
         title="Excluir Agendamento"
