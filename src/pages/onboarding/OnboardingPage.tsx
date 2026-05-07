@@ -1,7 +1,6 @@
-// TODO: reativar fluxo de confirmação de email quando
-// Resend/SMTP estiver configurado (ver PROMPT-2 PARTE D).
-// Hoje o "Confirm email" está desativado no dashboard do Supabase,
-// então o admin pode logar imediatamente após criar a barbearia.
+// TODO: quando ativar SMTP + email_confirm: false na edge
+// function onboarding-barbershop, restaurar a tela "Verifique
+// seu email" e remover o auto-fill em /login.
 
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
@@ -170,7 +169,7 @@ export default function OnboardingPage() {
       }
 
       setDone(true);
-      toast({ title: 'Barbearia criada com sucesso!', description: 'Verifique seu email para confirmar a conta.' });
+      toast({ title: 'Barbearia criada com sucesso!', description: 'Sua conta já está pronta. Faça login para começar.' });
     } catch (e) {
       toast({
         title: 'Erro inesperado',
@@ -192,16 +191,16 @@ export default function OnboardingPage() {
           <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
             <Check className="w-8 h-8 text-emerald-400" />
           </div>
-          <h1 className="text-2xl font-bold mb-2">Verifique seu email</h1>
+          <h1 className="text-2xl font-bold mb-2">Barbearia criada com sucesso!</h1>
           <p className="text-neutral-400 mb-6">
-            Enviamos um link de confirmação para <span className="text-amber-400 font-medium">{email}</span>.
-            Clique no link para ativar sua conta e começar a usar o Navalhapp.
+            Sua conta <span className="text-amber-400 font-medium">{companyName}</span> já está pronta.
+            Faça login para começar.
           </p>
           <Button
-            onClick={() => navigate('/login')}
+            onClick={() => navigate('/login', { state: { prefillEmail: email.trim().toLowerCase() } })}
             className="w-full bg-amber-500 hover:bg-amber-400 text-black font-semibold"
           >
-            Ir para o login
+            Entrar agora
           </Button>
         </motion.div>
       </div>

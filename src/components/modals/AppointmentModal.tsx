@@ -9,7 +9,8 @@ import { toast } from 'sonner';
 import { useClients } from '@/hooks/queries/useClients';
 import { useServices } from '@/hooks/queries/useServices';
 import { useProfessionals } from '@/hooks/queries/useProfessionals';
-import { useCreateAppointment } from '@/hooks/mutations/useAppointmentMutations';
+import { useCreateAppointment, useUpdateAppointment } from '@/hooks/mutations/useAppointmentMutations';
+import type { Appointment } from '@/hooks/queries/useAppointments';
 
 interface AppointmentModalProps {
   open: boolean;
@@ -19,6 +20,7 @@ interface AppointmentModalProps {
   defaultClientId?: string;
   defaultProfessionalId?: string;
   onSaved?: () => void;
+  appointment?: Appointment | null;
 }
 
 const timeSlots = [
@@ -36,12 +38,15 @@ function addMinutes(time: string, minutes: number): string {
 }
 
 export function AppointmentModal({
-  open, onOpenChange, defaultTime, defaultDate, defaultClientId, defaultProfessionalId, onSaved,
+  open, onOpenChange, defaultTime, defaultDate, defaultClientId, defaultProfessionalId, onSaved, appointment,
 }: AppointmentModalProps) {
   const { data: clients = [] } = useClients();
   const { data: services = [] } = useServices({ onlyActive: true });
   const { data: professionals = [] } = useProfessionals({ onlyActive: true });
   const create = useCreateAppointment();
+  const update = useUpdateAppointment();
+  const isEdit = !!appointment;
+  const pending = create.isPending || update.isPending;
 
   const [form, setForm] = useState({
     client_id: '', service_id: '', professional_id: '',
@@ -51,17 +56,28 @@ export function AppointmentModal({
 
   useEffect(() => {
     if (open) {
-      setForm({
-        client_id: defaultClientId ?? '',
-        service_id: '',
-        professional_id: defaultProfessionalId ?? '',
-        date: defaultDate ?? new Date().toISOString().split('T')[0],
-        start_time: defaultTime ?? '',
-        notes: '',
-      });
+      if (appointment) {
+        setForm({
+          client_id: appointment.client_id ?? '',
+          service_id: appointment.service_id ?? '',
+          professional_id: appointment.professional_id ?? '',
+          date: appointment.date ?? '',
+          start_time: appointment.start_time?.slice(0, 5) ?? '',
+          notes: appointment.notes ?? '',
+        });
+      } else {
+        setForm({
+          client_id: defaultClientId ?? '',
+          service_id: '',
+          professional_id: defaultProfessionalId ?? '',
+          date: defaultDate ?? new Date().toISOString().split('T')[0],
+          start_time: defaultTime ?? '',
+          notes: '',
+        });
+      }
       setErrors({});
     }
-  }, [open, defaultDate, defaultTime, defaultClientId, defaultProfessionalId]);
+  }, [open, defaultDate, defaultTime, defaultClientId, defaultProfessionalId, appointment]);
 
   const selectedService = useMemo(
     () => services.find(s => s.id === form.service_id),
@@ -85,26 +101,41 @@ export function AppointmentModal({
     if (Object.keys(errs).length > 0) return;
 
     try {
-      await create.mutateAsync({
-        client_id: form.client_id,
-        service_id: form.service_id,
-        professional_id: form.professional_id,
-        date: form.date,
-        start_time: form.start_time,
-        end_time: endTime,
-        status: 'scheduled',
-        payment_method: 'in_person',
-        payment_status: 'pending',
-        booked_by_client: false,
-        notes: form.notes || null,
-      });
+      if (isEdit && appointment) {
+        await update.mutateAsync({
+          id: appointment.id,
+          patch: {
+            client_id: form.client_id,
+            service_id: form.service_id,
+            professional_id: form.professional_id,
+            date: form.date,
+            start_time: form.start_time,
+            end_time: endTime,
+            notes: form.notes || null,
+          },
+        });
+      } else {
+        await create.mutateAsync({
+          client_id: form.client_id,
+          service_id: form.service_id,
+          professional_id: form.professional_id,
+          date: form.date,
+          start_time: form.start_time,
+          end_time: endTime,
+          status: 'scheduled',
+          payment_method: 'in_person',
+          payment_status: 'pending',
+          booked_by_client: false,
+          notes: form.notes || null,
+        });
+      }
       onOpenChange(false);
       onSaved?.();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       const code = (err as { code?: string })?.code;
       if (code === '23505' || /já existe um agendamento/i.test(msg)) {
-        toast.error('Esse horário acabou de ser ocupado.');
+        toast.error('Esse horário já está ocupado.');
       }
       // other errors handled by mutation onError
     }
@@ -114,8 +145,10 @@ export function AppointmentModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Novo Agendamento</DialogTitle>
-          <DialogDescription>Preencha os dados para agendar.</DialogDescription>
+          <DialogTitle>{isEdit ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle>
+          <DialogDescription>
+            {isEdit ? 'Atualize os dados do agendamento.' : 'Preencha os dados para agendar.'}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -198,11 +231,11 @@ export function AppointmentModal({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={create.isPending}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
               Cancelar
             </Button>
-            <Button type="submit" className="gradient-primary text-white" disabled={create.isPending}>
-              {create.isPending ? 'Salvando...' : 'Agendar'}
+            <Button type="submit" className="gradient-primary text-white" disabled={pending}>
+              {pending ? 'Salvando...' : isEdit ? 'Salvar alterações' : 'Agendar'}
             </Button>
           </DialogFooter>
         </form>

@@ -11,7 +11,9 @@ import { MfaVerify } from '@/components/auth/MfaVerify';
 import barbershopBg from '@/assets/barbershop-bg.jpg';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const location = useLocation();
+  const prefillEmail = (location.state as { prefillEmail?: string } | null)?.prefillEmail ?? '';
+  const [email, setEmail] = useState(prefillEmail);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -20,7 +22,6 @@ export default function LoginPage() {
   const { login } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const from = location.state?.from?.pathname || '/';
   const redirectParam = new URLSearchParams(location.search).get('redirect');
