@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ChevronLeft, ChevronRight, Plus, Clock, Calendar as CalendarIcon, CheckCircle2, XCircle, UserX } from 'lucide-react';
 import { AppointmentModal } from '@/components/modals/AppointmentModal';
+import { ConfirmDialog } from '@/components/modals/ConfirmDialog';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useAppointmentsByDate, type Appointment } from '@/hooks/queries/useAppointments';
 import { useUpdateAppointment } from '@/hooks/mutations/useAppointmentMutations';
@@ -45,6 +46,7 @@ export default function UserSchedulePage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTime, setSelectedTime] = useState<string | undefined>();
+  const [cancelAppt, setCancelAppt] = useState<Appointment | null>(null);
 
   const dateStr = currentDate.toISOString().split('T')[0];
   const { data: appts = [] } = useAppointmentsByDate(dateStr);
@@ -67,6 +69,8 @@ export default function UserSchedulePage() {
     if (status === 'completed') patch.completed_at = new Date().toISOString();
     updateAppt.mutate({ id, patch });
   };
+
+  const canCancel = (a: Appointment) => a.status !== 'completed' && a.status !== 'cancelled';
 
   return (
     <div className="space-y-6">
@@ -138,10 +142,17 @@ export default function UserSchedulePage() {
                           <Button size="sm" variant="ghost" className="text-gray-600" onClick={() => setStatus(appt.id, 'no_show')}>
                             <UserX className="w-4 h-4" />
                           </Button>
-                          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setStatus(appt.id, 'cancelled')}>
-                            <XCircle className="w-4 h-4" />
-                          </Button>
                         </>
+                      )}
+                      {canCancel(appt) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1 text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => setCancelAppt(appt)}
+                        >
+                          <XCircle className="w-4 h-4" /> Cancelar
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -156,6 +167,23 @@ export default function UserSchedulePage() {
         <AppointmentModal open={modalOpen} onOpenChange={setModalOpen}
           defaultTime={selectedTime} defaultDate={dateStr} />
       )}
+
+      <ConfirmDialog
+        open={!!cancelAppt}
+        onOpenChange={(o) => !o && setCancelAppt(null)}
+        title="Cancelar agendamento"
+        description={
+          cancelAppt
+            ? `Deseja cancelar o agendamento de ${clientName(cancelAppt.client_id)} às ${cancelAppt.start_time?.slice(0, 5)}?`
+            : ''
+        }
+        confirmLabel="Sim, cancelar"
+        variant="destructive"
+        onConfirm={() => {
+          if (cancelAppt) setStatus(cancelAppt.id, 'cancelled');
+          setCancelAppt(null);
+        }}
+      />
     </div>
   );
 }
