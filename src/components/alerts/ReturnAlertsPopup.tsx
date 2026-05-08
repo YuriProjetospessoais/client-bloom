@@ -11,6 +11,9 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useTenantId } from '@/hooks/queries/useTenantId';
 
 interface ReturnAlert {
   id: string;
@@ -21,63 +24,58 @@ interface ReturnAlert {
   daysSinceVisit: number;
 }
 
-// Mock data for demonstration
-const mockAlerts: ReturnAlert[] = [
-  {
-    id: '1',
-    clientName: 'Ana Silva',
-    clientPhone: '(11) 99999-1234',
-    lastProcedure: 'Limpeza de Pele',
-    lastVisitDate: '2024-01-15',
-    daysSinceVisit: 30,
-  },
-  {
-    id: '2',
-    clientName: 'Carlos Santos',
-    clientPhone: '(11) 98888-5678',
-    lastProcedure: 'Corte Masculino',
-    lastVisitDate: '2024-01-10',
-    daysSinceVisit: 35,
-  },
-  {
-    id: '3',
-    clientName: 'Maria Oliveira',
-    clientPhone: '(11) 97777-9012',
-    lastProcedure: 'Coloração',
-    lastVisitDate: '2024-01-05',
-    daysSinceVisit: 40,
-  },
-];
-
 const POPUP_SHOWN_KEY = 'lovable-alerts-popup-shown';
 
 export function ReturnAlertsPopup() {
   const [isOpen, setIsOpen] = useState(false);
-  const [alerts, setAlerts] = useState<ReturnAlert[]>(mockAlerts);
   const { t } = useLanguage();
+  const companyId = useTenantId();
+
+  const { data: rawAlerts = [] } = useQuery({
+    queryKey: ['return-alerts', companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_at_risk_clients', {
+        _company_id: companyId!,
+        _days_threshold: 60,
+      });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+
+  const alerts: ReturnAlert[] = (rawAlerts as any[])
+    .filter((c) => !dismissed.has(c.client_id))
+    .map((c) => ({
+      id: c.client_id,
+      clientName: c.name,
+      clientPhone: c.phone ?? '',
+      lastProcedure: 'Último atendimento',
+      lastVisitDate: c.last_visit,
+      daysSinceVisit: c.days_since,
+    }));
 
   useEffect(() => {
-    // Check if popup was already shown today
+    if (alerts.length === 0) return;
     const lastShown = localStorage.getItem(POPUP_SHOWN_KEY);
     const today = new Date().toDateString();
-    
-    if (lastShown !== today && alerts.length > 0) {
-      // Show popup after a small delay
+    if (lastShown !== today) {
       const timer = setTimeout(() => {
         setIsOpen(true);
         localStorage.setItem(POPUP_SHOWN_KEY, today);
       }, 1000);
-      
       return () => clearTimeout(timer);
     }
   }, [alerts.length]);
 
   const handleMarkContacted = (id: string) => {
-    setAlerts(prev => prev.filter(a => a.id !== id));
+    setDismissed((prev) => new Set(prev).add(id));
   };
 
   const handleIgnore = (id: string) => {
-    setAlerts(prev => prev.filter(a => a.id !== id));
+    setDismissed((prev) => new Set(prev).add(id));
   };
 
   const handleClose = () => {
